@@ -4,3 +4,15 @@
 [submodule "gohan"]
 	path = gohan
 	url = git@github.com:tanklinux/gohan.git
+[submodule "st"]
+	path = st
+	url = git@github.com:tanklinux/st.git
+[submodule "dwm"]
+	path = dwm
+	url = git@github.com:tanklinux/dwm.git
+[submodule "dwmblocks"]
+	path = dwmblocks
+	url = git@github.com:tanklinux/dwmblocks.git
+[submodule "dmenu"]
+	path = dmenu
+	url = git@github.com:tanklinux/dmenu.git
