@@ -1,4 +1,4 @@
-## Security-Hardened GNU/Linux Personal Computing for REAL HUMAN BEINGS
+## Security-Hardened Personal Computing for REAL HUMAN BEINGS
 
 Install after booting from an artix base runit ISO, with this one liner:
 ``` Shell
