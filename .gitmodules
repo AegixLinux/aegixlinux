@@ -1,0 +1,6 @@
+[submodule "barbs"]
+	path = barbs
+	url = git@github.com:tanklinux/barbs.git
+[submodule "gohan"]
+	path = gohan
+	url = git@github.com:tanklinux/gohan.git
