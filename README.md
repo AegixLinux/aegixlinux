@@ -10,7 +10,7 @@ curl -LO tanklinux.com/tl.sh
 sh tl.sh
 ```
 
-Image:
+Artwork from remote location in Nagano, Japan
 ![misty-nagano](https://github.com/tanklinux/gohan/blob/main/.local/share/misty-nagano.jpg)
 
 ``` Shell
