@@ -1,8 +1,8 @@
 # TANKLINUX.COM
 
-## Security-Hardened Personal Computing for REAL HUMAN BEINGS
-
 https://tanklinux.com 
+
+## Security-Hardened Personal Computing for REAL HUMAN BEINGS
 
 ### Elite, Turn-Key Linux
 
