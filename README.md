@@ -67,7 +67,8 @@ TANKLINUX's barbs.sh script is inspired by Luke Smith's larbs.sh script. Big tha
 
 ## Art
 
-TANKLINUX artwork from remote location in Nagano, Japan
+TANKLINUX desktop artwork from remote location in Nagano, Japan:
+
 ![misty-nagano](https://github.com/tanklinux/gohan/blob/main/.local/share/misty-nagano.jpg)
 
 TANKLINUX ASCII Art
