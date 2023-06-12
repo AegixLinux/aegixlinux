@@ -1,16 +1,73 @@
+# TANKLINUX.COM
+
 ## Security-Hardened Personal Computing for REAL HUMAN BEINGS
 
-Install after booting from an artix base runit ISO, with this one liner:
+### Elite, Turn-Key Linux
+
+- Suckless software graphical environment with dwm
+- LUKS-encrypted system drive
+- Artix base w/ runit init system (no systemd)
+- BTRFS filesystem auto-snapshotable 
+- Wireplumber & pipewire audio system
+- Familiar vim-centric key bindings
+
+## Installation
+
+TL;DR: Install after booting from an artix base runit ISO, with this one liner:
 ``` Shell
 curl -LO tanklinux.com/tl.sh && sh tl.sh
 ```
-Or make it two:
+
+### Prepare USB Thumbdrive Installation Medium
+
+Put the latest "artix-base-runit" ISO from
+https://artixlinux.org/download.php onto your usb thumbdrive, such that it's bootable from the computer you are installing TANKLINUX on.
+At the time of writing, the current ISO is here:
+https://download.artixlinux.org/iso/artix-base-runit-20220713-x86_64.iso
+
+### Boot Target Computer from USB Thumbdrive
+
+On an old ThinkPad, you can push a few times and hold the F12 key to get the BIOS to allow to choose what storage device to boot from. Other machines have something similar.
+
+Boot your target computer from your USB thumbdrive, login as "root"/"artix"
+
+Run this one-liner:
 ``` Shell
-curl -LO tanklinux.com/tl.sh
-sh tl.sh
+curl -LO tanklinux.com/tl.sh && sh tl.sh
 ```
 
-Artwork from remote location in Nagano, Japan
+Follow the prompts.
+
+## Target Hardware
+
+TANKLINUX is tested and working on a range of ThinkPads including all the best ones 🤔
+
+- X220
+- T420, T420s
+- T430
+- P50, P50s
+
+It's also been tested on an HP Z800 office server. 
+
+Testing on other hardware platforms is welcomed. Please share your results.
+
+## A Note on Git Submodules
+
+Nested within this git repository are six submodules representing other TANKLINUX repos. They are:
+
+- barbs (TANKLINUX Base Automation Routine for Building Systems)
+- gohan (TANKLINUX dotfiles and configuration)
+- dwm (TANKLINUX build of suckless dwm)
+- dwmblocks (TANKLINUX build of suckless dwmblocks)
+- st (TANKLINUX build of suckless simple terminal)
+
+## For the LARBS-aware
+
+TANKLINUX's barbs.sh script is inspired by Luke Smith's larbs.sh script. Big thank you to him for that as well as his voidrice repo from which TANKLINUX gohan liberally borrows. As TANKLINUX continues to develop, more divergence will be likely to take place, but having the reference to get started was a tremendous help. 
+
+## Art
+
+TANKLINUX artwork from remote location in Nagano, Japan
 ![misty-nagano](https://github.com/tanklinux/gohan/blob/main/.local/share/misty-nagano.jpg)
 
 TANKLINUX ASCII Art
