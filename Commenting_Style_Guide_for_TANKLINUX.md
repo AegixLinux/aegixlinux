@@ -1,5 +1,7 @@
 # Commenting Style Guide for TANKLINUX
 
+The style guide uses a format reminiscent of markdown, with a specified number of hash characters for each section header.
+
 ## Regular Comments
 
 `# This is a regular comment`
