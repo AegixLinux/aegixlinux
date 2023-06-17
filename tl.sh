@@ -145,7 +145,7 @@ echo -n "$luks_pass1" | cryptsetup open --type luks "${selected_device_path}2" t
 # # Open the LUKS container
 # echo -n "$luks_pass1" | cryptsetup open --type luks "${selected_device_path}2" tankluks -
 
-# Format the system partition as btrfs
+# Format the system partition as btrfsEnter a host
 mkfs.btrfs -f -L BUTTER /dev/mapper/tankluks
 # Mount btrfs
 mount /dev/mapper/tankluks /mnt 
