@@ -286,6 +286,10 @@ export LC_COLLATE="C"
 pacman -S networkmanager networkmanager-runit --noconfirm
 ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
 
+# Setup NTP
+pacman -S openntpd openntpd-runit --noconfirm
+ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
+
 # Now we can install xorg
 pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
