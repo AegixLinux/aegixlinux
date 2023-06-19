@@ -74,9 +74,16 @@ curl -LO tanklinux.com/README.md
 # Get hostname from user
 hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
 
-# Get timezone from user
-dialog --defaultno --title "Set your system's time zone." --yesno "Do you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to select your own time zone.\nSelect no to set system to Eastern time."  10 60 || echo "America/New_York" > timezone || tzselect > timezone
+# # Get timezone from user
+# dialog --defaultno --title "Set your system's time zone." --yesno "Do you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to select your own time zone.\nSelect no to set system to Eastern time."  10 60 || echo "America/New_York" > timezone || tzselect > timezone
 
+# Get timezone from user
+if dialog --defaultno --title "Set your system's time zone." --yesno "Do you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to select your own time zone.\nSelect no to set system to Eastern time."  10 60
+then
+    timezone=$(tzselect)
+else
+    timezone="America/New_York"
+fi
 
 # Get root pw from user
 rootpass1=$(dialog --no-cancel --passwordbox "Enter password for root user. Make it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
