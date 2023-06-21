@@ -95,7 +95,7 @@ while true; do
 done
 
 # Write zeros. Takes time
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nDo you want to write zeros across the entire hard drive before setting it up? Selecting yes can take time. Even a small 120G drive can take about 5 minutes.\n\nThis is a blunt intrument. If you already have a LUKS container setup that is not tankluks from a prior encrypted installation, select yes. Otherwise select no if you want to save time." 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
+dialog --defaultyes --title "HIC SUNT DRACONES" --yesno "\nDo you want to write zeros across the entire hard drive before setting it up? Selecting yes can take time. Even a small 120G drive can take about 5 minutes.\n\nThis is a blunt intrument. If you already have a LUKS container setup that is not tankluks from a prior encrypted installation, select yes. Otherwise select no if you want to save time." 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
 # Get the passphrase for the LUKS partition
 luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for symmetrical LUKS encryption. Make it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
