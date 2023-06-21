@@ -126,7 +126,7 @@ parted -s -a optimal $selected_device_path mkpart primary 1GiB 100%
 luks_container_exists=$(cryptsetup isLuks "${selected_device_path}2" && echo "yes" || echo "no")
 
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --yes-label "No" --no-label "Yes" --title "LUKS Container Exists" --yesno "\nThe device ${selected_device_path}2 already contains a LUKS superblock signature. Remove it?\n\nIf it is from a prior tanklinux.com installation, selecting yes will remove it. Otherwise things will probably fall apart here, and you'll want to run the script again and select yes on a prior step to WRITE ZEROS across the entire block device to get a clean slate before proceeding." 15 60 || exit
+    dialog --defaultno --title "LUKS Container Exists" --yesno "\nThe device ${selected_device_path}2 already contains a LUKS superblock signature. Remove it?\n\nIf it is from a prior tanklinux.com installation, selecting yes will remove it. Otherwise things will probably fall apart here, and you'll want to run the script again and select yes on a prior step to WRITE ZEROS across the entire block device to get a clean slate before proceeding." 15 60 || exit
     # Set the batch-mode flag
     batch_mode_flag="-q"
 
