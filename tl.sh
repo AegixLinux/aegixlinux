@@ -95,7 +95,7 @@ while true; do
 done
 
 # Write zeros. Takes time
-dialog --defaultyes --title "HIC SUNT DRACONES" --yesno "\nDo you want to write zeros across the entire hard drive before setting it up? Selecting yes can take time. Even a small 120G drive can take about 5 minutes.\n\nThis is a blunt intrument. If you already have a LUKS container setup that is not tankluks from a prior encrypted installation, select yes. Otherwise select no if you want to save time." 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
+dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nDo you want to write zeros across the entire hard drive before setting it up? Selecting yes can take time. Even a small 120G drive can take about 5 minutes.\n\nThis is a blunt intrument. If you already have a LUKS container setup that is not tankluks from a prior encrypted installation, select yes. Otherwise select no if you want to save time." 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
 # Get the passphrase for the LUKS partition
 luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for symmetrical LUKS encryption. Make it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
@@ -126,7 +126,7 @@ parted -s -a optimal $selected_device_path mkpart primary 1GiB 100%
 luks_container_exists=$(cryptsetup isLuks "${selected_device_path}2" && echo "yes" || echo "no")
 
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno --title "LUKS Container Exists" --yesno "\nThe device ${selected_device_path}2 already contains a LUKS superblock signature. Remove it?\n\nIf it is from a prior tanklinux.com installation, selecting yes will remove it. Otherwise things will probably fall apart here, and you'll want to run the script again and select yes on a prior step to WRITE ZEROS across the entire block device to get a clean slate before proceeding." 15 60 || exit
+    dialog --yes-label "No" --no-lable "Yes" --title "LUKS Container Exists" --yesno "\nThe device ${selected_device_path}2 already contains a LUKS superblock signature. Remove it?\n\nIf it is from a prior tanklinux.com installation, selecting yes will remove it. Otherwise things will probably fall apart here, and you'll want to run the script again and select yes on a prior step to WRITE ZEROS across the entire block device to get a clean slate before proceeding." 15 60 || exit
     # Set the batch-mode flag
     batch_mode_flag="-q"
 
