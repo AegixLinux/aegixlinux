@@ -15,7 +15,6 @@ while IFS= read -r line; do
     device_list="${device_list} $device \"$size $model\""
 done <<< "$devices"
 
-
 selected_device=$(eval dialog --stdout --menu \"Select a block device for TANKLINUX installation:\" 15 60 5 $device_list)
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
@@ -113,6 +112,8 @@ mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankl
 mkdir -p /mnt/boot
 mount "$boot_partition" /mnt/boot
 
+
+
 lsblk -f
 sleep 10s
 
@@ -179,6 +180,16 @@ echo "full xorg install or reinstall"
 sleep 3s
 
 sh /root/barbs.sh
+
+btrfs quota enable /
+
+sed -i \
+    -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' \
+    -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' \
+    -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' \
+    /etc/timeshift/timeshift.json
+
+# sed -i -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' /etc/timeshift/timeshift.json
 
 EOF
 

@@ -15,7 +15,6 @@ while IFS= read -r line; do
     device_list="${device_list} $device \"$size $model\""
 done <<< "$devices"
 
-
 selected_device=$(eval dialog --stdout --menu \"Select a block device for TANKLINUX installation:\" 15 60 5 $device_list)
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
@@ -112,6 +111,8 @@ mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankl
 
 mkdir -p /mnt/boot
 mount "$boot_partition" /mnt/boot
+
+
 
 lsblk -f
 sleep 10s
