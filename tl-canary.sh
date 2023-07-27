@@ -15,7 +15,7 @@ while IFS= read -r line; do
     device_list="${device_list} $device \"$size $model\""
 done <<< "$devices"
 
-selected_device=$(eval dialog --stdout --menu \"Select a block device for TANKLINUX installation:\" 15 60 5 $device_list)
+selected_device=$(eval dialog --stdout --menu \"Select a block device for your TANKLINUX installation:\" 15 60 5 $device_list)
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
     echo "Selected block device: $selected_device_path"
@@ -24,7 +24,7 @@ else
     exit
 fi
 
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nCAUTION: Here Be Dragons\nSelecting < Yes > will destroy the contents of your selected block device.\n\nProceed only if certain. Are you certain?"  10 60 || exit
+dialog --defaultno --title "HIC SUNT DRACONES" --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 curl -LO tanklinux.com/barbs.sh
 curl -LO tanklinux.com/tank-programs.csv
@@ -33,29 +33,29 @@ curl -LO tanklinux.com/README.md
 
 hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
 
-if dialog --defaultno --title "Set your system's time zone." --yesno "Do you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to select your own time zone.\nSelect no to set system to Eastern time."  10 60
+if dialog --defaultno --title "Set your system's time zone." --yesno "\nDo you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to choose a different time zone."  10 60
 then
     timezone=$(tzselect)
 else
     timezone="America/New_York"
 fi
 
-rootpass1=$(dialog --no-cancel --passwordbox "Enter password for root user. Make it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-rootpass2=$(dialog --no-cancel --passwordbox "Retype password." 10 60 3>&1 1>&2 2>&3 3>&1)
+rootpass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the root user.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+rootpass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 while true; do
 	[[ "$rootpass1" != "" && "$rootpass1" == "$rootpass2" ]] && break
-	rootpass1=$(dialog --no-cancel --passwordbox "Oy mate! Your passwords do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-	rootpass2=$(dialog --no-cancel --passwordbox "Enter same pw twice." 10 60 3>&1 1>&2 2>&3 3>&1)
+	rootpass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passwordphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
+	rootpass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 done
 
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nDo you want to write zeros across the entire hard drive before setting it up? Selecting yes can take time. Even a small 120G drive can take about 5 minutes.\n\nThis is a blunt intrument. If you already have a LUKS container setup that is not tankluks from a prior encrypted installation, select yes. Otherwise select no if you want to save time." 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
+dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
-luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for symmetrical LUKS encryption. Make it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
 luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 
 while true; do
     [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
-    luks_pass1=$(dialog --no-cancel --passwordbox "Passphrases do not match. Enter the encryption passphrase again." 10 60 3>&1 1>&2 2>&3 3>&1)
+    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
     luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 done
 
@@ -85,7 +85,7 @@ fi
 luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
 
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno --title "LUKS Container Exists" --yesno "\nQuit now and manually resolve? Select Yes to quit. \n\nSelect No to proceed and remove the superblock signature from the device ${luks_partition}.\n\nIf you are stuck here, you may want to run the script again and at a prior step choose to WRITE ZEROS across the entire block device to get a clean slate before proceeding." 15 60 && exit || batch_mode_flag="-q"
+    dialog --defaultno --title "LUKS Container Exists" --yesno "\nYou have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to abort installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
@@ -111,8 +111,6 @@ mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankl
 
 mkdir -p /mnt/boot
 mount "$boot_partition" /mnt/boot
-
-
 
 lsblk -f
 sleep 10s
@@ -179,8 +177,6 @@ pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
 sleep 3s
 
-sh /root/barbs.sh
-
 btrfs quota enable /
 
 sed -i \
@@ -190,6 +186,8 @@ sed -i \
     /etc/timeshift/timeshift.json
 
 # sed -i -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' /etc/timeshift/timeshift.json
+
+sh /root/barbs.sh
 
 EOF
 
