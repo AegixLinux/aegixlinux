@@ -191,6 +191,6 @@ sh /root/barbs.sh
 
 EOF
 
-dialog --msgbox "\nTANKLINUX is now installed (,or you cancelled somewhere in BARBS :-)\n\n- Type:\nshutdown -h now\n\n- Remove the installer USB thumbdrive & reboot into your new system.\n\n                     ~Zenshin Suru~\n\n-TANKLINUX.COM" 20 60
+dialog --msgbox "\nTANKLINUX is now installed, or you cancelled somewhere in BARBS :-)\n\n- Type:\nshutdown -h now\n- Remove the installer USB thumbdrive & reboot into your new system.\nDon't worry. We'll remind you one more time.\n\n                     ~Zenshin Suru~\n\n                     -TANKLINUX.COM" 20 60
 
 cat ascii-tank
