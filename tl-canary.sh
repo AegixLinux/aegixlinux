@@ -24,7 +24,7 @@ else
     exit
 fi
 
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nCAUTION: Here Be Dragons\nIf you proceed, the contents of the block device you just selected will be destroyed. Make sure you have the data of all attached hard drives backed up.\nProceed only if certain. Are you certain?"  10 60 || exit
+dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nCAUTION: Here Be Dragons\nSelecting < Yes > will destroy the contents of your selected block device.\n\nProceed only if certain. Are you certain?"  10 60 || exit
 
 curl -LO tanklinux.com/barbs.sh
 curl -LO tanklinux.com/tank-programs.csv
