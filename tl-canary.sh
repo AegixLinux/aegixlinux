@@ -41,7 +41,7 @@ else
 fi
 
 rootpass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the root user.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-rootpass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+rootpass2=$(dialog --no-cancel --passwordbox "Retype the root passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 while true; do
 	[[ "$rootpass1" != "" && "$rootpass1" == "$rootpass2" ]] && break
 	rootpass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passwordphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
@@ -51,7 +51,7 @@ done
 dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
 luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass2=$(dialog --no-cancel --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 
 while true; do
     [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
