@@ -177,13 +177,13 @@ pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
 sleep 3s
 
-btrfs quota enable /
+# btrfs quota enable /
 
-sed -i \
-    -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' \
-    -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' \
-    -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' \
-    /etc/timeshift/timeshift.json
+# sed -i \
+#     -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' \
+#     -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' \
+#     -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' \
+#     /etc/timeshift/timeshift.json
 
 # sed -i -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' /etc/timeshift/timeshift.json
 
