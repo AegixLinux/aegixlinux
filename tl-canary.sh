@@ -70,7 +70,7 @@ while true; do
 done
 
 # Get disk setup packages
-pacman -S parted cryptsetup lvm2 --noconfirm
+pacman -Syu glibc parted cryptsetup lvm2 --noconfirm
 
 # Create partitions
 parted -s -a optimal $selected_device_path mklabel msdos
