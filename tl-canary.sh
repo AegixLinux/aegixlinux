@@ -108,8 +108,8 @@ if [ "$luks_container_exists" = "yes" ]; then
 else
     batch_mode_flag=""
 fi
-
-
+Set boot partition for nvme or standard ssd
+ 
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
 echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
 
