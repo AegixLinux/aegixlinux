@@ -113,31 +113,36 @@ fi
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
 echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
 
+# BTRFS setup with subvolumes for timeshift auto-backup compatibility
 mkfs.btrfs -f -L BUTTER /dev/mapper/tankluks
 mount /dev/mapper/tankluks /mnt
-
 btrfs sub cr /mnt/@
 btrfs sub cr /mnt/@home
 
+# Unmount and remount with subvolumes
 umount /mnt
 mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/tankluks /mnt
 mkdir -p /mnt/home
 mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankluks /mnt/home
 
+# Create boot directory and mount boot partition
 mkdir -p /mnt/boot
 mount "$boot_partition" /mnt/boot
 
+# Block devices looking pretty
 lsblk -f
 sleep 10s
 
+# Bootstrap the based system
 basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr
-
 echo "basestrap ran"
 
+# Setup hosts file
 echo "127.0.0.1    localhost" > /mnt/etc/hosts
 echo "::1    localhost" >> /mnt/etc/hosts
 echo "127.0.1.1    $hostname.localdomain $hostname" >> /mnt/etc/hosts
 
+# Generate fstab
 fstabgen -U /mnt >> /mnt/etc/fstab
 
 # encrypted_partition_uuid=$(lsblk -f "$luks_partition" -o UUID | awk 'NR==2')
