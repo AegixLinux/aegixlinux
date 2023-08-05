@@ -11,6 +11,7 @@ devices=$(lsblk -d -p -n -l -o NAME,SIZE,MODEL -e 7,11)
 
 # Parse block devices for dialog display
 device_list=""
+
 while IFS= read -r line; do
     device=$(echo "$line" | awk '{print $1}')
     size=$(echo "$line" | awk '{print $2}')
@@ -63,6 +64,7 @@ dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nATTENTION HACKERMAN:\n
 # Get encryption passphrase
 luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
 luks_pass2=$(dialog --no-cancel --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+
 while true; do
     [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
     luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
@@ -70,7 +72,7 @@ while true; do
 done
 
 # Get disk setup packages
-pacman -Syu glibc parted cryptsetup lvm2 --noconfirm
+pacman -S glibc parted cryptsetup lvm2 --noconfirm
 
 # Create partitions
 parted -s -a optimal $selected_device_path mklabel msdos
@@ -101,6 +103,7 @@ luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || ech
 # Prompt user to proceed to destroy extant LUKS setup or bail out
 if [ "$luks_container_exists" = "yes" ]; then
     dialog --defaultno --title "LUKS Container Exists" --yesno "\nYou have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to abort installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
         cryptsetup remove tankluks
@@ -116,6 +119,7 @@ echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
 # BTRFS setup with subvolumes for timeshift auto-backup compatibility
 mkfs.btrfs -f -L BUTTER /dev/mapper/tankluks
 mount /dev/mapper/tankluks /mnt
+
 btrfs sub cr /mnt/@
 btrfs sub cr /mnt/@home
 
@@ -135,6 +139,7 @@ sleep 10s
 
 # Bootstrap the based system
 basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr
+
 echo "basestrap ran"
 
 # Setup hosts file
