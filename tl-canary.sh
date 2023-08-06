@@ -150,6 +150,7 @@ echo "127.0.1.1    $hostname.localdomain $hostname" >> /mnt/etc/hosts
 # Generate fstab
 fstabgen -U /mnt >> /mnt/etc/fstab
 
+# Collect UUIDs
 # encrypted_partition_uuid=$(lsblk -f "$luks_partition" -o UUID | awk 'NR==2')
 encrypted_partition_uuid=$(cryptsetup luksUUID "$luks_partition")
 luks_container_uuid=$(findmnt -no UUID /mnt)
@@ -157,11 +158,14 @@ luks_container_uuid=$(findmnt -no UUID /mnt)
 echo "Encrypted partition UUID: $encrypted_partition_uuid"
 echo "LUKS container UUID: $luks_container_uuid"
 
+# Setup crypttab
 echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
+# Copy files to new system
 cp barbs.sh /mnt/root/
 cp tank-programs.csv /mnt/root/
 
+# Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
 
 echo "Still have Encrypted partition UUID: $encrypted_partition_uuid"
@@ -169,21 +173,26 @@ echo "Still have LUKS container UUID: $luks_container_uuid"
 
 sleep 4s
 
+# Modify the mkinitcpio configuration to include encryption and LVM hooks, then regenerate the initramfs for the Linux kernel
 sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
 
+# Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
 
+# Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
 grub-mkconfig -o /boot/grub/grub.cfg
 
+# Set the root password.
 echo "root:$rootpass1" | chpasswd
 
+# Configure system clock, time zone, and hostname.
 hwclock --systohc
-
 ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
 echo "$hostname" > /etc/hostname
 
+# Generate and set up system locale settings for the US English language and default collation order.
 echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 echo "en_US ISO-8859-1" >> /etc/locale.gen
 locale-gen
@@ -192,10 +201,14 @@ export "LANG=en_US.UTF-8"
 echo "LC_COLLATE=C" >> /etc/locale.conf
 export LC_COLLATE="C"
 
+# Install NetworkManager and its runit service
 pacman -S networkmanager networkmanager-runit --noconfirm
+# Create a symlink for NetworkManager runit service
 ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
 
+# Install openntpd and its runit service
 pacman -S openntpd openntpd-runit --noconfirm
+# Create a symlink for openntpd runit service
 ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
 
 pacman -Sy xorg --noconfirm
