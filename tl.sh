@@ -102,7 +102,7 @@ luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || ech
 
 # Prompt user to proceed to destroy extant LUKS setup or bail out
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno --title "LUKS Container Exists" --yesno "\nYou have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to abort installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    dialog --defaultno --title "LUKS Container Exists - ABORT??" --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to ABORT KILL installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
