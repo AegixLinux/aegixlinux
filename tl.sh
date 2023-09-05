@@ -211,10 +211,15 @@ pacman -S openntpd openntpd-runit --noconfirm
 # Create a symlink for openntpd runit service
 ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
 
-# Install openssh and its runit service
+# SSH gets first class citizen status ~ Install openssh and its runit service
 pacman -S openssh openssh-runit --noconfirm
 # Create a symlink for openssh runit service
 ln -s /etc/runit/sv/sshd/ /etc/runit/runsvdir/current
+
+# Cron gets first class citizen status ~ Install and enable the cron daemon
+pacman -S cronie cronie-runit --noconfirm
+# Create a symlink for cronie runit service
+ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
 pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
