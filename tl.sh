@@ -211,6 +211,11 @@ pacman -S openntpd openntpd-runit --noconfirm
 # Create a symlink for openntpd runit service
 ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
 
+# Install openssh and its runit service
+pacman -S openssh openssh-runit --noconfirm
+# Create a symlink for openssh runit service
+ln -s /etc/runit/sv/sshd/ /etc/runit/runsvdir/current
+
 pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
 sleep 3s
