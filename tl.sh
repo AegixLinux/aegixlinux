@@ -112,7 +112,7 @@ else
     batch_mode_flag=""
 fi
 
-# Set boot partition for nvme or standard ssd 
+# Set boot partition for nvme or standard ssd
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
 echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
 
@@ -180,12 +180,12 @@ mkinitcpio -p linux
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
 
-# Copy GRUB menu bg image 
-cp /PATH/IN/REPO/mt-aso-pixels.png /home/$user_name/mt-aso-pixels.png
+# Copy GRUB menu bg image
+#cp /PATH/IN/REPO/mt-aso-pixels.png /home/$user_name/mt-aso-pixels.png
 
 # Update the GRUB configuration to set the GRUB background
-sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
-sed -i "s|^GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+#sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+#sed -i "s|^GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
 
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
