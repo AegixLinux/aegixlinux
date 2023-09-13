@@ -37,6 +37,7 @@ curl -LO tanklinux.com/barbs.sh
 curl -LO tanklinux.com/tank-programs.csv
 curl -LO tanklinux.com/ascii-tank
 curl -LO tanklinux.com/README.md
+curl -LO tanklinux.com/mt-aso-pixels.png
 
 # Collect user input for hostname
 hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
@@ -112,7 +113,7 @@ else
     batch_mode_flag=""
 fi
 
-# Set boot partition for nvme or standard ssd 
+# Set boot partition for nvme or standard ssd
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
 echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
 
@@ -164,6 +165,7 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp tank-programs.csv /mnt/root/
+cp mt-aso-pixels.png /mnt/root/
 
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
@@ -180,8 +182,8 @@ mkinitcpio -p linux
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
 
-# Copy GRUB menu bg image 
-cp /PATH/IN/REPO/mt-aso-pixels.png /home/$user_name/mt-aso-pixels.png
+# Copy GRUB menu bg image
+cp mt-aso-pixels.png /home/$user_name/.local/share/mt-aso-pixels.png
 
 # Update the GRUB configuration to set the GRUB background
 sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
