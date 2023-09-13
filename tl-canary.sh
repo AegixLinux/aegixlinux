@@ -102,7 +102,7 @@ luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || ech
 
 # Prompt user to proceed to destroy extant LUKS setup or bail out
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno --title "LUKS Container Exists" --yesno "\nYou have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to abort installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    dialog --defaultno --title "LUKS Container Exists - ABORT??" --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to ABORT KILL installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
@@ -180,6 +180,13 @@ mkinitcpio -p linux
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
 
+# Copy GRUB menu bg image 
+cp /PATH/IN/REPO/mt-aso-pixels.png /home/$user_name/mt-aso-pixels.png
+
+# Update the GRUB configuration to set the GRUB background
+sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+sed -i "s|^GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -210,6 +217,16 @@ ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
 pacman -S openntpd openntpd-runit --noconfirm
 # Create a symlink for openntpd runit service
 ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
+
+# SSH gets first class citizen status ~ Install openssh and its runit service
+pacman -S openssh openssh-runit --noconfirm
+# Create a symlink for openssh runit service
+ln -s /etc/runit/sv/sshd/ /etc/runit/runsvdir/current
+
+# Cron gets first class citizen status ~ Install and enable the cron daemon
+pacman -S cronie cronie-runit --noconfirm
+# Create a symlink for cronie runit service
+ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
 pacman -Sy xorg --noconfirm
 echo "full xorg install or reinstall"
