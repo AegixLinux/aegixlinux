@@ -180,6 +180,13 @@ mkinitcpio -p linux
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
 
+# Copy GRUB menu bg image 
+cp /PATH/IN/REPO/mt-aso-pixels.png /home/$user_name/mt-aso-pixels.png
+
+# Update the GRUB configuration to set the GRUB background
+sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+sed -i "s|^GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/home/$user_name/.local/share/mt-aso-pixels.png\"|" /etc/default/grub
+
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
 grub-mkconfig -o /boot/grub/grub.cfg
