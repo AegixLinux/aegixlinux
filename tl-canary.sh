@@ -20,11 +20,7 @@ while IFS= read -r line; do
 done <<< "$devices"
 
 # Prompt user to select a block device for installation
-selected_device=$(dialog --stdout \
-    --backtitle "SELECT BLOCK DEVICE" \
-    --title "SELECT BLOCK DEVICE" \
-    --menu "Select a block device for your TANKLINUX installation:" 15 60 5 "${device_list[@]}")
-
+selected_device=$(eval dialog --stdout --menu \"Select a block device for your TANKLINUX installation:\" 15 60 5 $device_list)
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
     echo "Selected block device: $selected_device_path"
