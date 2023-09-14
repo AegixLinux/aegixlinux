@@ -39,6 +39,7 @@ curl -LO tanklinux.com/ascii-tank
 curl -LO tanklinux.com/README.md
 curl -LO tanklinux.com/mt-aso-pixels.png
 curl -LO tanklinux.com/penguin-on-tank.png
+curl -LO tanklinux.com/starfield.png
 
 # Collect user input for hostname
 hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
@@ -166,9 +167,10 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp tank-programs.csv /mnt/root/
-cp mt-aso-pixels.png /mnt/boot/grub/
-cp penguin-on-tank.png /mnt/boot/grub/
-cp /mnt/boot/grub/themes/starfield/starfield.png /mnt/boot/grub/
+# /mnt/boot/grub doesn't exist until grub is installed
+cp mt-aso-pixels.png /mnt/root/
+cp penguin-on-tank.png /mnt/root/
+cp starfield.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
@@ -184,16 +186,6 @@ user_choice_grub_bg=$(dialog --clear \
 
 # Assign choice to grub_bg
 grub_bg=$user_choice_grub_bg
-
-# Copy GRUB background image to /boot/grub
-# cp "$grub_bg" /mnt/boot/grub/
-# Copying them all to test first
-
-# Setup GRUB background
-echo "GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"" >> /mnt/etc/default/grub
-
-# Update the GRUB configuration to set the GRUB background
-# sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/mt-aso-pixels.png\"|" /etc/default/grub
 
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
@@ -212,6 +204,14 @@ sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglev
 
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
+
+# Copy GRUB bg now that /boot/grub exists
+cp /root/$grub_bg /boot/grub/
+
+# Update the GRUB configuration to set the GRUB background
+sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"|" /etc/default/grub
+
+# Generate the GRUB configuration file
 grub-mkconfig -o /boot/grub/grub.cfg
 
 # Set the root password.
