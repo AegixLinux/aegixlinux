@@ -38,6 +38,7 @@ curl -LO tanklinux.com/tank-programs.csv
 curl -LO tanklinux.com/ascii-tank
 curl -LO tanklinux.com/README.md
 curl -LO tanklinux.com/mt-aso-pixels.png
+curl -LO tanklinux.com/penguin-on-tank.png
 
 # Collect user input for hostname
 hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
@@ -165,7 +166,34 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp tank-programs.csv /mnt/root/
-cp mt-aso-pixels.png /mnt/root/
+cp mt-aso-pixels.png /mnt/boot/grub/
+cp penguin-on-tank.png /mnt/boot/grub/
+cp /mnt/boot/grub/themes/starfield/starfield.png /mnt/boot/grub/
+
+# Display dialog and capture user choice
+user_choice_grub_bg=$(dialog --clear \
+                --backtitle "TANKLINUX GRUB Configuration" \
+                --title "Choose a GRUB Background" \
+                --no-tags \
+                --item-help \
+                --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
+                "penguin-on-tank.png" "Penguin on Tank" "" \
+                "mt-aso-pixels.png" "Mt Aso Pixels" "" \
+                "starfield.png" "Star Field" "" \
+                2>&1 >/dev/tty)
+
+# Assign choice to grub_bg
+grub_bg=$user_choice_grub_bg
+
+# Copy GRUB background image to /boot/grub
+# cp "$grub_bg" /mnt/boot/grub/
+# Copying them all to test first
+
+# Setup GRUB background
+echo "GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"" >> /mnt/etc/default/grub
+
+# Update the GRUB configuration to set the GRUB background
+# sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/mt-aso-pixels.png\"|" /etc/default/grub
 
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
@@ -181,12 +209,6 @@ mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
-
-# Move GRUB bg image to boot partition
-mv /root/mt-aso-pixels.png /boot/grub/
-
-# Update the GRUB configuration to set the GRUB background
-sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/mt-aso-pixels.png\"|" /etc/default/grub
 
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
