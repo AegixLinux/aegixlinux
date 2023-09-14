@@ -20,7 +20,11 @@ while IFS= read -r line; do
 done <<< "$devices"
 
 # Prompt user to select a block device for installation
-selected_device=$(eval dialog --stdout --menu \"Select a block device for your TANKLINUX installation:\" 15 60 5 $device_list)
+selected_device=$(dialog --stdout \
+    --backtitle "SELECT BLOCK DEVICE" \
+    --title "SELECT BLOCK DEVICE" \
+    --menu "Select a block device for your TANKLINUX installation:" 15 60 5 "${device_list[@]}")
+
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
     echo "Selected block device: $selected_device_path"
@@ -30,7 +34,10 @@ else
 fi
 
 # Warn user about potential data loss
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
+dialog --defaultno \
+    --title "HIC SUNT DRACONES" \
+    --backtitle "HIC SUNT DRACONES" \
+    --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
 curl -LO tanklinux.com/barbs.sh
@@ -42,10 +49,16 @@ curl -LO tanklinux.com/penguin-on-tank.png
 curl -LO tanklinux.com/starfield.png
 
 # Collect user input for hostname
-hostname=$(dialog --stdout --no-cancel --inputbox "Enter a hostname for your system." 10 60)
+hostname=$(dialog --stdout \
+    --backtitle "SET HOSTNAME" \
+    --title "SET HOSTNAME" \
+    --no-cancel --inputbox "Enter a hostname for your system." 10 60)
 
 # Set system's time zone
-if dialog --defaultno --title "Set your system's time zone." --yesno "\nDo you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to choose a different time zone."  10 60
+if dialog --defaultno \
+    --backtitle "Set your system's time zone." \
+    --title "Set your system's time zone." \
+    --yesno "\nDo you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to choose a different time zone."  10 60
 then
     timezone=$(tzselect)
 else
@@ -53,8 +66,14 @@ else
 fi
 
 # Get root user passphrase
-rootpass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the root user.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-rootpass2=$(dialog --no-cancel --passwordbox "Retype the root passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+rootpass1=$(dialog --no-cancel \
+    --backtitle "SET ROOT PASSPHRASE" \
+    --title "SET ROOT PASSPHRASE" \
+    --passwordbox "Enter a passphrase for the root user.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+rootpass2=$(dialog --no-cancel \
+    --backtitle "SET ROOT PASSPHRASE" \
+    --title "SET ROOT PASSPHRASE" \
+    --passwordbox "Retype the root passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 while true; do
 	[[ "$rootpass1" != "" && "$rootpass1" == "$rootpass2" ]] && break
 	rootpass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passwordphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
@@ -62,11 +81,20 @@ while true; do
 done
 
 # Provide option to write zeros across block device
-dialog --defaultno --title "HIC SUNT DRACONES" --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
+dialog --defaultno \
+    --backtitle "WRITE ALL ZEROS instead of 1s and 0s across block device" \
+    --title "WRITE ZEROS" \
+    --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
 # Get encryption passphrase
-luks_pass1=$(dialog --no-cancel --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-luks_pass2=$(dialog --no-cancel --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass1=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass2=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 
 while true; do
     [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
@@ -105,7 +133,10 @@ luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || ech
 
 # Prompt user to proceed to destroy extant LUKS setup or bail out
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno --title "LUKS Container Exists - ABORT??" --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to KILL installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    dialog --defaultno \
+    --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
+    --title "LUKS Container Exists - ABORT??" \
+    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to ABORT KILL installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
@@ -174,15 +205,15 @@ cp starfield.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
-                --backtitle "TANKLINUX GRUB Configuration" \
-                --title "Choose a GRUB Background" \
-                --no-tags \
-                --item-help \
-                --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-                "penguin-on-tank.png" "Penguin on Tank" "" \
-                "mt-aso-pixels.png" "Mt Aso Pixels" "" \
-                "starfield.png" "Star Field" "" \
-                2>&1 >/dev/tty)
+    --backtitle "TANKLINUX GRUB Menu Background Image" \
+    --title "Choose a GRUB Background" \
+    --no-tags \
+    --item-help \
+    --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
+    "penguin-on-tank.png" "Penguin on Tank" "" \
+    "mt-aso-pixels.png" "Mt Aso Pixels" "" \
+    "starfield.png" "Star Field" "" \
+    2>&1 >/dev/tty)
 
 # Assign choice to grub_bg
 grub_bg=$user_choice_grub_bg
@@ -210,6 +241,9 @@ cp /root/$grub_bg /boot/grub/
 
 # Update the GRUB configuration to set the GRUB background
 sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"|" /etc/default/grub
+
+# Update GRUB_TIMEOUT 
+sed -i 's/^GRUB_TIMEOUT=5$/GRUB_TIMEOUT=14/' /etc/default/grub
 
 # Generate the GRUB configuration file
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -269,6 +303,8 @@ sh /root/barbs.sh
 
 EOF
 
-dialog --title "TANKLINUX Installation Complete" --msgbox "\nCongrats! TANKLINUX is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-TANKLINUX.COM" 18 60
+dialog --title "TANKLINUX Installation Complete" \
+    --backtitle "TANKLINUX Installation Complete" \
+    --msgbox "\nCongrats! TANKLINUX is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-TANKLINUX.COM" 18 60
 
 cat ascii-tank
