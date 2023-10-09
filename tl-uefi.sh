@@ -114,7 +114,7 @@ fi
 
 # Setup the boot partition
 mkfs.fat -F32 "$boot_partition"
-parted -s $selected_device_path set 1 boot on
+parted -s $selected_device_path set 1 boot on -- NOT NEEDED FOR UEFI SYSTEMS
 parted -s -a optimal $selected_device_path mkpart primary 1GiB 100%
 
 # Setup the encryption partition
@@ -227,10 +227,11 @@ sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkin
 mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub 
 
 # Install GRUB and generate the configuration file
-grub-install "$selected_device_path"
+# grub-install "$selected_device_path"
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=TANKLINUX
 
 # Copy GRUB bg now that /boot/grub exists
 cp /root/$grub_bg /boot/grub/
