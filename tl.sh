@@ -20,7 +20,7 @@ while IFS= read -r line; do
 done <<< "$devices"
 
 # Prompt user to select a block device for installation
-selected_device=$(eval dialog --stdout --menu \"Select a block device for your TANKLINUX installation:\" 15 60 5 $device_list)
+selected_device=$(eval dialog --stdout --menu \"Select a block device for your Aegix installation:\" 15 60 5 $device_list)
 if [ -n "$selected_device" ]; then
     selected_device_path=$selected_device
     echo "Selected block device: $selected_device_path"
@@ -36,13 +36,13 @@ dialog --defaultno \
     --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
-curl -LO tanklinux.com/barbs.sh
-curl -LO tanklinux.com/tank-programs.csv
-curl -LO tanklinux.com/ascii-tank
-curl -LO tanklinux.com/README.md
-curl -LO tanklinux.com/mt-aso-pixels.png
-curl -LO tanklinux.com/penguin-on-tank.png
-curl -LO tanklinux.com/starfield.png
+curl -LO aegixlinux.org/barbs.sh
+curl -LO aegixlinux.org/aegix-programs.csv
+curl -LO aegixlinux.org/ascii-tank
+curl -LO aegixlinux.org/README.md
+curl -LO aegixlinux.org/mt-aso-pixels.png
+curl -LO aegixlinux.org/penguin-on-tank.png
+curl -LO aegixlinux.org/starfield.png
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -193,7 +193,7 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
 cp barbs.sh /mnt/root/
-cp tank-programs.csv /mnt/root/
+cp aegix-programs.csv /mnt/root/
 # /mnt/boot/grub doesn't exist until grub is installed
 cp mt-aso-pixels.png /mnt/root/
 cp penguin-on-tank.png /mnt/root/
@@ -201,7 +201,7 @@ cp starfield.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
-    --backtitle "TANKLINUX GRUB Menu Background Image" \
+    --backtitle "Aegix GRUB Menu Background Image" \
     --title "Choose a GRUB Background" \
     --no-tags \
     --item-help \
@@ -299,8 +299,8 @@ sh /root/barbs.sh
 
 EOF
 
-dialog --title "TANKLINUX Installation Complete" \
-    --backtitle "TANKLINUX Installation Complete" \
-    --msgbox "\nCongrats! TANKLINUX is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-TANKLINUX.COM" 18 60
+dialog --title "Aegix Installation Complete" \
+    --backtitle "Aegix Installation Complete" \
+    --msgbox "\nCongrats! Aegix is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-aegixlinux.org" 18 60
 
 cat ascii-tank

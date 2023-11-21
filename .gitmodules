@@ -1,18 +1,18 @@
 [submodule "barbs"]
 	path = barbs
-	url = git@github.com:tanklinux/barbs.git
+	url = git@github.com:aegixlinux/barbs.git
 [submodule "gohan"]
 	path = gohan
-	url = git@github.com:tanklinux/gohan.git
+	url = git@github.com:aegixlinux/gohan.git
 [submodule "st"]
 	path = st
-	url = git@github.com:tanklinux/st.git
+	url = git@github.com:aegixlinux/st.git
 [submodule "dwm"]
 	path = dwm
-	url = git@github.com:tanklinux/dwm.git
+	url = git@github.com:aegixlinux/dwm.git
 [submodule "dwmblocks"]
 	path = dwmblocks
-	url = git@github.com:tanklinux/dwmblocks.git
+	url = git@github.com:aegixlinux/dwmblocks.git
 [submodule "dmenu"]
 	path = dmenu
-	url = git@github.com:tanklinux/dmenu.git
+	url = git@github.com:aegixlinux/dmenu.git
