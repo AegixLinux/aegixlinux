@@ -41,7 +41,7 @@ curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-tank
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/mt-aso-pixels.png
-curl -LO aegixlinux.org/penguin-on-tank.png
+curl -LO aegixlinux.org/aegix-forest.png
 curl -LO aegixlinux.org/starfield.png
 
 # Collect user input for hostname
@@ -196,7 +196,7 @@ cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
 # /mnt/boot/grub doesn't exist until grub is installed
 cp mt-aso-pixels.png /mnt/root/
-cp penguin-on-tank.png /mnt/root/
+cp aegix-forest.png /mnt/root/
 cp starfield.png /mnt/root/
 
 # Display dialog and capture user choice
@@ -206,7 +206,7 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "penguin-on-tank.png" "Penguin on Tank" "" \
+    "aegix-forest.png" "Penguin on Tank" "" \
     "mt-aso-pixels.png" "Mt Aso Pixels" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)

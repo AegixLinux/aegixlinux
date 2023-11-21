@@ -17,7 +17,7 @@ https://aegixlinux.org
 
 TL;DR: Install after booting from an artix base runit ISO, with this one liner:
 ``` Shell
-curl -LO aegixlinux.org/tl.sh && sh tl.sh
+curl -LO aegixlinux.org/install.sh && sh install.sh
 ```
 
 ### Prepare USB Thumbdrive Installation Medium
@@ -35,7 +35,7 @@ Boot your target computer from your USB thumbdrive, login as "root"/"artix"
 
 Run this one-liner:
 ``` Shell
-curl -LO aegixlinux.org/tl.sh && sh tl.sh
+curl -LO aegixlinux.org/install.sh && sh install.sh
 ```
 
 Follow the prompts.
