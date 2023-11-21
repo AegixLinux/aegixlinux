@@ -69,7 +69,7 @@ Aegix's barbs.sh script is inspired by Luke Smith's larbs.sh script. Big thank y
 
 ## Art
 
-Aegix Linux desktop artwork from remote location in Nagano, Japan:
+Aegix Linux desktop artwork from remote location in CyberSpace:
 
 ![aegix-forest](https://github.com/AegixLinux/gohan/blob/master/.local/share/aegix-forest.png)
 
