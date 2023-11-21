@@ -57,8 +57,8 @@ Testing on other hardware platforms is welcomed. Please share your results.
 
 Nested within this git repository are six submodules representing other Aegix Linux repos. They are:
 
-- barbs (Aegix Linux Base Automation Routine for Building Systems)
-- gohan (Aegix Linux dotfiles and configuration)
+- barbs (Aegix Beach Automation Routine for Building Systems)
+- gohan (Aegix dotfiles and configuration)
 - dwm (Aegix build of suckless dwm)
 - dwmblocks (Aegix build of suckless dwmblocks)
 - st (Aegix build of suckless simple terminal)
