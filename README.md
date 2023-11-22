@@ -24,8 +24,7 @@ curl -LO aegixlinux.org/install.sh && sh install.sh
 
 Put the latest "artix-base-runit" ISO from
 https://artixlinux.org/download.php onto your usb thumbdrive, such that it's bootable from the computer you are installing Aegix Linux on.
-ISO is here:
-https://download.artixlinux.org/iso/artix-base-runit-20230814-x86_64.iso
+(ISO is here.)[https://download.artixlinux.org/iso/artix-base-runit-20230814-x86_64.iso]
 Check Artix downloads to confirm this is the latest version.
 
 ### Boot Target Computer from USB Thumbdrive
