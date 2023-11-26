@@ -312,6 +312,6 @@ EOF
 
 dialog --title "Aegix Installation Complete" \
     --backtitle "Aegix Installation Complete" \
-    --msgbox "\nCongrats! Aegix is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-aegixlinux.org" 18 60
+    --msgbox "\nCongrats! Aegix Linux is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-Aegix" 18 60
 
 cat ascii-aegix
