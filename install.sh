@@ -1,5 +1,17 @@
 #!/bin/sh
 
+##
+# Metadata
+##
+
+# install.sh
+# by Timothy Beach
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# License: GNU GPLv3
+# VERSION: 20231126.1
+
 # Exit on any error
 set -e
 
