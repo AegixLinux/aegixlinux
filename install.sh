@@ -38,7 +38,7 @@ dialog --defaultno \
 # Download necessary installation files
 curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
-curl -LO aegixlinux.org/ascii-tank
+curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/mt-aso-pixels.png
 curl -LO aegixlinux.org/aegix-forest.png
@@ -303,4 +303,4 @@ dialog --title "Aegix Installation Complete" \
     --backtitle "Aegix Installation Complete" \
     --msgbox "\nCongrats! Aegix is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-aegixlinux.org" 18 60
 
-cat ascii-tank
+cat ascii-aegix
