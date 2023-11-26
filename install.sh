@@ -144,7 +144,7 @@ if [ "$luks_container_exists" = "yes" ]; then
     dialog --defaultno \
     --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
     --title "LUKS Container Exists - ABORT??" \
-    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to ABORT KILL installation.\n\nSelect < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
     if cryptsetup status tankluks >/dev/null 2>&1; then
         echo "Removing existing tankluks mapping..."
