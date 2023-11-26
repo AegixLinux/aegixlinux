@@ -52,7 +52,7 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-curl -LO aegixlinux.org/mt-aso-pixels.png
+# curl -LO aegixlinux.org/mt-aso-pixels.png
 curl -LO aegixlinux.org/images/aegix-forest.png
 curl -LO aegixlinux.org/images/starfield.png
 
@@ -218,7 +218,7 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "aegix-forest.png" "Penguin on Tank" "" \
+    "aegix-forest.png" "Aegix Forest" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
