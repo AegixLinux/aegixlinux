@@ -53,8 +53,8 @@ curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/mt-aso-pixels.png
-curl -LO aegixlinux.org/aegix-forest.png
-curl -LO aegixlinux.org/starfield.png
+curl -LO aegixlinux.org/images/aegix-forest.png
+curl -LO aegixlinux.org/images/starfield.png
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -207,7 +207,7 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
 # /mnt/boot/grub doesn't exist until grub is installed
-cp mt-aso-pixels.png /mnt/root/
+# cp mt-aso-pixels.png /mnt/root/
 cp aegix-forest.png /mnt/root/
 cp starfield.png /mnt/root/
 
@@ -219,7 +219,6 @@ user_choice_grub_bg=$(dialog --clear \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
     "aegix-forest.png" "Penguin on Tank" "" \
-    "mt-aso-pixels.png" "Mt Aso Pixels" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
