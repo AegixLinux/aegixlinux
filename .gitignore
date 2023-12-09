@@ -6,3 +6,6 @@ tl-stable.sh
 install.sh.bk
 tl-canary.sh.bk
 tl-uefi.sh
+website/
+aegix-penguin-grub.png
+aegix-forest.png

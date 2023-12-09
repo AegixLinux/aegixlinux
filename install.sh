@@ -52,7 +52,7 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-# curl -LO aegixlinux.org/mt-aso-pixels.png
+curl -LO aegixlinux.org/images/aegix-penguin-grub.png
 curl -LO aegixlinux.org/images/aegix-forest.png
 curl -LO aegixlinux.org/images/starfield.png
 
@@ -207,7 +207,7 @@ echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
 # /mnt/boot/grub doesn't exist until grub is installed
-# cp mt-aso-pixels.png /mnt/root/
+cp aegix-penguin-grub.png /mnt/root/
 cp aegix-forest.png /mnt/root/
 cp starfield.png /mnt/root/
 
@@ -219,6 +219,7 @@ user_choice_grub_bg=$(dialog --clear \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
     "aegix-forest.png" "Aegix Forest" "" \
+    "aegix-penguin-grub.png" "Aegix GRUB Penguin" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
@@ -239,6 +240,8 @@ mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
 sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
+
+sudo sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
 # Install GRUB and generate the configuration file
 grub-install "$selected_device_path"
