@@ -7,5 +7,6 @@ install.sh.bk
 tl-canary.sh.bk
 tl-uefi.sh
 website/
+website-fail/
 aegix-penguin-grub.png
 aegix-forest.png
