@@ -53,6 +53,7 @@ curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/images/aegix-penguin-grub.png
+curl -LO aegixlinux.org/images/mt-aso-penguin.png
 curl -LO aegixlinux.org/images/aegix-forest.png
 curl -LO aegixlinux.org/images/starfield.png
 
