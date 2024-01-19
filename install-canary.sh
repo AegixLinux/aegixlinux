@@ -210,6 +210,7 @@ cp aegix-programs.csv /mnt/root/
 cp aegix-penguin-grub.png /mnt/root/
 cp aegix-forest.png /mnt/root/
 cp starfield.png /mnt/root/
+cp mt-aso-penguin.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
