@@ -146,9 +146,9 @@ if [ "$luks_container_exists" = "yes" ]; then
     --title "LUKS Container Exists - ABORT??" \
     --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
-    if cryptsetup status tankluks >/dev/null 2>&1; then
-        echo "Removing existing tankluks mapping..."
-        cryptsetup remove tankluks
+    if cryptsetup status aegixluks >/dev/null 2>&1; then
+        echo "Removing existing aegixluks mapping..."
+        cryptsetup remove aegixluks
     fi
 else
     batch_mode_flag=""
@@ -156,20 +156,20 @@ fi
 
 # Set boot partition for nvme or standard ssd
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
-echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
+echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" aegixluks -
 
 # BTRFS setup with subvolumes for timeshift auto-backup compatibility
-mkfs.btrfs -f -L BUTTER /dev/mapper/tankluks
-mount /dev/mapper/tankluks /mnt
+mkfs.btrfs -f -L BUTTER /dev/mapper/aegixluks
+mount /dev/mapper/aegixluks /mnt
 
 btrfs sub cr /mnt/@
 btrfs sub cr /mnt/@home
 
 # Unmount and remount with subvolumes
 umount /mnt
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/tankluks /mnt
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/aegixluks /mnt
 mkdir -p /mnt/home
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankluks /mnt/home
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/aegixluks /mnt/home
 
 # Create boot directory and mount boot partition
 mkdir -p /mnt/boot
@@ -201,7 +201,7 @@ echo "Encrypted partition UUID: $encrypted_partition_uuid"
 echo "LUKS container UUID: $luks_container_uuid"
 
 # Setup crypttab
-echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
+echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
 cp barbs.sh /mnt/root/
@@ -240,7 +240,7 @@ sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkin
 mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:aegixluks root=/dev/mapper/aegixluks\"|" /etc/default/grub
 
 sudo sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
