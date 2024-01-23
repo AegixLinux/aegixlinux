@@ -52,10 +52,8 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-curl -LO aegixlinux.org/images/aegix-penguin-grub.png
-curl -LO aegixlinux.org/images/mt-aso-penguin.png
 curl -LO aegixlinux.org/images/aegix-forest.png
-curl -LO aegixlinux.org/images/starfield.png
+
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -207,11 +205,7 @@ echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
-# /mnt/boot/grub doesn't exist until grub is installed
-cp aegix-penguin-grub.png /mnt/root/
 cp aegix-forest.png /mnt/root/
-cp starfield.png /mnt/root/
-cp mt-aso-penguin.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
@@ -225,8 +219,22 @@ user_choice_grub_bg=$(dialog --clear \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
-# Assign choice to grub_bg
+# Download the selected image
+case $user_choice_grub_bg in
+    "mt-aso-penguin.png")
+        curl -LO aegixlinux.org/images/mt-aso-penguin.png
+        ;;
+    "aegix-penguin-grub.png")
+        curl -LO aegixlinux.org/images/aegix-penguin-grub.png
+        ;;
+    "starfield.png")
+        curl -LO aegixlinux.org/images/starfield.png
+        ;;
+esac
+
+# Assign choice to grub_bg and copy the file to new system
 grub_bg=$user_choice_grub_bg
+cp $grub_bg /mnt/root/
 
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
