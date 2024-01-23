@@ -54,6 +54,21 @@ curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/images/aegix-forest.png
 
+# Get encryption passphrase
+luks_pass1=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass2=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+
+while true; do
+    [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
+    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
+    luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+done
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -92,22 +107,6 @@ dialog --defaultno \
     --backtitle "WRITE ALL ZEROS instead of 1s and 0s across block device" \
     --title "WRITE ZEROS" \
     --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
-
-# Get encryption passphrase
-luks_pass1=$(dialog --no-cancel \
-    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-    --title "SET LUKS PASSPHRASE" \
-    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-luks_pass2=$(dialog --no-cancel \
-    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-    --title "SET LUKS PASSPHRASE" \
-    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-
-while true; do
-    [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
-    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-    luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-done
 
 # Get disk setup packages
 pacman -S glibc parted cryptsetup lvm2 --noconfirm
@@ -262,7 +261,7 @@ cp /root/$grub_bg /boot/grub/
 # Update the GRUB configuration to set the GRUB background
 sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"|" /etc/default/grub
 
-# Update GRUB_TIMEOUT 
+# Update GRUB_TIMEOUT
 sed -i 's/^GRUB_TIMEOUT=5$/GRUB_TIMEOUT=14/' /etc/default/grub
 
 # Generate the GRUB configuration file
