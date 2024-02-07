@@ -52,9 +52,23 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-curl -LO aegixlinux.org/images/aegix-penguin-grub.png
 curl -LO aegixlinux.org/images/aegix-forest.png
-curl -LO aegixlinux.org/images/starfield.png
+
+# Get encryption passphrase
+luks_pass1=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass2=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+
+while true; do
+    [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
+    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
+    luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+done
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -94,24 +108,8 @@ dialog --defaultno \
     --title "WRITE ZEROS" \
     --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
-# Get encryption passphrase
-luks_pass1=$(dialog --no-cancel \
-    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-    --title "SET LUKS PASSPHRASE" \
-    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-luks_pass2=$(dialog --no-cancel \
-    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-    --title "SET LUKS PASSPHRASE" \
-    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-
-while true; do
-    [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
-    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-    luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-done
-
 # Get disk setup packages
-pacman -S glibc parted cryptsetup lvm2 --noconfirm
+pacman -S openssl glibc parted cryptsetup lvm2 --noconfirm
 
 # Create partitions
 parted -s -a optimal $selected_device_path mklabel msdos
@@ -146,9 +144,9 @@ if [ "$luks_container_exists" = "yes" ]; then
     --title "LUKS Container Exists - ABORT??" \
     --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
-    if cryptsetup status tankluks >/dev/null 2>&1; then
-        echo "Removing existing tankluks mapping..."
-        cryptsetup remove tankluks
+    if cryptsetup status aegixluks >/dev/null 2>&1; then
+        echo "Removing existing aegixluks mapping..."
+        cryptsetup remove aegixluks
     fi
 else
     batch_mode_flag=""
@@ -156,20 +154,20 @@ fi
 
 # Set boot partition for nvme or standard ssd
 echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
-echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" tankluks -
+echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" aegixluks -
 
 # BTRFS setup with subvolumes for timeshift auto-backup compatibility
-mkfs.btrfs -f -L BUTTER /dev/mapper/tankluks
-mount /dev/mapper/tankluks /mnt
+mkfs.btrfs -f -L BUTTER /dev/mapper/aegixluks
+mount /dev/mapper/aegixluks /mnt
 
 btrfs sub cr /mnt/@
 btrfs sub cr /mnt/@home
 
 # Unmount and remount with subvolumes
 umount /mnt
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/tankluks /mnt
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/aegixluks /mnt
 mkdir -p /mnt/home
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/tankluks /mnt/home
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/aegixluks /mnt/home
 
 # Create boot directory and mount boot partition
 mkdir -p /mnt/boot
@@ -201,15 +199,12 @@ echo "Encrypted partition UUID: $encrypted_partition_uuid"
 echo "LUKS container UUID: $luks_container_uuid"
 
 # Setup crypttab
-echo "tankluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
+echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
-# /mnt/boot/grub doesn't exist until grub is installed
-cp aegix-penguin-grub.png /mnt/root/
 cp aegix-forest.png /mnt/root/
-cp starfield.png /mnt/root/
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
@@ -218,13 +213,27 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "aegix-forest.png" "Aegix Forest" "" \
+    "mt-aso-penguin.png" "Mt Aso" "" \
     "aegix-penguin-grub.png" "Aegix GRUB Penguin" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
-# Assign choice to grub_bg
+# Download the selected image
+case $user_choice_grub_bg in
+    "mt-aso-penguin.png")
+        curl -LO aegixlinux.org/images/mt-aso-penguin.png
+        ;;
+    "aegix-penguin-grub.png")
+        curl -LO aegixlinux.org/images/aegix-penguin-grub.png
+        ;;
+    "starfield.png")
+        curl -LO aegixlinux.org/images/starfield.png
+        ;;
+esac
+
+# Assign choice to grub_bg and copy the file to new system
 grub_bg=$user_choice_grub_bg
+cp $grub_bg /mnt/root/
 
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
@@ -239,7 +248,7 @@ sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkin
 mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:tankluks root=/dev/mapper/tankluks\"|" /etc/default/grub
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:aegixluks root=/dev/mapper/aegixluks\"|" /etc/default/grub
 
 sudo sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
