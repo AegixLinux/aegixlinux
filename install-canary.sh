@@ -109,7 +109,7 @@ dialog --defaultno \
     --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
 # Get disk setup packages
-pacman -S glibc parted cryptsetup lvm2 --noconfirm
+pacman -S openssl glibc parted cryptsetup lvm2 --noconfirm
 
 # Create partitions
 parted -s -a optimal $selected_device_path mklabel msdos
@@ -261,7 +261,7 @@ cp /root/$grub_bg /boot/grub/
 # Update the GRUB configuration to set the GRUB background
 sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"|" /etc/default/grub
 
-# Update GRUB_TIMEOUT
+# Update GRUB_TIMEOUT 
 sed -i 's/^GRUB_TIMEOUT=5$/GRUB_TIMEOUT=14/' /etc/default/grub
 
 # Generate the GRUB configuration file
