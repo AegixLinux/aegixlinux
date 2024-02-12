@@ -45,11 +45,14 @@ Follow the prompts.
 Installation should be a smooth process on any machine you can set to LEGACY BIOS. We are assuming normative x86 CPU architecture. Aegix Linux is tested and working on a range of ThinkPads including all the best ones:
 
 - X220
+- T2370
 - T420, T420s
 - T430
+- T440
 - P50, P50s
 
 It's also been successfully tested on a HP Z800 office server.
+It's also been successfully tested on a 32GB USB 3 Flash Drive.
 
 Testing on other hardware platforms is welcomed. Please share your results.
 
