@@ -217,9 +217,10 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
-    "aegix-forest.png" "With hints" "" \
-    "aegix-forest-clean.png" "Without hints" "" \
+    "aegix-forest.png" "Default with hints" "" \
+    "aegix-forest-clean.png" "Default without hints" "" \
     "aegix-bg-2.png" "Geocentric AI rug" "" \
+    "aegix-falls.png" "Aegix Falls" "" \
     2>&1 >/dev/tty)
 
 # Download the selected desktop background image
@@ -232,6 +233,9 @@ case $user_choice_desktop_bg in
         ;;
     "aegix-bg-2.png")
         curl -LO aegixlinux.org/images/aegix-bg-2.png
+        ;;
+    "aegix-falls.png")  
+        curl -LO aegixlinux.org/images/aegix-falls.png
         ;;
 esac
 
