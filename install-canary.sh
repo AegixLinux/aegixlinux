@@ -360,9 +360,6 @@ sleep 3s
 
 sh /root/barbs.sh
 
-## update bg symlink to point to user selection
-sudo ln -sf /root/aegix-forest.png bg
-
 EOF
 
 # sed command to remove subvolid= from /mnt/etc/fstab
