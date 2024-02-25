@@ -204,7 +204,49 @@ echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
-cp aegix-forest.png /mnt/root/
+# cp aegix-forest.png /mnt/root/
+
+##########################
+##########################
+##########################
+
+# Display dialog and capture user choice for desktop background
+user_choice_desktop_bg=$(dialog --clear \
+    --backtitle "Aegix Desktop Background Image" \
+    --title "Choose a Desktop Background" \
+    --no-tags \
+    --item-help \
+    --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
+    "aegix-forest.png" "Default with hints" "" \
+    "aegix-forest-clean.png" "Default without hints" "" \
+    "aegix-bg-2.png" "Geocentric AI rug" "" \
+    "aegix-falls.png" "Aegix Falls" "" \
+    2>&1 >/dev/tty)
+
+# Download the selected desktop background image
+case $user_choice_desktop_bg in
+    "aegix-forest.png")
+        curl -LO aegixlinux.org/images/aegix-forest.png
+        ;;
+    "aegix-forest-clean.png")
+        curl -LO aegixlinux.org/images/aegix-forest-clean.png
+        ;;
+    "aegix-bg-2.png")
+        curl -LO aegixlinux.org/images/aegix-bg-2.png
+        ;;
+    "aegix-falls.png")  
+        curl -LO aegixlinux.org/images/aegix-falls.png
+        ;;
+esac
+
+# Assign choice to desktop_bg and copy the file to new system's wallpaper directory
+desktop_bg=$user_choice_desktop_bg
+# Assuming the path to the wallpaper directory in the installed system is /mnt/root/usr/share/backgrounds/
+cp $desktop_bg /mnt/root/aegix-forest.png
+
+##########################
+##########################
+##########################
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
@@ -318,9 +360,16 @@ sleep 3s
 
 # sed -i -e 's/"do_first_run" : "true"/"do_first_run" : "false"/' -e 's/"btrfs_mode" : "false"/"btrfs_mode" : "true"/' -e 's/"include_btrfs_home" : "false"/"include_btrfs_home" : "true"/' /etc/timeshift/timeshift.json
 
+###### 
+
 sh /root/barbs.sh
 
 EOF
+
+# sed command to remove subvolid= from /mnt/etc/fstab
+# We do this for timeshift compatibility
+sed -i 's/subvolid=[0-9]*,//' /mnt/etc/fstab
+
 
 dialog --title "Aegix Installation Complete" \
     --backtitle "Aegix Installation Complete" \
