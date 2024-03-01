@@ -4,7 +4,7 @@
 # Metadata
 ##
 
-# install.sh
+# install-w.sh ## Hacking for Wayland support
 # by Timothy Beach
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
@@ -346,8 +346,8 @@ pacman -S cronie cronie-runit --noconfirm
 # Create a symlink for cronie runit service
 ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
-pacman -Sy xorg --noconfirm
-echo "full xorg install or reinstall"
+# pacman -Sy xorg --noconfirm
+# echo "full xorg install or reinstall"
 sleep 3s
 
 # btrfs quota enable /
@@ -362,7 +362,7 @@ sleep 3s
 
 ###### 
 
-sh /root/barbs.sh
+# sh /root/barbs.sh
 
 EOF
 
@@ -373,6 +373,6 @@ sed -i 's/subvolid=[0-9]*,//' /mnt/etc/fstab
 
 dialog --title "Aegix Installation Complete" \
     --backtitle "Aegix Installation Complete" \
-    --msgbox "\nCongrats! Aegix Linux is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-Aegix" 18 60
+    --msgbox "\nCongrats! Well, you may now have a base to build a wayland system on ;-P \n\nZenshin Suru!\n-Aegix" 18 60
 
 cat ascii-aegix
