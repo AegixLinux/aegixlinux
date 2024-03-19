@@ -16,7 +16,7 @@
 set -e
 
 # Ensure dialog is installed
-pacman -Sy --noconfirm dialog || { echo "Error at script start: Are you sure you're running this as the root user? Are you sure you have an internet connection?"; exit; }
+pacman -Syu --noconfirm dialog || { echo "Error at script start: Are you sure you're running this as the root user? Are you sure you have an internet connection?"; exit; }
 
 # Fetch available block devices
 devices=$(lsblk -d -p -n -l -o NAME,SIZE,MODEL -e 7,11)
