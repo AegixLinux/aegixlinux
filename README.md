@@ -7,7 +7,8 @@ https://aegixlinux.org
 ### Elite, Turn-Key Linux
 
 - Suckless software graphical environment with dwm, dmenu, st, dwmblocks
-- LUKS-encrypted system drive 
+- ~~LUKS-encrypted system drive~~ 
+    - Unfortunately upstream broke LUKS support for now. Details in this [github issue](https://github.com/AegixLinux/aegixlinux/issues/6) 
 - Artix base w/ runit init system (no systemd)
 - BTRFS filesystem with subvolumes for snapshots and rollback
 - Audio system with pipewire & wireplumber
