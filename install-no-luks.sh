@@ -52,7 +52,7 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-# curl -LO aegixlinux.org/images/aegix-forest.png
+curl -LO aegixlinux.org/images/aegix-forest.png
 
 # Get encryption passphrase
 luks_pass1=$(dialog --no-cancel \
