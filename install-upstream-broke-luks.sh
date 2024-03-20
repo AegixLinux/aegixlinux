@@ -4,14 +4,13 @@
 # Metadata
 ##
 
-# install-no-luks.sh
+# install.sh
 # by Timothy Beach
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-# This version of the Aegix installer script is designed to install Aegix Linux on a block device without LUKS encryption.
 # License: GNU GPLv3
-# VERSION: 20240319.1
+# VERSION: 20231126.1
 
 # Exit on any error
 set -e
@@ -55,21 +54,21 @@ curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 curl -LO aegixlinux.org/images/aegix-forest.png
 
-# # Get encryption passphrase
-# luks_pass1=$(dialog --no-cancel \
-#     --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-#     --title "SET LUKS PASSPHRASE" \
-#     --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-# luks_pass2=$(dialog --no-cancel \
-#     --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-#     --title "SET LUKS PASSPHRASE" \
-#     --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+# Get encryption passphrase
+luks_pass1=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
+luks_pass2=$(dialog --no-cancel \
+    --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
+    --title "SET LUKS PASSPHRASE" \
+    --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
 
-# while true; do
-#     [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
-#     luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-#     luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-# done
+while true; do
+    [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
+    luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
+    luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+done
 
 # Collect user input for hostname
 hostname=$(dialog --stdout \
@@ -109,10 +108,8 @@ dialog --defaultno \
     --title "WRITE ZEROS" \
     --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device_path" 15 60 && dd if=/dev/zero of=$selected_device_path bs=1M status=progress || echo "Let's continue then..."
 
-# # Get disk setup packages
-# pacman -S openssl glibc parted cryptsetup lvm2 --noconfirm
-# Without LUKS, we only need parted
-pacman -S parted --noconfirm
+# Get disk setup packages
+pacman -S openssl glibc parted cryptsetup lvm2 --noconfirm
 
 # Create partitions
 parted -s -a optimal $selected_device_path mklabel msdos
@@ -130,61 +127,47 @@ mkfs.fat -F32 "$boot_partition"
 parted -s $selected_device_path set 1 boot on
 parted -s -a optimal $selected_device_path mkpart primary 1GiB 100%
 
-# # Setup the encryption partition
-# if [[ $selected_device_path =~ [0-9]$ ]]; then
-#     luks_partition="${selected_device_path}p2"
-# else
-#     luks_partition="${selected_device_path}2"
-# fi
-
-# Define the Btrfs partition (previously intended for encryption)
+# Setup the encryption partition
 if [[ $selected_device_path =~ [0-9]$ ]]; then
-    btrfs_partition="${selected_device_path}p2"
+    luks_partition="${selected_device_path}p2"
 else
-    btrfs_partition="${selected_device_path}2"
+    luks_partition="${selected_device_path}2"
 fi
 
-# # Check if LUKS container already exists
-# luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
+# Check if LUKS container already exists
+luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
 
-# # Prompt user to proceed to destroy extant LUKS setup or bail out
-# if [ "$luks_container_exists" = "yes" ]; then
-#     dialog --defaultno \
-#     --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
-#     --title "LUKS Container Exists - ABORT??" \
-#     --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+# Prompt user to proceed to destroy extant LUKS setup or bail out
+if [ "$luks_container_exists" = "yes" ]; then
+    dialog --defaultno \
+    --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
+    --title "LUKS Container Exists - ABORT??" \
+    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
 
-#     if cryptsetup status aegixluks >/dev/null 2>&1; then
-#         echo "Removing existing aegixluks mapping..."
-#         cryptsetup remove aegixluks
-#     fi
-# else
-#     batch_mode_flag=""
-# fi
+    if cryptsetup status aegixluks >/dev/null 2>&1; then
+        echo "Removing existing aegixluks mapping..."
+        cryptsetup remove aegixluks
+    fi
+else
+    batch_mode_flag=""
+fi
 
-# # Set boot partition for nvme or standard ssd
-# echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
-# echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" aegixluks -
+# Set boot partition for nvme or standard ssd
+echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" -
+echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" aegixluks -
 
-# # BTRFS setup with subvolumes for timeshift auto-backup compatibility
-# mkfs.btrfs -f -L BUTTER /dev/mapper/aegixluks
-# mount /dev/mapper/aegixluks /mnt
-
-# BTRFS setup for the main partition
-mkfs.btrfs -f -L BUTTER "$btrfs_partition"
-mount "$btrfs_partition" /mnt
+# BTRFS setup with subvolumes for timeshift auto-backup compatibility
+mkfs.btrfs -f -L BUTTER /dev/mapper/aegixluks
+mount /dev/mapper/aegixluks /mnt
 
 btrfs sub cr /mnt/@
 btrfs sub cr /mnt/@home
 
 # Unmount and remount with subvolumes
 umount /mnt
-# mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/aegixluks /mnt
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ "$btrfs_partition" /mnt
-
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/aegixluks /mnt
 mkdir -p /mnt/home
-# mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/aegixluks /mnt/home
-mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home "$btrfs_partition" /mnt/home
+mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/aegixluks /mnt/home
 
 # Create boot directory and mount boot partition
 mkdir -p /mnt/boot
@@ -207,16 +190,16 @@ echo "127.0.1.1    $hostname.localdomain $hostname" >> /mnt/etc/hosts
 # Generate fstab
 fstabgen -U /mnt >> /mnt/etc/fstab
 
-# # Collect UUIDs
-# # encrypted_partition_uuid=$(lsblk -f "$luks_partition" -o UUID | awk 'NR==2')
-# encrypted_partition_uuid=$(cryptsetup luksUUID "$luks_partition")
-# luks_container_uuid=$(findmnt -no UUID /mnt)
+# Collect UUIDs
+# encrypted_partition_uuid=$(lsblk -f "$luks_partition" -o UUID | awk 'NR==2')
+encrypted_partition_uuid=$(cryptsetup luksUUID "$luks_partition")
+luks_container_uuid=$(findmnt -no UUID /mnt)
 
-# echo "Encrypted partition UUID: $encrypted_partition_uuid"
-# echo "LUKS container UUID: $luks_container_uuid"
+echo "Encrypted partition UUID: $encrypted_partition_uuid"
+echo "LUKS container UUID: $luks_container_uuid"
 
-# # Setup crypttab
-# echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
+# Setup crypttab
+echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
 cp barbs.sh /mnt/root/
@@ -297,17 +280,17 @@ cp $grub_bg /mnt/root/
 # Enter new system via chroot
 artix-chroot /mnt /bin/bash <<EOF
 
-# echo "Still have Encrypted partition UUID: $encrypted_partition_uuid"
-# echo "Still have LUKS container UUID: $luks_container_uuid"
+echo "Still have Encrypted partition UUID: $encrypted_partition_uuid"
+echo "Still have LUKS container UUID: $luks_container_uuid"
 
-# sleep 4s
+sleep 4s
 
-# # Modify the mkinitcpio configuration to include encryption and LVM hooks, then regenerate the initramfs for the Linux kernel
-# sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkinitcpio.conf
+# Modify the mkinitcpio configuration to include encryption and LVM hooks, then regenerate the initramfs for the Linux kernel
+sed -i 's/\(HOOKS=(.*block \)\(.*filesystems.*\))/\1encrypt lvm2 \2)/' /etc/mkinitcpio.conf
 mkinitcpio -p linux
 
 # Update the GRUB configuration to set kernel parameters for LUKS encryption and specify the root device as the encrypted LVM volume
-# sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:aegixluks root=/dev/mapper/aegixluks\"|" /etc/default/grub
+sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:aegixluks root=/dev/mapper/aegixluks\"|" /etc/default/grub
 
 sudo sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
