@@ -52,7 +52,6 @@ curl -LO aegixlinux.org/barbs.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
-# curl -LO aegixlinux.org/images/aegix-forest.png
 
 # Get encryption passphrase
 luks_pass1=$(dialog --no-cancel \
@@ -204,11 +203,16 @@ echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 # Copy files to new system
 cp barbs.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
-# cp aegix-forest.png /mnt/root/
 
 ##########################
 ##########################
 ##########################
+
+# aegix-coast-bg.png
+# aegix-mountain-lake-bg.png
+# fuji-san-bg.png
+# aurora-bg.jpg
+
 
 # Display dialog and capture user choice for desktop background
 user_choice_desktop_bg=$(dialog --clear \
@@ -217,32 +221,32 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
-    "aegix-forest.png" "Default with hints" "" \
-    "aegix-forest-clean.png" "Default without hints" "" \
-    "aegix-bg-2.png" "Geocentric AI rug" "" \
-    "aegix-falls.png" "Aegix Falls" "" \
+    "aegix-mountain-lake-bg.png" "Mountain Lake" "" \
+    "aegix-coast-bg.png" "NorCal Coastline" "" \
+    "fuji-san-bg.png" "Mt Fuji San Sunset" "" \
+    "aurora-bg.jpg" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
 # Download the selected desktop background image
 case $user_choice_desktop_bg in
-    "aegix-forest.png")
-        curl -LO aegixlinux.org/images/aegix-forest.png
+    "aegix-mountain-lake-bg.png")
+        curl -LO aegixlinux.org/images/aegix-mountain-lake-bg.png
         ;;
-    "aegix-forest-clean.png")
-        curl -LO aegixlinux.org/images/aegix-forest-clean.png
+    "aegix-coast-bg.png")
+        curl -LO aegixlinux.org/images/aegix-coast-bg.png
         ;;
-    "aegix-bg-2.png")
-        curl -LO aegixlinux.org/images/aegix-bg-2.png
+    "fuji-san-bg.png")
+        curl -LO aegixlinux.org/images/fuji-san-bg.png
         ;;
-    "aegix-falls.png")  
-        curl -LO aegixlinux.org/images/aegix-falls.png
+    "aurora-bg.jpg")  
+        curl -LO aegixlinux.org/images/aurora-bg.jpg
         ;;
 esac
 
 # Assign choice to desktop_bg and copy the file to new system's wallpaper directory
 desktop_bg=$user_choice_desktop_bg
 # Assuming the path to the wallpaper directory in the installed system is /mnt/root/usr/share/backgrounds/
-cp $desktop_bg /mnt/root/aegix-forest.png
+cp $desktop_bg /mnt/root/aegix-bg.png
 
 ##########################
 ##########################
