@@ -202,7 +202,7 @@ echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
 cp barbs-canary.sh /mnt/root/
-cp aegix-programs.csv /mnt/root/
+# cp aegix-programs.csv /mnt/root/
 
 ###
 
