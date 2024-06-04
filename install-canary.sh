@@ -259,7 +259,7 @@ case $user_choice_grub_bg in
     "mt-aso-penguin.png")
         curl -LO aegixlinux.org/images/mt-aso-penguin.png
         ;;
-    "aegix-penguin-grub.png")
+    "aegix-grub.png")
         curl -LO aegixlinux.org/images/aegix-grub.png
         ;;
     "starfield.png")
