@@ -48,8 +48,8 @@ dialog --defaultno \
     --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
-curl -LO aegixlinux.org/barbs.sh
-curl -LO aegixlinux.org/aegix-programs.csv
+curl -LO aegixlinux.org/barbs-canary.sh
+# curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 
@@ -177,7 +177,7 @@ lsblk -f
 sleep 10s
 
 # Bootstrap the based system
-basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr go
+basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr go xorg
 
 echo "basestrap ran"
 
@@ -201,8 +201,8 @@ echo "LUKS container UUID: $luks_container_uuid"
 echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
-cp barbs.sh /mnt/root/
-cp aegix-programs.csv /mnt/root/
+cp barbs-canary.sh /mnt/root/
+# cp aegix-programs.csv /mnt/root/
 
 ###
 
@@ -249,8 +249,8 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "mt-aso-penguin.png" "Mt Aso" "" \
-    "aegix-penguin-grub.png" "Aegix GRUB Penguin" "" \
+    "mt-aso-penguin.png" "Mt Aso Pixels" "" \
+    "aegix-grub.png" "Aegix Flowers" "" \
     "starfield.png" "Star Field" "" \
     2>&1 >/dev/tty)
 
@@ -259,8 +259,8 @@ case $user_choice_grub_bg in
     "mt-aso-penguin.png")
         curl -LO aegixlinux.org/images/mt-aso-penguin.png
         ;;
-    "aegix-penguin-grub.png")
-        curl -LO aegixlinux.org/images/aegix-penguin-grub.png
+    "aegix-grub.png")
+        curl -LO aegixlinux.org/images/aegix-grub.png
         ;;
     "starfield.png")
         curl -LO aegixlinux.org/images/starfield.png
@@ -340,9 +340,9 @@ pacman -S cronie cronie-runit --noconfirm
 # Create a symlink for cronie runit service
 ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
-pacman -Sy xorg --noconfirm
-echo "full xorg install or reinstall"
-sleep 3s
+# pacman -Sy xorg --noconfirm
+# echo "full xorg install or reinstall"
+# sleep 3s
 
 # btrfs quota enable /
 
@@ -356,7 +356,7 @@ sleep 3s
 
 ###### 
 
-sh /root/barbs.sh
+sh /root/barbs-canary.sh
 
 EOF
 
