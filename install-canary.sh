@@ -239,7 +239,7 @@ case $user_choice_desktop_bg in
         curl -LO aegixlinux.org/images/fuji-san-bg.png
         ;;
     "aurora-bg.jpg")  
-        curl -LO aegixlinux.org/images/aurora-bg.jpg
+        curl -LO aegixlinux.org/images/aurora-bg.png
         ;;
 esac
 
