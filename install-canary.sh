@@ -177,7 +177,7 @@ lsblk -f
 sleep 10s
 
 # Bootstrap the based system
-basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr go
+basestrap /mnt base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr go xorg
 
 echo "basestrap ran"
 
@@ -340,9 +340,9 @@ pacman -S cronie cronie-runit --noconfirm
 # Create a symlink for cronie runit service
 ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
-pacman -Sy xorg --noconfirm
-echo "full xorg install or reinstall"
-sleep 3s
+# pacman -Sy xorg --noconfirm
+# echo "full xorg install or reinstall"
+# sleep 3s
 
 # btrfs quota enable /
 
