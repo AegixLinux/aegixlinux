@@ -10,7 +10,7 @@
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # License: GNU GPLv3
-# VERSION: 20231126.1
+# VERSION: 20240603
 
 # Exit on any error
 set -e
@@ -48,7 +48,7 @@ dialog --defaultno \
     --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
-curl -LO aegixlinux.org/barbs.sh
+curl -LO aegixlinux.org/barbs-canary.sh
 curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
@@ -201,18 +201,10 @@ echo "LUKS container UUID: $luks_container_uuid"
 echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
-cp barbs.sh /mnt/root/
+cp barbs-canary.sh /mnt/root/
 cp aegix-programs.csv /mnt/root/
 
-##########################
-##########################
-##########################
-
-# aegix-coast-bg.png
-# aegix-mountain-lake-bg.png
-# fuji-san-bg.png
-# aurora-bg.jpg
-
+###
 
 # Display dialog and capture user choice for desktop background
 user_choice_desktop_bg=$(dialog --clear \
@@ -248,9 +240,7 @@ desktop_bg=$user_choice_desktop_bg
 # Assuming the path to the wallpaper directory in the installed system is /mnt/root/usr/share/backgrounds/
 cp $desktop_bg /mnt/root/aegix-bg.png
 
-##########################
-##########################
-##########################
+###
 
 # Display dialog and capture user choice
 user_choice_grub_bg=$(dialog --clear \
@@ -366,7 +356,7 @@ sleep 3s
 
 ###### 
 
-sh /root/barbs.sh
+sh /root/barbs-canary.sh
 
 EOF
 
