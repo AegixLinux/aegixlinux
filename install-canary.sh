@@ -224,7 +224,7 @@ user_choice_desktop_bg=$(dialog --clear \
     "aegix-mountain-lake-bg.png" "Mountain Lake" "" \
     "aegix-coast-bg.png" "NorCal Coastline" "" \
     "fuji-san-bg.png" "Mt Fuji San Sunset" "" \
-    "aurora-bg.jpg" "North Davis Heights Aurora" "" \
+    "aurora-bg.png" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
 # Download the selected desktop background image
@@ -238,7 +238,7 @@ case $user_choice_desktop_bg in
     "fuji-san-bg.png")
         curl -LO aegixlinux.org/images/fuji-san-bg.png
         ;;
-    "aurora-bg.jpg")  
+    "aurora-bg.png")  
         curl -LO aegixlinux.org/images/aurora-bg.png
         ;;
 esac
