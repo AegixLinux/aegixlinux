@@ -49,7 +49,7 @@ dialog --defaultno \
 
 # Download necessary installation files
 curl -LO aegixlinux.org/barbs-canary.sh
-curl -LO aegixlinux.org/aegix-programs.csv
+# curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
 
