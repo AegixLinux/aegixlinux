@@ -48,7 +48,7 @@ dialog --defaultno \
     --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
-curl -LO aegixlinux.org/barbs-canary.sh
+curl -LO aegixlinux.org/barbs.sh
 # curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
@@ -201,7 +201,7 @@ echo "LUKS container UUID: $luks_container_uuid"
 echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
-cp barbs-canary.sh /mnt/root/
+cp barbs.sh /mnt/root/
 # cp aegix-programs.csv /mnt/root/
 
 ###
