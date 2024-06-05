@@ -356,7 +356,7 @@ ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
 ###### 
 
-sh /root/barbs-canary.sh
+sh /root/barbs.sh
 
 EOF
 
