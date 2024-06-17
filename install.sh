@@ -213,9 +213,9 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
+    "fuji-san-bg.png" "Mt Fuji Sunset" "" \
     "aegix-mountain-lake-bg.png" "Mountain Lake" "" \
     "aegix-coast-bg.png" "NorCal Coastline" "" \
-    "fuji-san-bg.png" "Mt Fuji San Sunset" "" \
     "aurora-bg.png" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
