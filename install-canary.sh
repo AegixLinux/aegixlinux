@@ -48,7 +48,7 @@ dialog --defaultno \
     --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device_path"  10 60 || exit
 
 # Download necessary installation files
-curl -LO aegixlinux.org/barbs-canary.sh
+curl -LO aegixlinux.org/barbs.sh
 # curl -LO aegixlinux.org/aegix-programs.csv
 curl -LO aegixlinux.org/ascii-aegix
 curl -LO aegixlinux.org/README.md
@@ -136,17 +136,17 @@ fi
 # Check if LUKS container already exists
 luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
 
-# Prompt user to proceed to destroy extant LUKS setup or bail out
+# Detect if a LUKS superblock signature is present
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno \
-    --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
-    --title "LUKS Container Exists - ABORT??" \
-    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    # Automatically proceed to remove existing LUKS setup
+    echo "LUKS Container Exists on ${luks_partition}. Proceeding with removal..."
 
     if cryptsetup status aegixluks >/dev/null 2>&1; then
         echo "Removing existing aegixluks mapping..."
         cryptsetup remove aegixluks
     fi
+
+    batch_mode_flag="-q"
 else
     batch_mode_flag=""
 fi
@@ -201,7 +201,7 @@ echo "LUKS container UUID: $luks_container_uuid"
 echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> /mnt/etc/crypttab
 
 # Copy files to new system
-cp barbs-canary.sh /mnt/root/
+cp barbs.sh /mnt/root/
 # cp aegix-programs.csv /mnt/root/
 
 ###
@@ -213,9 +213,9 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
+    "fuji-san-bg.png" "Mt Fuji Sunset" "" \
     "aegix-mountain-lake-bg.png" "Mountain Lake" "" \
     "aegix-coast-bg.png" "NorCal Coastline" "" \
-    "fuji-san-bg.png" "Mt Fuji San Sunset" "" \
     "aurora-bg.png" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
@@ -356,7 +356,7 @@ ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
 
 ###### 
 
-sh /root/barbs-canary.sh
+sh /root/barbs.sh
 
 EOF
 
