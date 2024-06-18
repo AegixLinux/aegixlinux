@@ -249,21 +249,17 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "mt-aso-penguin.png" "Mt Aso Pixels" "" \
-    "aegix-grub.png" "Aegix Flowers" "" \
     "starfield.png" "Star Field" "" \
+    "mt-aso-penguin.png" "Mt Aso Pixels" "" \
     2>&1 >/dev/tty)
 
 # Download the selected image
 case $user_choice_grub_bg in
-    "mt-aso-penguin.png")
-        curl -LO aegixlinux.org/images/mt-aso-penguin.png
-        ;;
-    "aegix-grub.png")
-        curl -LO aegixlinux.org/images/aegix-grub.png
-        ;;
     "starfield.png")
         curl -LO aegixlinux.org/images/starfield.png
+        ;;
+    "mt-aso-penguin.png")
+        curl -LO aegixlinux.org/images/mt-aso-penguin.png
         ;;
 esac
 
