@@ -136,17 +136,17 @@ fi
 # Check if LUKS container already exists
 luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
 
-# Prompt user to proceed to destroy extant LUKS setup or bail out
+# Detect if a LUKS superblock signature is present
 if [ "$luks_container_exists" = "yes" ]; then
-    dialog --defaultno \
-    --backtitle "LUKS Container Exists - ABORT?? Select NO to continue installation" \
-    --title "LUKS Container Exists - ABORT??" \
-    --yesno "\nABORT??? You have an extant LUKS superblock signature on ${luks_partition}.\n\nSelect < Yes > to CEASE & DESIST the installation.\n\nSelect default < No > to proceed, allowing the installation process to remove it. This will take ~ 10s" 15 60 && exit || batch_mode_flag="-q"
+    # Automatically proceed to remove existing LUKS setup
+    echo "LUKS Container Exists on ${luks_partition}. Proceeding with removal..."
 
     if cryptsetup status aegixluks >/dev/null 2>&1; then
         echo "Removing existing aegixluks mapping..."
         cryptsetup remove aegixluks
     fi
+
+    batch_mode_flag="-q"
 else
     batch_mode_flag=""
 fi
@@ -249,21 +249,17 @@ user_choice_grub_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-    "mt-aso-penguin.png" "Mt Aso Pixels" "" \
-    "aegix-grub.png" "Aegix Flowers" "" \
     "starfield.png" "Star Field" "" \
+    "mt-aso-penguin.png" "Mt Aso Pixels" "" \
     2>&1 >/dev/tty)
 
 # Download the selected image
 case $user_choice_grub_bg in
-    "mt-aso-penguin.png")
-        curl -LO aegixlinux.org/images/mt-aso-penguin.png
-        ;;
-    "aegix-grub.png")
-        curl -LO aegixlinux.org/images/aegix-grub.png
-        ;;
     "starfield.png")
         curl -LO aegixlinux.org/images/starfield.png
+        ;;
+    "mt-aso-penguin.png")
+        curl -LO aegixlinux.org/images/mt-aso-penguin.png
         ;;
 esac
 
