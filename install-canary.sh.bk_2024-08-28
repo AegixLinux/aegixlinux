@@ -10,7 +10,7 @@
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # License: GNU GPLv3
-# VERSION: 2024-08-28_Wed
+# VERSION: 20240603
 
 # Exit on any error
 set -e

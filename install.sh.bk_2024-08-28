@@ -10,7 +10,7 @@
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # License: GNU GPLv3
-# VERSION: 2024-08-28_Wed
+# VERSION: 20240603
 
 # Exit on any error
 set -e
@@ -213,15 +213,19 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
-    "bays_elliott_aegix.png" "Bays Mountain" "" \
     "fuji-san-bg.png" "Mt Fuji Sunset" "" \
+    "aegix-mountain-lake-bg.png" "Mountain Lake" "" \
+    "aegix-coast-bg.png" "NorCal Coastline" "" \
     "aurora-bg.png" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
 # Download the selected desktop background image
 case $user_choice_desktop_bg in
-    "bays_elliott_aegix.png")
-        curl -LO aegixlinux.org/images/bays_elliott_aegix.png
+    "aegix-mountain-lake-bg.png")
+        curl -LO aegixlinux.org/images/aegix-mountain-lake-bg.png
+        ;;
+    "aegix-coast-bg.png")
+        curl -LO aegixlinux.org/images/aegix-coast-bg.png
         ;;
     "fuji-san-bg.png")
         curl -LO aegixlinux.org/images/fuji-san-bg.png
