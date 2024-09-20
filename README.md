@@ -71,11 +71,11 @@ Nested within this git repository are six submodules representing other Aegix Li
 
 Aegix's barbs.sh script is inspired by [Luke Smith](https://lukesmith.xyz/)'s larbs.sh. Big thank you to him for that as well as his voidrice repo from which Aegix gohan liberally borrows. As Aegix continues to develop, more divergence will be likely to take place, but having the reference to get started was a tremendous help.
 
-## Art
+## What Does it Look Like?
 
-Default Aegix desktop image: 
+Using Aegix: 
 
-![Default Aegix desktop image](https://github.com/AegixLinux/aegixlinux/blob/release/centrifugal_bumblepuppy/images/bays_elliott_aegix.png)
+![Default Aegix desktop image](https://github.com/AegixLinux/aegixlinux/blob/release/centrifugal_bumblepuppy/images/Centrifugal_Bumblepuppy.png)
 
 Aegix ASCII Art:
 ``` Shell
