@@ -19,6 +19,7 @@ The term **"centrifugal bumblepuppy"** comes from Aldous Huxley's "Brave New Wor
 - added `unixtime` script to get the current unix time that continues to count up
 - added `pomodoro` script to track time spent on tasks
 - added `today` alias to create a new markdown file with the current date as the filename
+- general repo cleanup
 
 ### gohan sub-repository
 
