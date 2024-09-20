@@ -4,7 +4,7 @@ https://aegixlinux.org
 
 ## For Professional Computer Users 👩‍💻👨‍💻
 
-### Elite, Turn-Key Linux 🏆🔧
+### Elite, Turn-Key Linux 
 
 - Suckless software graphical environment with dwm, dmenu, st, dwmblocks 💻✨
 - LUKS-encrypted system drive 🔒💽
@@ -21,13 +21,13 @@ curl -LO aegixlinux.org/install.sh
 sh install.sh
 ```
 
-### Prepare USB Thumbdrive Installation Medium 💽🔌
+### Prepare USB Thumbdrive Installation Medium 
 
 The Aegix Linux Project hosts a known-to-work version of the artix-base-runit ISO at: https://aegixlinux.org/artix-base-runit-20240516-x86_64.iso. Create a bootable USB thumb drive with this ISO to install Aegix Linux on your target computer.
 
 If you're feeling adventurous try the very latest "artix-base-runit" ISO directly from Artix [downloads](https://artixlinux.org/download.php).
 
-### Boot Target Computer from USB Thumbdrive 🚀💻
+### Boot Target Computer from USB Thumbdrive 
 
 Research how to boot your machine to its boot menu. On an old ThinkPad, you can hold the F12 key to get the BIOS or BOOT MENU to allow to choose what storage device to boot from. Other machines have something similar.
 
@@ -65,11 +65,11 @@ Nested within this git repository are six submodules representing other Aegix Li
 - dwmblocks (Aegix build of suckless dwmblocks)
 - st (Aegix build of suckless simple terminal)
 
-## For the LARBS-aware 🧙‍♂️🤓
+## For the LARBS-aware 🧙‍♂️
 
 Aegix's barbs.sh script is inspired by [Luke Smith](https://lukesmith.xyz/)'s larbs.sh. Big thank you to him for that as well as his voidrice repo from which Aegix gohan liberally borrows. As Aegix continues to develop, more divergence will be likely to take place, but having the reference to get started was a tremendous help.
 
-## What Does it Look Like? 👀🖼️
+## What Does it Look Like? 
 
 Using Aegix: 
 
