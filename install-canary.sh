@@ -10,7 +10,7 @@
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # License: GNU GPLv3
-# VERSION: 2024-08-28_Wed
+# VERSION: Centrifugal_Bumblepuppy_2024-09-20_Wed
 
 # Exit on any error
 set -e
