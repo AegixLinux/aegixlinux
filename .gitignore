@@ -13,6 +13,7 @@ install-no-luks.sh
 install-upstream-broke-luks.sh
 tl-canary.sh.bk
 install-canary.sh.bk_2024-08-28
+install-canary.sh.bk_2024-09-20
 tl-uefi.sh
 website/
 website-safe-copy/
