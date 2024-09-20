@@ -30,3 +30,8 @@ The term **"centrifugal bumblepuppy"** comes from Aldous Huxley's "Brave New Wor
 
 - keybindings to add or remove a snippet using mod+shift+insert and mod+shift+delete respectively
 
+### Contributors to this release
+
+- [AegixLinux](https://github.com/AegixLinux)
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
