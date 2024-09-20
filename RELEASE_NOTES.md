@@ -1,4 +1,6 @@
-# Full Moon Release 1 - Centrifugal Bumblepuppy
+# RELEASE NOTES
+
+## Full Moon Release 1 - Centrifugal Bumblepuppy
 
 Branch name: `release/centrifugal_bumblepuppy` 
 
@@ -11,3 +13,13 @@ The term **"centrifugal bumblepuppy"** comes from Aldous Huxley's "Brave New Wor
 - **Distraction from Substance:** The game symbolizes how superficial activities replace meaningful experiences, diverting attention from critical thought or genuine human connection.
 
 ---
+
+### gohan sub-repository
+
+- added scripts for keybindings to add/remove snippets
+- added cli tools to select snippets/special chars and add/remove snippets
+
+### dwm sub-repository
+
+- keybindings to add or remove a snippet using mod+shift+insert and mod+shift+delete respectively
+
