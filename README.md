@@ -2,31 +2,32 @@
 
 https://aegixlinux.org
 
-## Security-Hardened Personal Computing for REAL HUMAN BEINGS
+## For Professional Computer Users
 
 ### Elite, Turn-Key Linux
 
-- Suckless software graphical environment with dwm, dmenu, st, dwmblocks
-- ~~LUKS-encrypted system drive~~ 
-    - Unfortunately upstream broke LUKS support for now. Details in this [github issue](https://github.com/AegixLinux/aegixlinux/issues/6) 
-- Artix base w/ runit init system (no systemd)
-- BTRFS filesystem with subvolumes for snapshots and rollback
-- Audio system with pipewire & wireplumber
-- Familiar vim-centric key bindings throughout
+- Suckless software graphical environment with dwm, dmenu, st, dwmblocks 💻✨
+- LUKS-encrypted system drive 🔒💽
+- Artix base w/ runit init system (no systemd) 🐧⚙️
+- BTRFS filesystem with subvolumes for snapshots and rollback 📁🔄
+- Audio system with pipewire & wireplumber 🎧🎶
+- Familiar vim-centric key bindings throughout ⌨️🖊️
 
 ## Installation
 
-TL;DR: Install after booting from an artix base runit ISO, with this one liner:
+TL;DR: Install after booting from an artix base runit ISO, run these commands:
 ``` Shell
-curl -LO aegixlinux.org/install.sh && sh install.sh
+curl -LO aegixlinux.org/install.sh 
+sh install.sh
 ```
 
 ### Prepare USB Thumbdrive Installation Medium
 
-Put the latest "artix-base-runit" ISO from
+Put an "artix-base-runit" ISO from
 https://artixlinux.org/download.php onto your usb thumbdrive, such that it's bootable from the computer you are installing Aegix Linux on.
-[ISO is here.](https://download.artixlinux.org/iso/artix-base-runit-20230814-x86_64.iso)
-Check Artix [downloads](https://artixlinux.org/download.php) to confirm this is the latest version.
+Check Artix [downloads](https://artixlinux.org/download.php) for the latest version.
+
+The Aegix Linux Project hosts a known-to-work version of the artix-base-runit ISO at: https://aegixlinux.org/artix-base-runit-20240516-x86_64.iso
 
 ### Boot Target Computer from USB Thumbdrive
 
@@ -53,7 +54,6 @@ Installation should be a smooth process on any machine you can set to LEGACY BIO
 - P50, P50s
 
 It's also been successfully tested on a HP Z800 office server.
-It's also been successfully tested on a 32GB USB 3 Flash Drive.
 
 Testing on other hardware platforms is welcomed. Please share your results.
 
@@ -69,13 +69,13 @@ Nested within this git repository are six submodules representing other Aegix Li
 
 ## For the LARBS-aware
 
-Aegix's barbs.sh script is inspired by Luke Smith's larbs.sh. Big thank you to him for that as well as his voidrice repo from which Aegix gohan liberally borrows. As Aegix continues to develop, more divergence will be likely to take place, but having the reference to get started was a tremendous help.
+Aegix's barbs.sh script is inspired by [Luke Smith](https://lukesmith.xyz/)'s larbs.sh. Big thank you to him for that as well as his voidrice repo from which Aegix gohan liberally borrows. As Aegix continues to develop, more divergence will be likely to take place, but having the reference to get started was a tremendous help.
 
 ## Art
 
-Aegix Linux desktop artwork from remote location in CyberSpace:
+Default Aegix desktop image: 
 
-![aegix-forest](https://github.com/AegixLinux/gohan/blob/master/.local/share/aegix-forest.png)
+![Default Aegix desktop image](https://github.com/AegixLinux/aegixlinux/blob/release/centrifugal_bumblepuppy/images/bays_elliott_aegix.png)
 
 Aegix ASCII Art:
 ``` Shell
