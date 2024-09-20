@@ -2,9 +2,9 @@
 
 ## Full Moon Release 1 - Centrifugal Bumblepuppy
 
-Branch name: `release/centrifugal_bumblepuppy`
+**Branch name**: `release/centrifugal_bumblepuppy`
 
-Date: 2024-09-20 Fri, The Eve of the Nativity of the Most Holy Theotokos
+**Date**: 2024-09-20 Fri, The Eve of the Nativity of the Most Holy Theotokos
 
 ---
 
