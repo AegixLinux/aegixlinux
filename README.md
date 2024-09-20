@@ -23,7 +23,7 @@ sh install.sh
 
 ### Prepare USB Thumbdrive Installation Medium
 
-The Aegix Linux Project hosts a known-to-work version of the artix-base-runit ISO at: https://aegixlinux.org/artix-base-runit-20240516-x86_64.iso. Put that onto your usb thumbdrive, such that it's bootable from the computer you are installing Aegix Linux on.
+The Aegix Linux Project hosts a known-to-work version of the artix-base-runit ISO at: https://aegixlinux.org/artix-base-runit-20240516-x86_64.iso. Create a bootable USB thumb drive with this ISO to install Aegix Linux on your target computer.
 
 If you're feeling adventurous try the very latest "artix-base-runit" ISO directly from Artix [downloads](https://artixlinux.org/download.php).
 
