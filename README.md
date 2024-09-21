@@ -13,6 +13,8 @@ https://aegixlinux.org
 - Audio system with pipewire & wireplumber 🎧🎶
 - Familiar vim-centric key bindings throughout ⌨️🖊️
 
+Check out the [RELEASE NOTES](https://github.com/AegixLinux/aegixlinux/blob/master/RELEASE_NOTES.md) for the latest updates.
+
 ## Installation 💿🛠️
 
 TL;DR: Install after booting from an artix base runit ISO, run these commands:
