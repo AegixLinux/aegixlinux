@@ -1,5 +1,27 @@
 # RELEASE NOTES
 
+## Full Moon Release 2 - The Northern Thebaid
+
+**Branch name**: `release/the_northern_thebaid`
+
+**Date**: 2024-10-18 Fri, The week of The Protection of Our Most Holy Lady the Theotokos and Ever-Virgin Mary
+
+---
+
+The term **"[The Northern Thebaid](https://www.sainthermanmonastery.com/product-p/nth.htm)"** refers to a collection of hagiographies and spiritual writings about monastic saints who lived in the remote northern forests of Russia. Drawing inspiration from the original Thebaid desert in Egypt—a cradle of early Christian monasticism—the Northern Thebaid embodies:
+
+- **Spiritual Solitude**: Like the desert fathers who sought isolation to deepen their spiritual lives, the monks of the Northern Thebaid embraced the solitude of the wilderness to focus on inner growth and reflection.
+- **Simplicity and Asceticism**: Living in harsh climates demanded a life of simplicity and self-denial. This stripped away excess, allowing for a concentrated pursuit of what truly matters.
+- **Inner Transformation**: Their stories emphasize personal transformation through discipline, contemplation, and unwavering dedication to higher principles.
+
+With this release, we aspire to capture the essence of the Northern Thebaid by offering tools that promote focus, simplicity, and a return to essentials, empowering users to eliminate distractions and engage deeply with their work.
+
+---
+
+### Major Changes
+
+
+
 ## Full Moon Release 1 - Centrifugal Bumblepuppy
 
 **Branch name**: `release/centrifugal_bumblepuppy`
