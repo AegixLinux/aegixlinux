@@ -21,7 +21,7 @@ With this release, we aspire to capture the essence of the Northern Thebaid by o
 ### Major Changes
 
 - **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/artix-base-runit-20241014-x86_64.iso) based on a very recent Artix weekly build has been updated with the latest software and configurations, ensuring a smooth and efficient user experience.
-- **passgen**: A new script has been added to generate secure passwords with customizable length and complexity, enhancing security for users across various applications.
+- **passgen**: A new script `passgen` has been added to generate secure passwords with customizable length and complexity, enhancing security for users across various applications.
 - **Enhanced Emoji Support**: Continued improvements to the emojis in Aegix, including the ability to search for emojis by name and copy them directly to the clipboard for easy use in text-based applications.
 
 ### Contributors to this Release
