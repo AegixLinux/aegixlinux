@@ -1,5 +1,37 @@
 # RELEASE NOTES
 
+## Full Moon Release 3 - Yolo County
+
+**Branch name**: release/yolo_county
+
+**Date**: 2024-11-15 Fri, 21st Week after Pentecost
+
+---
+
+Yolo County is more than just a name—it represents a mosaic of meaningful locations and experiences tied to roots, faith, and community:
+
+- **Esparto**: A quiet town surrounded by fields and hills, reflecting simplicity, hard work, and the grounding connection to home.
+- **North Davis Heights**: A place of cherished memories and family, evoking the comfort and formative strength of childhood.
+- **Holy Virgin Mary Orthodox Church in West Sacramento**: A space of spiritual connection and shared faith, where tradition and modern life meet in harmony.
+
+With this release, we aim to embody the spirit of Yolo County: rooted yet forward-looking, resilient yet serene, and always centered on what truly matters.
+
+---
+
+### Major Changes
+
+- **vpn Alias Update**: The `vpn` alias has been updated to work with AnyConnect verion 5.x, ensuring seamless VPN connections for users.
+- **Improved Documentation**: Enhanced documentation across the system
+- **New Default Desktop Background**: A fresh desktop background has been added to the default configuration, reflecting the beauty and tranquility of Yolo County.
+
+### Contributors to this Release
+
+A heartfelt thank you to our contributors:
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+
+
 ## Full Moon Release 2 - The Northern Thebaid
 
 **Branch name**: `release/the_northern_thebaid`
