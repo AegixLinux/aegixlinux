@@ -31,6 +31,7 @@ A heartfelt thank you to our contributors:
 - [Mason U. Borchard](https://github.com/mason-u-borchard)
 - [Timothy D. Beach](https://github.com/timbeach)
 
+---
 
 ## Full Moon Release 2 - The Northern Thebaid
 
