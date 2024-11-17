@@ -14,6 +14,10 @@ Yolo County is more than just a name—it represents a mosaic of meaningful loca
 - **North Davis Heights**: A place of cherished memories and family, evoking the comfort and formative strength of childhood.
 - **Holy Virgin Mary Orthodox Church in West Sacramento**: A space of spiritual connection and shared faith, where tradition and modern life meet in harmony.
 
+![North Davis Heights Aurora](https://aegixlinux.org/images/ndh_aurora_mason.jpg)
+
+*Image by [Mason U. Borchard](https://github.com/mason-u-borchard)*
+
 With this release, we aim to embody the spirit of Yolo County: rooted yet forward-looking, resilient yet serene, and always centered on what truly matters.
 
 ---
