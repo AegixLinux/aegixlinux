@@ -16,7 +16,7 @@ Yolo County is more than just a name—it represents a mosaic of meaningful loca
 
 ![North Davis Heights Aurora](https://aegixlinux.org/images/ndh_aurora_mason.jpg)
 
-*Image by [Mason U. Borchard](https://github.com/mason-u-borchard)*
+*Image by [Milly Borchard](https://www.youtube.com/@pantsberg)*
 
 With this release, we aim to embody the spirit of Yolo County: rooted yet forward-looking, resilient yet serene, and always centered on what truly matters.
 
