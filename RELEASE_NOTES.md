@@ -1,5 +1,25 @@
 # RELEASE NOTES
 
+## Full Moon Release 4 - Shipwrecked 
+
+**Branch name**: release/shipwrecked
+
+**Date**: 2024-12-18 Wed, in the Nativity Fast (both old and new calendars)
+
+---
+
+"Shipwrecked" reflects a state of surrender and rediscovery, inspired by ancient journeys where adversity led to unexpected transformations. In the spirit of those journeys, this release is a reminder to embrace challenges as opportunities for growth, innovation, and renewal.
+
+- **Stranded Yet Resilient**: Like mariners finding strength amidst the chaos of the seas, we refine our systems under pressure.
+- **Discovery Through Loss**: Stripping away what is non-essential, this release focuses on functionality and clarity.
+- **Navigating Together**: With collaborative spirit, contributors have steered this ship to new horizons.
+
+![Shipwrecked](https://aegixlinux.org/images/shipwrecked.png)
+
+*Image by Timothy D. Beach from Bodega Bay, CA*
+
+---
+
 ## Full Moon Release 3 - Yolo County
 
 **Branch name**: release/yolo_county
