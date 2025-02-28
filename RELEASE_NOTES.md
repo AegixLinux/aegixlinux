@@ -12,7 +12,7 @@ The **Blood Moon** release coincides with the total lunar eclipse of March 14, 2
 
 Aegix Linux continues its commitment to simplicity, efficiency, and freedom, refining the system while maintaining its core philosophy of parsimony, minimalism, and user empowerment.
 
-![Blood Moon](https://aegixlinux.org/images/blood_moon.jpg)
+![Blood Moon](https://aegixlinux.org/images/blood_moon.png)
 
 *Image by [Ringo H.W. Chiu/Associated Press](https://www.houstonchronicle.com/news/houston-texas/trending/article/blood-moon-houston-march-20191381.php)*
 
