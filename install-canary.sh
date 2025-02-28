@@ -10,7 +10,7 @@
 # |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
 # +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 # License: GNU GPLv3
-# VERSION: Centrifugal_Bumblepuppy_2024-09-20_Wed
+# VERSION: release/blood_moon
 
 # Exit on any error
 set -e
@@ -213,21 +213,21 @@ user_choice_desktop_bg=$(dialog --clear \
     --no-tags \
     --item-help \
     --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
+    "ndh_aurora_mason.jpg" "North Davis Heights Aurora" "" \
     "bays_elliott_aegix.png" "Bays Mountain" "" \
     "fuji-san-bg.png" "Mt Fuji Sunset" "" \
-    "aurora-bg.png" "North Davis Heights Aurora" "" \
     2>&1 >/dev/tty)
 
 # Download the selected desktop background image
 case $user_choice_desktop_bg in
+    "ndh_aurora_mason.jpg")  
+        curl -LO aegixlinux.org/images/ndh_aurora_mason.jpg
+        ;;
     "bays_elliott_aegix.png")
         curl -LO aegixlinux.org/images/bays_elliott_aegix.png
         ;;
     "fuji-san-bg.png")
         curl -LO aegixlinux.org/images/fuji-san-bg.png
-        ;;
-    "aurora-bg.png")  
-        curl -LO aegixlinux.org/images/aurora-bg.png
         ;;
 esac
 

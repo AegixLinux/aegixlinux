@@ -1,5 +1,52 @@
 # RELEASE NOTES
 
+## Full Moon Release 5 - Blood Moon
+
+**Branch name**: `release/blood_moon`
+
+**Date**: 2025-03-14 Fri, The Second Week of Great Lent
+
+---
+
+The **Blood Moon** release coincides with the total lunar eclipse of March 14, 2025. This celestial event symbolizes transformation, resilience, and illumination through adversity—perfectly aligning with the spirit of Great Lent, a time of reflection, struggle, and renewal.
+
+Aegix Linux continues its commitment to simplicity, efficiency, and freedom, refining the system while maintaining its core philosophy of parsimony, minimalism, and user empowerment.
+
+![Blood Moon](https://aegixlinux.org/images/blood_moon.jpg)
+
+*Image by [Ringo H.W. Chiu/Associated Press](https://www.houstonchronicle.com/news/houston-texas/trending/article/blood-moon-houston-march-20191381.php)*
+
+With this release, we introduce several key improvements and refinements to enhance the Aegix Linux experience.
+
+---
+
+### Major Changes
+
+- **Updated Kernel and Core Packages**: The latest stable Artix base and kernel updates ensure improved hardware support and performance.
+- **Enhanced Encryption Tools**: Improved scripts for LUKS encryption and secure key management.
+- **New Default Desktop Background**: A fresh background reflecting the beauty and intensity of the Blood Moon.
+- **Refined `barbs.sh` Installer**: Optimized for a smoother, faster installation process with better error handling.
+- **Better Support for PipeWire and WirePlumber**: Further tuning for audio performance and reliability.
+- **Refactored `vpn` Alias**: Enhanced compatibility with OpenVPN and Cisco AnyConnect.
+
+---
+
+### Contributors to this Release
+
+A heartfelt thank you to our contributors:
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+- [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
+This release embodies the essence of Aegix Linux—streamlined, powerful, and built for those who demand efficiency without compromise. The **Blood Moon** represents both an eclipse and a revelation, marking another milestone in the evolution of Aegix Linux.
+
+Download the latest ISO and experience the power of Aegix Linux **Blood Moon**.
+
+---
+
 ## Full Moon Release 4 - Shipwrecked 
 
 **Branch name**: release/shipwrecked
