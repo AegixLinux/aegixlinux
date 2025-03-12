@@ -15,6 +15,7 @@
 # Configuration variables
 AEGIX_BASE_URL="aegixlinux.org"
 DEST_ROOT="/mnt"
+GRUB_BG="mt-aso-penguin.png"  # Fixed GRUB background
 
 # Exit on any error
 set -e
@@ -74,6 +75,11 @@ download_installation_files() {
     curl -LO $AEGIX_BASE_URL/barbs.sh || error_exit "Failed to download barbs.sh"
     curl -LO $AEGIX_BASE_URL/ascii-aegix || error_exit "Failed to download ascii-aegix"
     curl -LO $AEGIX_BASE_URL/README.md || error_exit "Failed to download README.md"
+    
+    # Download the fixed GRUB background
+    echo "Downloading GRUB background image..."
+    curl -LO $AEGIX_BASE_URL/images/$GRUB_BG || error_exit "Failed to download GRUB background"
+    
     echo "Download complete"
 }
 
@@ -240,8 +246,8 @@ install_base_system() {
     echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> $DEST_ROOT/etc/crypttab
 }
 
-# Function to select desktop and GRUB backgrounds
-select_backgrounds() {
+# Function to select desktop background
+select_desktop_background() {
     # Display dialog and capture user choice for desktop background
     user_choice_desktop_bg=$(dialog --clear \
         --backtitle "Aegix Desktop Background Image" \
@@ -249,52 +255,26 @@ select_backgrounds() {
         --no-tags \
         --item-help \
         --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
+        "alcove_bg.png" "Cyphertext Alcove" "" \
         "ndh_aurora_mason.jpg" "North Davis Heights Aurora" "" \
-        "bays_elliott_aegix.png" "Bays Mountain" "" \
-        "fuji-san-bg.png" "Mt Fuji Sunset" "" \
         2>&1 >/dev/tty)
 
     # Download the selected desktop background image
     case $user_choice_desktop_bg in
+        "alcove_bg.png")  
+            curl -LO $AEGIX_BASE_URL/images/alcove_bg.png || error_exit "Failed to download desktop background"
+            ;;
         "ndh_aurora_mason.jpg")  
             curl -LO $AEGIX_BASE_URL/images/ndh_aurora_mason.jpg || error_exit "Failed to download desktop background"
-            ;;
-        "bays_elliott_aegix.png")
-            curl -LO $AEGIX_BASE_URL/images/bays_elliott_aegix.png || error_exit "Failed to download desktop background"
-            ;;
-        "fuji-san-bg.png")
-            curl -LO $AEGIX_BASE_URL/images/fuji-san-bg.png || error_exit "Failed to download desktop background"
             ;;
     esac
 
     # Copy the selected file to new system
     desktop_bg=$user_choice_desktop_bg
     cp $desktop_bg $DEST_ROOT/root/aegix-bg.png || error_exit "Failed to copy desktop background"
-
-    # Display dialog and capture user choice for GRUB background
-    user_choice_grub_bg=$(dialog --clear \
-        --backtitle "Aegix GRUB Menu Background Image" \
-        --title "Choose a GRUB Background" \
-        --no-tags \
-        --item-help \
-        --menu "Choose your GRUB background image\nSelect one:" 15 50 4 \
-        "starfield.png" "Star Field" "" \
-        "mt-aso-penguin.png" "Mt Aso Pixels" "" \
-        2>&1 >/dev/tty)
-
-    # Download the selected image
-    case $user_choice_grub_bg in
-        "starfield.png")
-            curl -LO $AEGIX_BASE_URL/images/starfield.png || error_exit "Failed to download GRUB background"
-            ;;
-        "mt-aso-penguin.png")
-            curl -LO $AEGIX_BASE_URL/images/mt-aso-penguin.png || error_exit "Failed to download GRUB background"
-            ;;
-    esac
-
-    # Assign choice to grub_bg and copy the file to new system
-    grub_bg=$user_choice_grub_bg
-    cp $grub_bg $DEST_ROOT/root/ || error_exit "Failed to copy GRUB background"
+    
+    # Copy the GRUB background to the root directory
+    cp $GRUB_BG $DEST_ROOT/root/ || error_exit "Failed to copy GRUB background"
 }
 
 # Function to configure the system with chroot
@@ -325,10 +305,10 @@ sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 grub-install "$selected_device" || exit 1
 
 # Copy GRUB background
-cp /root/$grub_bg /boot/grub/
+cp /root/$GRUB_BG /boot/grub/
 
 # Update GRUB background configuration
-sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$grub_bg\"|" /etc/default/grub
+sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$GRUB_BG\"|" /etc/default/grub
 
 # Update GRUB timeout
 sed -i 's/^GRUB_TIMEOUT=5$/GRUB_TIMEOUT=14/' /etc/default/grub
@@ -405,8 +385,8 @@ main() {
     # Install base system
     install_base_system
     
-    # Select background images
-    select_backgrounds
+    # Select desktop background (GRUB background is fixed)
+    select_desktop_background
     
     # Configure system
     configure_system
