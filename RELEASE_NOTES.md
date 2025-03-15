@@ -28,7 +28,7 @@ With this release, we introduce several key improvements and refinements to enha
 - **New Default Desktop Background**: A fresh background suggesting the feeling of looking out from your CypherText Alcove.
 - **Unified GRUB Background**: Branded Aegix GRUB background now the default.
 - **PyWal by Default**: PyWal comes bundled so your system theme will automatically match your desktop background image via the `setbg` script.
-- **gocryptfs by Default**: Aegix now ships with gocryptfs by default such that the `alcove` script for CypherText Alcove works out of the box.
+- **gocryptfs by Default**: Aegix now ships with gocryptfs by default such that the `alcove` script for [CypherText Alcove](https://aegixlinux.org/docs/privacy/cyphertext-alcove/) works out of the box.
 
 ---
 
