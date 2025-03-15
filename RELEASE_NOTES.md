@@ -22,12 +22,13 @@ With this release, we introduce several key improvements and refinements to enha
 
 ### Major Changes
 
-- **Updated Kernel and Core Packages**: The latest stable Artix base and kernel updates ensure improved hardware support and performance.
-- **Enhanced Encryption Tools**: Improved scripts for LUKS encryption and secure key management.
-- **New Default Desktop Background**: A fresh background reflecting the beauty and intensity of the Blood Moon.
-- **Refined `barbs.sh` Installer**: Optimized for a smoother, faster installation process with better error handling.
-- **Better Support for PipeWire and WirePlumber**: Further tuning for audio performance and reliability.
-- **Refactored `vpn` Alias**: Enhanced compatibility with OpenVPN and Cisco AnyConnect.
+- **Refined `install.sh` and `barbs.sh` Installer Scripts**: Optimized for a smoother, faster installation process with better error handling.
+- **24 Hour Time**: Updated status bar to 24 hour time along with calendar UI fix.
+- **Updated Official ISO**: Latest Artix Runit stable hosted.
+- **New Default Desktop Background**: A fresh background suggesting the feeling of looking out from your CypherText Alcove.
+- **Unified GRUB Background**: Branded Aegix GRUB background now the default.
+- **PyWal by Default**: PyWal comes bundled so your system theme will automatically match your desktop background image via the `setbg` script.
+- **gocryptfs by Default**: Aegix now ships with gocryptfs by default such that the `alcove` script for CypherText Alcove works out of the box.
 
 ---
 
@@ -43,7 +44,7 @@ A heartfelt thank you to our contributors:
 
 This release embodies the essence of Aegix Linux—streamlined, powerful, and built for those who demand efficiency without compromise. The **Blood Moon** represents both an eclipse and a revelation, marking another milestone in the evolution of Aegix Linux.
 
-Download the latest ISO and experience the power of Aegix Linux **Blood Moon**.
+Install the latest version and experience the power of Aegix Linux **Blood Moon**.
 
 ---
 
