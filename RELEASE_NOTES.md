@@ -1,5 +1,56 @@
 # RELEASE NOTES
 
+## Full Moon Release 6 – Pink Moon
+
+**Branch name**: `release_pink_moon`  
+**Date**: April 2025
+
+---
+
+### About the Pink Moon
+
+In many North American traditions, the **Pink Moon** is named for the early spring blossoms of phlox, one of the season’s first vibrant flowers. It symbolizes **renewal**, **hope**, and the gradual emergence of color after winter. This aligns perfectly with our new release, which brings a fresh color palette and a calming new default background to Aegix Linux.
+
+---
+
+### Major Changes
+
+1. **Nature-Inspired Color Scheme**  
+   We’ve embraced an earthy blend of greens, browns, and soft neutrals. This new palette, drawn from our featured forest-and-lake photograph, provides a warm, tranquil feel throughout the system and website.
+
+2. **New Default Desktop Background**  
+   A peaceful lakeside scene—mirroring tall evergreens in still water—replaces the previous wallpaper. This image is both **grounding** and **reflective**, aligning with our goal of a distraction-free workspace.
+
+3. **Website Redesign**  
+   The Aegix Linux website now reflects the updated palette. From buttons and alerts to headers and footers, each UI element has been carefully styled to match the overall natural aesthetic.
+
+4. **Under-the-Hood Improvements**  
+   - Minor performance optimizations in the default Suckless environment.  
+   - Updated documentation for a clearer installation process.  
+   - General stability fixes and code cleanups.
+
+---
+
+### Why “Pink Moon”?
+
+Just as the Pink Moon heralds **fresh beginnings** and a **return of color** in nature, this release ushers in a renewed visual identity and a smoother user experience. It continues our tradition of naming each full moon release after meaningful seasonal or cultural references, grounding Aegix Linux in a cycle of constant growth and change.
+
+---
+
+#### Contributors to this Release
+
+A special thank-you to everyone who helped make **Full Moon Release 6 – Pink Moon** possible:
+
+- [AegixLinux](https://github.com/AegixLinux)  
+- [Mason U. Borchard](https://github.com/mason-u-borchard)  
+- [Timothy D. Beach](https://github.com/timbeach)
+
+---
+
+We hope you enjoy the **Pink Moon** release! As always, your feedback and contributions help us continue improving Aegix Linux for everyone.
+
+---
+
 ## Full Moon Release 5 - Blood Moon
 
 **Branch name**: `release/blood_moon`
