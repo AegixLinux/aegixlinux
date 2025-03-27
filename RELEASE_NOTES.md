@@ -11,7 +11,8 @@
 
 In many North American traditions, the **Pink Moon** is named for the early spring blossoms of phlox, one of the season’s first vibrant flowers. It symbolizes **renewal**, **hope**, and the gradual emergence of color after winter. This aligns perfectly with our new release, which brings a fresh color palette and a calming new default background to Aegix Linux.
 
-![Pink Moon](https://aegixlinux.org/images/bays_timothy.jpg)
+<!-- ![Pink Moon](https://aegixlinux.org/images/bays_timothy.jpg) -->
+![Pink Moon](https://github.com/AegixLinux/aegixlinux/blob/release/pink_moon/images/bays_timothy.jpg)
 
 *Image by [Timothy D Beach](https://timbeach.com)*
 
