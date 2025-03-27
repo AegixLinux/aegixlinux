@@ -255,14 +255,14 @@ select_desktop_background() {
         --no-tags \
         --item-help \
         --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
-        "alcove_bg.png" "Cyphertext Alcove" "" \
+        "bays_timothy.jpg" "Bays Mountain" "" \
         "ndh_aurora_mason.jpg" "North Davis Heights Aurora" "" \
         2>&1 >/dev/tty)
 
     # Download the selected desktop background image
     case $user_choice_desktop_bg in
-        "alcove_bg.png")  
-            curl -LO $AEGIX_BASE_URL/images/alcove_bg.png || error_exit "Failed to download desktop background"
+        "bays_timothy.jpg")  
+            curl -LO $AEGIX_BASE_URL/images/bays_timothy.jpg || error_exit "Failed to download desktop background"
             ;;
         "ndh_aurora_mason.jpg")  
             curl -LO $AEGIX_BASE_URL/images/ndh_aurora_mason.jpg || error_exit "Failed to download desktop background"
