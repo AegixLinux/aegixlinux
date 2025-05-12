@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Directory with videos
+VIDEO_DIR="$HOME/Videos/obs"
+THUMB_DIR="/tmp/video_thumbs"
+mkdir -p "$THUMB_DIR"
+
+# Generate thumbnails if they don't exist
+for video in "$VIDEO_DIR"/*.mkv "$VIDEO_DIR"/*.mp4; do
+    if [ -f "$video" ]; then
+        basename=$(basename "$video")
+        thumbnail="$THUMB_DIR/${basename%.*}.jpg"
+        if [ ! -f "$thumbnail" ]; then
+            # Extract thumbnail at 10% of video duration
+            ffmpeg -y -i "$video" -ss $(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$video" | awk '{print $1*0.1}') -vframes 1 -vf "scale=320:-1" "$thumbnail" 2>/dev/null
+        fi
+    fi
+done
+
+# Use sxiv to display thumbnails in a grid
+sxiv -t "$THUMB_DIR"/*.jpg
+
+# Interactive mode after selecting thumbnail
+echo "Would you like to (p)review videos, (r)ename files, or (d)elete files? (p/r/d/q)"
+read -r mode
+
+case "$mode" in
+    p)
+        echo "Enter thumbnail number to preview video:"
+        read -r thumbnail_number
+        thumbnail_file=$(ls "$THUMB_DIR"/*.jpg | sed -n "${thumbnail_number}p")
+        if [ -n "$thumbnail_file" ]; then
+            video_basename=$(basename "$thumbnail_file" .jpg)
+            video_file=$(find "$VIDEO_DIR" -name "${video_basename}.*" | head -n 1)
+            mpv --geometry=50%x50% "$video_file"
+        fi
+        ;;
+    r)
+        echo "Enter thumbnail number of file to rename:"
+        read -r thumbnail_number
+        thumbnail_file=$(ls "$THUMB_DIR"/*.jpg | sed -n "${thumbnail_number}p")
+        if [ -n "$thumbnail_file" ]; then
+            video_basename=$(basename "$thumbnail_file" .jpg)
+            video_file=$(find "$VIDEO_DIR" -name "${video_basename}.*" | head -n 1)
+            echo "Current name: $video_file"
+            echo "Enter new name (without extension):"
+            read -r new_name
+            extension="${video_file##*.}"
+            mv "$video_file" "$(dirname "$video_file")/$new_name.$extension"
+            echo "File renamed."
+        fi
+        ;;
+    d)
+        echo "Enter thumbnail number of file to delete:"
+        read -r thumbnail_number
+        thumbnail_file=$(ls "$THUMB_DIR"/*.jpg | sed -n "${thumbnail_number}p")
+        if [ -n "$thumbnail_file" ]; then
+            video_basename=$(basename "$thumbnail_file" .jpg)
+            video_file=$(find "$VIDEO_DIR" -name "${video_basename}.*" | head -n 1)
+            echo "Delete $video_file? (y/n)"
+            read -r confirm
+            if [ "$confirm" = "y" ]; then
+                rm "$video_file"
+                echo "File deleted."
+            fi
+        fi
+        ;;
+    *)
+        echo "Exiting."
+        ;;
+esac
+
+# Clean up temporary thumbnails
+rm -rf "$THUMB_DIR"
