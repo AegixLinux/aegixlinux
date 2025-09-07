@@ -1,5 +1,33 @@
 # RELEASE NOTES
 
+## Full Moon Release 6 - Scooter Pie
+
+**Branch name**: `release/scooter_pie
+
+**Date**: 
+
+---
+
+The **Scooter Pie** release is our first in a while after lots of hacking. 
+
+---
+
+### Major Changes
+
+- 
+
+---
+
+### Contributors to this Release
+
+A heartfelt thank you to our contributors:
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+- [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
 ## Full Moon Release 5 - Blood Moon
 
 **Branch name**: `release/blood_moon`
