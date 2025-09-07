@@ -1,5 +1,73 @@
 # RELEASE NOTES
 
+## Full Moon Release 6 - Scooter Pie
+
+**Branch name**: `release/scooter_pie`
+
+**Date**: 2025-09-07 Sun 
+
+---
+
+The **Scooter Pie** release marks our return after an extended period of deep development and experimentation. This release consolidates months of iterative improvements, system refinements, and the introduction of our first custom media management tool. Built on our proven Artix Linux foundation with runit init, Scooter Pie brings enhanced workflow tools for content creators and power users while maintaining the lightweight, terminal-centric philosophy that defines AEGIX.
+
+---
+
+### Major Changes
+
+- **[Golden ISO Refreshed](https://aegixlinux.org/artix-base-runit-20241014-x86_64.iso)**  
+- New video management script **grideo**
+- Minor iterative improvements
+
+#### 📼✨ New video management functionality ✨📼 (terminal-based ofc :) 
+
+- **grideo**: thumbnail-first video reviewer and organizer
+  - Browse recordings in a fast thumbnail grid, then play, rename, or delete without leaving the gallery.
+  - Installs/updates an `sxiv` key-handler with video-aware shortcuts.
+  - Installed to `~/.local/bin/grideo` and on your PATH, so you can run it from any terminal.
+
+Usage:
+
+```shell
+grideo [--dir /path/to/videos]
+```
+
+What it does:
+
+- Scans `~/Videos/obs` by default (override with `--dir`).
+- Generates a thumbnail cache in `/tmp/video_thumbs` and opens a grid in `sxiv`.
+- Maps thumbnails back to the real video for safe actions (rename/delete/play/info).
+- Writes the active directory to `/tmp/vidgrid_dir` for robust thumb→video mapping and drops a compatible key-handler in `~/.config/sxiv/exec/key-handler`.
+
+Gallery shortcuts (inside `sxiv`):
+
+- p: play video
+- P: play from ~30%
+- r: rename underlying video (thumbnail follows)
+- d: delete underlying video (with confirmation)
+- i: show size, duration, and resolution
+
+Dependencies:
+
+- Required: `sxiv`, `ffmpeg`/`ffprobe`, `mpv`
+- Optional: `dmenu`, `notify-send`, `mediainfo`, `ImageMagick`
+
+Notes:
+
+- Thumbnails are cached and can be kept or cleared on exit.
+- Renames preserve file extensions; deletes always confirm.
+
+---
+
+### Contributors to this Release
+
+A heartfelt thank you & quantum-gratulations to our contributors 🪐
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+- [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
 ## Full Moon Release 5 - Blood Moon
 
 **Branch name**: `release/blood_moon`
@@ -28,7 +96,7 @@ With this release, we introduce several key improvements and refinements to enha
 - **New Default Desktop Background**: A fresh background suggesting the feeling of looking out from your CypherText Alcove.
 - **Unified GRUB Background**: Branded Aegix GRUB background now the default.
 - **PyWal by Default**: PyWal comes bundled so your system theme will automatically match your desktop background image via the `setbg` script.
-- **gocryptfs by Default**: Aegix now ships with gocryptfs by default such that the `alcove` script for [CypherText Alcove](https://aegixlinux.org/docs/privacy/cyphertext-alcove/) works out of the box.
+- **gocryptfs by Default**: Aegix now ships with gocryptfs by default such that the `alcove` script for CypherText Alcove works out of the box.
 
 ---
 

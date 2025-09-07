@@ -1,0 +1,420 @@
+#!/bin/bash
+
+# grideo - Quickly review, rename, and manage video recordings
+# Usage: grideo [--dir /path/to/videos]
+#
+# Creates thumbnails and provides a UI for renaming, previewing and deleting videos
+# Key-handler location: ~/.config/sxiv/exec/key-handler
+
+# Parse command line arguments
+VIDEO_DIR="$HOME/Videos/obs"  # Default value
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --dir)
+            if [[ -n "$2" && -d "$2" ]]; then
+                VIDEO_DIR="$2"
+                shift 2
+            else
+                echo "Error: Directory '$2' does not exist or was not specified."
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Unknown parameter: $1"
+            echo "Usage: grideo [--dir /path/to/videos]"
+            exit 1
+            ;;
+    esac
+done
+
+THUMB_DIR="/tmp/video_thumbs"
+mkdir -p "$THUMB_DIR"
+
+# Create debug file for key handler
+touch /tmp/sxiv_debug.log
+echo "Script started at $(date)" > /tmp/sxiv_debug.log
+echo "VIDEO_DIR set to: $VIDEO_DIR" >> /tmp/sxiv_debug.log
+
+# Create or update key-handler file with our enhanced version
+mkdir -p ~/.config/sxiv/exec/
+cat > ~/.config/sxiv/exec/key-handler << 'EOF'
+#!/bin/sh
+
+# Path for the temporary file that will store files to delete
+tmp_delete_list="/tmp/sxiv_delete_list"
+
+# Source the video directory from a temporary file
+VIDEO_DIR=$(cat /tmp/grideo_dir)
+
+# Get the video file path from thumbnail - improved matching
+get_video_from_thumb() {
+    thumbname=$(basename "$1")
+    basename="${thumbname%.*}"
+
+    # Debug info to help troubleshoot
+    echo "Looking for video matching thumbnail: $basename" >> /tmp/sxiv_debug.log
+    echo "Using VIDEO_DIR: $VIDEO_DIR" >> /tmp/sxiv_debug.log
+
+    # Try different matching patterns to be more flexible
+    videofile=""
+
+    # First try exact match
+    videofile=$(find "$VIDEO_DIR" -type f \( -name "${basename}.*mkv" -o -name "${basename}.*mp4" \) | head -n 1)
+
+    # If that fails, try a more flexible match (in case timestamps have different separators)
+    if [ -z "$videofile" ]; then
+        # Extract the date part (assuming format like 2025-04-11_08-33-27)
+        date_part=$(echo "$basename" | grep -o -E "[0-9]{4}-[0-9]{2}-[0-9]{2}")
+        if [ -n "$date_part" ]; then
+            echo "Trying flexible match with date: $date_part" >> /tmp/sxiv_debug.log
+            # Look for any video with that date
+            videofile=$(find "$VIDEO_DIR" -type f \( -name "*${date_part}*.*mkv" -o -name "*${date_part}*.*mp4" \) | head -n 1)
+        fi
+    fi
+
+    # Log the result
+    if [ -n "$videofile" ]; then
+        echo "Found matching video: $videofile" >> /tmp/sxiv_debug.log
+    else
+        echo "No matching video found for $basename" >> /tmp/sxiv_debug.log
+    fi
+
+    echo "$videofile"
+}
+
+while read -r file
+do
+        case "$1" in
+        # ===== Standard Image Operations =====
+        # These are the standard sxiv key handlers that work on any image type
+        
+        # Set the image as background wallpaper
+        "w") setbg "$file" & ;;
+        
+        # Move the selected file to a directory chosen via dmenu
+        "m")
+                [ -z "$destdir" ] && destdir="$(sed "s/#.*$//;/^\s*$/d" ${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs | awk '{print $2}' | dmenu -l 20 -i -p "Move file(s) to where?" | sed "s|~|$HOME|g")"
+                [ ! -d "$destdir" ] && notify-send "$destdir is not a directory, cancelled." && exit
+                mv "$file" "$destdir" && notify-send -i "$(readlink -f "$file")" "$file moved to $destdir." &
+                ;;
+        
+        # ===== Dual Purpose: Video Renaming / Image Rotation =====
+        # For thumbnails from our video dir, this renames the actual video
+        # For regular images, this rotates the image
+        "r")
+                # For video thumbnails, rename the video
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    # Locate the actual video file that corresponds to this thumbnail
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        extension="${videofile##*.}"  # Extract just the file extension
+                        # Use dmenu for GUI renaming if available, otherwise use terminal input
+                        if command -v dmenu >/dev/null 2>&1; then
+                            newname=$(echo "" | dmenu -p "Rename to:")
+                        else
+                            echo -n "Enter new name (without extension): "
+                            read -r newname
+                        fi
+
+                        # Only rename if a name was provided and it's different from current name
+                        if [ -n "$newname" ] && [ "$newname" != "$(basename "${videofile%.*}")" ]; then
+                            # Rename both the video file and its thumbnail to maintain the connection
+                            mv "$videofile" "$(dirname "$videofile")/$newname.$extension"
+                            mv "$file" "$(dirname "$file")/$newname.jpg"
+                            notify-send "Renamed" "Video renamed to $newname.$extension"
+                        fi
+                    fi
+                else
+                    # For regular images, perform the rotation operation
+                    convert -rotate 90 "$file" "$file"
+                fi
+                ;;
+        
+        # ===== Basic Image Manipulation =====
+        # Rotate image counter-clockwise
+        "R")
+                convert -rotate -90 "$file" "$file" ;;
+        
+        # Flip image horizontally 
+        "f")
+                convert -flop "$file" "$file" ;;
+        
+        # ===== Clipboard Operations =====
+        # Copy the filename to clipboard
+        "y")
+                printf "%s" "$file" | tr -d '\n' | xclip -selection clipboard &&
+                notify-send "$file copied to clipboard" & ;;
+        
+        # Copy the full path to clipboard
+        "Y")
+                readlink -f "$file" | tr -d '\n' | xclip -selection clipboard &&
+                        notify-send "$(readlink -f "$file")) copied to clipboard" & ;;
+        
+        # ===== Video-specific Actions =====
+        # Copy the video filename to clipboard (when viewing thumbnails)
+        "c")
+                # For video thumbnails, copy the name of the actual video file
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Copy just the filename (no path)
+                        basename=$(basename "$videofile")
+                        printf "%s" "$basename" | xclip -selection clipboard &&
+                        notify-send "Video filename" "$basename copied to clipboard" &
+                    else
+                        notify-send "Error" "Could not find matching video file"
+                    fi
+                else
+                    # Fall back to regular copy operation for non-thumbnails
+                    [ -z "$destdir" ] && destdir="$(sed "s/#.*$//;/^\s*$/d" ${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs | awk '{print $2}' | dmenu -l 20 -i -p "Copy file(s) to where?" | sed "s|~|$HOME|g")"
+                    [ ! -d "$destdir" ] && notify-send "$destdir is not a directory, cancelled." && exit
+                    cp "$file" "$destdir" && notify-send -i "$(readlink -f "$file")" "$file copied to $destdir." &
+                fi
+                ;;
+        
+        # Copy the full video file path to clipboard
+        "C")
+                # For video thumbnails, copy the complete path of the actual video file
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Copy the full path
+                        printf "%s" "$videofile" | xclip -selection clipboard &&
+                        notify-send "Video full path" "$(basename "$videofile") path copied to clipboard" &
+                    else
+                        notify-send "Error" "Could not find matching video file"
+                    fi
+                fi
+                ;;
+        
+        # ===== File Deletion =====
+        # Delete the current file (with video handling)
+        "d")
+                # Special handling for video thumbnails - delete both thumbnail and video file
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Ask for confirmation - GUI if dmenu is available, otherwise terminal
+                        if command -v dmenu >/dev/null 2>&1; then
+                            confirm=$(echo -e "No\nYes" | dmenu -p "Delete $videofile?")
+                            if [ "$confirm" = "Yes" ]; then
+                                rm "$videofile" && notify-send "Video file deleted."
+                                rm "$file" && notify-send "Thumbnail deleted."
+                            fi
+                        else
+                            echo -n "Delete $videofile? (y/n): "
+                            read -r confirm
+                            if [ "$confirm" = "y" ]; then
+                                rm "$videofile" && notify-send "Video file deleted."
+                                rm "$file" && notify-send "Thumbnail deleted."
+                            fi
+                        fi
+                    else
+                        # If no video found, just delete the thumbnail
+                        rm "$file" && notify-send "$file deleted."
+                    fi
+                else
+                    # Regular image deletion
+                    rm "$file" && notify-send "$file deleted."
+                fi
+                ;;
+        
+        # ===== Batch Deletion Tagging =====
+        # Tag current file for batch deletion later
+        "t")
+                echo "$file" >> "$tmp_delete_list" &&
+                notify-send "$file tagged for deletion." ;;
+        
+        # Delete all files previously tagged for deletion
+        "T")
+                if [ -f "$tmp_delete_list" ]; then
+                    xargs rm < "$tmp_delete_list" &&
+                    notify-send "All tagged files deleted." &&
+                    rm "$tmp_delete_list"
+                else
+                    notify-send "No files tagged for deletion."
+                fi ;;
+        
+        # ===== External Program Integration =====
+        # Open in GIMP if installed
+        "g")    ifinstalled gimp && setsid -f gimp "$file" ;;
+        
+        # ===== File Information =====
+        # For videos, show detailed technical information
+        "i")
+                # For video thumbnails, extract and display video information
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Gather video metadata using ffprobe and other tools
+                        filesize=$(du -h "$videofile" | cut -f1)
+                        duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$videofile" 2>/dev/null)
+                        if [ -n "$duration" ]; then
+                            # Convert duration from seconds to minutes
+                            duration=$(printf "%.2f minutes" "$(echo "$duration/60" | bc -l)")
+                        else
+                            duration="Unknown"
+                        fi
+                        # Extract video resolution using ffprobe
+                        resolution=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "$videofile" 2>/dev/null)
+                        [ -z "$resolution" ] && resolution="Unknown"
+
+                        # Format the information for display
+                        info="File: $(basename "$videofile")\nSize: $filesize\nDuration: $duration\nResolution: $resolution"
+
+                        # Display the information using available notification system
+                        if command -v notify-send >/dev/null 2>&1; then
+                            notify-send "Video Information" "$info"
+                        else
+                            echo -e "$info"
+                        fi
+                    else
+                        # Fallback to mediainfo for regular files
+                        notify-send "File information" "$(mediainfo "$file")"
+                    fi
+                else
+                    # Use mediainfo for regular image files
+                    notify-send "File information" "$(mediainfo "$file")"
+                fi
+                ;;
+
+        # ===== Video Playback Controls =====
+        # Play the video at the beginning
+        "p")
+                # Play the video that corresponds to this thumbnail
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Launch mpv media player in a window that's 50% of screen size
+                        notify-send "Playing" "$(basename "$videofile")"
+                        mpv --geometry=50%x50% "$videofile" &
+                    else
+                        notify-send "Error" "Video file not found for $(basename "$file")"
+                        # Log this error for debugging
+                        echo "Failed to find video for thumbnail: $file" >> /tmp/sxiv_debug.log
+                    fi
+                fi
+                ;;
+        
+        # Play the video starting at 30% through (useful for skipping intros)
+        "P")
+                # Play the video starting at 30% of total duration
+                if [[ "$file" == *"/tmp/video_thumbs/"* ]]; then
+                    videofile=$(get_video_from_thumb "$file")
+                    if [ -n "$videofile" ]; then
+                        # Get the total duration first
+                        duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$videofile" 2>/dev/null)
+                        if [ -n "$duration" ]; then
+                            # Calculate the 30% point to start playback
+                            start=$(echo "$duration * 0.3" | bc)
+                            notify-send "Playing from 30%" "$(basename "$videofile")"
+                            mpv --geometry=50%x50% --start="$start" "$videofile" &
+                        else
+                            # Fallback to normal playback if duration info not available
+                            notify-send "Playing" "$(basename "$videofile")"
+                            mpv --geometry=50%x50% "$videofile" &
+                        fi
+                    else
+                        notify-send "Error" "Video file not found for $(basename "$file")"
+                        # Log this error for debugging
+                        echo "Failed to find video for thumbnail: $file" >> /tmp/sxiv_debug.log
+                    fi
+                fi
+                ;;
+        esac
+done
+EOF
+chmod +x ~/.config/sxiv/exec/key-handler
+
+# Store the VIDEO_DIR value in a temporary file for the key handler to use
+echo "$VIDEO_DIR" > /tmp/grideo_dir
+
+# Count total video files
+total_videos=$(find "$VIDEO_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" \) | wc -l)
+echo "Found $total_videos video files to process"
+
+# Generate thumbnails with progress indicator
+current=0
+find "$VIDEO_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" \) | sort -r | while read -r video; do
+    if [ -f "$video" ]; then
+        current=$((current + 1))
+        basename=$(basename "$video")
+        thumbnail="$THUMB_DIR/${basename%.*}.jpg"
+        file_size=$(du -h "$video" | cut -f1)
+
+        # Show which file is being processed
+        echo "Processing: $basename ($file_size)"
+
+        if [ ! -f "$thumbnail" ]; then
+            # Extract thumbnail at 10% of video duration with limited threads
+            echo "  Generating thumbnail... (press Ctrl+C to interrupt)"
+            ffmpeg -y -threads 2 -i "$video" -ss 2 -vframes 1 -vf "scale=320:-1" "$thumbnail" 2>/dev/null
+
+            if [ -f "$thumbnail" ]; then
+                echo "  ✓ Thumbnail created"
+            else
+                echo "  ✗ Failed to create thumbnail"
+            fi
+        else
+            echo "  ✓ Thumbnail already exists"
+        fi
+
+        echo "-------------------------------------------"
+    fi
+done
+
+echo "All thumbnails generated!"
+
+# Display keyboard shortcuts BEFORE asking to open gallery (only once)
+echo "sxiv keyboard shortcuts:"
+echo "  Arrow keys: Navigate between images"
+echo "  Enter: View full-size image"
+echo "  Space: Toggle between thumbnail/image view"
+echo "  Ctrl+x then p: Play the selected video"
+echo "  Ctrl+x then P: Play the selected video (start at 30%)"
+echo "  Ctrl+x then r: Rename the selected video"
+echo "  Ctrl+x then d: Delete the selected video"
+echo "  Ctrl+x then i: Show video information"
+echo "  Ctrl+x then c: Copy video filename to clipboard"
+echo "  Ctrl+x then C: Copy video full path to clipboard"
+echo "  q: Quit sxiv"
+echo ""
+
+# Final view of all thumbnails
+echo "Do you want to open the thumbnail gallery? (y/n)"
+read -r view_all
+if [ "$view_all" = "y" ]; then
+    echo "Opening thumbnail gallery..."
+
+    # Use sxiv to display thumbnails in a grid
+    sxiv -t "$THUMB_DIR"/*.jpg
+
+    # Only show bulk operations if they're implemented
+    # Uncomment when implemented:
+    # echo "Bulk operations: (r)ename multiple files, (d)elete multiple files, (e)xit"
+    # read -r bulk_op
+    # 
+    # case "$bulk_op" in
+    #     r)
+    #         # Add bulk renaming interface here
+    #         echo "Bulk renaming not implemented yet"
+    #         ;;
+    #     d)
+    #         # Add bulk deletion interface here
+    #         echo "Bulk deletion not implemented yet"
+    #         ;;
+    #     *)
+    #         echo "Exiting."
+    #         ;;
+    # esac
+fi
+
+# Clean up option
+echo "Keep thumbnail cache for future use? (y/n)"
+read -r keep_cache
+if [ "$keep_cache" = "n" ]; then
+    rm -rf "$THUMB_DIR"
+    echo "Thumbnail cache removed."
+else
+    echo "Thumbnail cache kept at $THUMB_DIR for faster access next time"
+fi
