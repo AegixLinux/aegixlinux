@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# vidgrid - Quickly review, rename, and manage video recordings
-# Usage: vidgrid [--dir /path/to/videos]
+# grideo - Quickly review, rename, and manage video recordings
+# Usage: grideo [--dir /path/to/videos]
 #
 # Creates thumbnails and provides a UI for renaming, previewing and deleting videos
 # Key-handler location: ~/.config/sxiv/exec/key-handler
@@ -21,7 +21,7 @@ while [[ "$#" -gt 0 ]]; do
             ;;
         *)
             echo "Unknown parameter: $1"
-            echo "Usage: vidgrid [--dir /path/to/videos]"
+            echo "Usage: grideo [--dir /path/to/videos]"
             exit 1
             ;;
     esac
@@ -44,7 +44,7 @@ cat > ~/.config/sxiv/exec/key-handler << 'EOF'
 tmp_delete_list="/tmp/sxiv_delete_list"
 
 # Source the video directory from a temporary file
-VIDEO_DIR=$(cat /tmp/vidgrid_dir)
+VIDEO_DIR=$(cat /tmp/grideo_dir)
 
 # Get the video file path from thumbnail - improved matching
 get_video_from_thumb() {
@@ -327,7 +327,7 @@ EOF
 chmod +x ~/.config/sxiv/exec/key-handler
 
 # Store the VIDEO_DIR value in a temporary file for the key handler to use
-echo "$VIDEO_DIR" > /tmp/vidgrid_dir
+echo "$VIDEO_DIR" > /tmp/grideo_dir
 
 # Count total video files
 total_videos=$(find "$VIDEO_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" \) | wc -l)

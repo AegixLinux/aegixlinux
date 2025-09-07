@@ -4,7 +4,7 @@
 
 **Branch name**: `release/scooter_pie
 
-**Date**: 
+**Date**: 2025-09-07 Sun 
 
 ---
 
@@ -14,7 +14,46 @@ The **Scooter Pie** release is our first in a while after lots of hacking.
 
 ### Major Changes
 
-- 
+- New cannonical artix-base-runit ISO
+- New video management script **grideo**
+
+#### 📼✨ New video management functionality ✨📼 (terminal-based ofc :) 
+
+- grideo: thumbnail-first video reviewer and organizer
+  - Browse recordings in a fast thumbnail grid, then play, rename, or delete without leaving the gallery.
+  - Installs/updates an `sxiv` key-handler with video-aware shortcuts.
+  - Installed to `~/.local/bin/grideo` and on your PATH, so you can run it from any terminal.
+
+Usage:
+
+```shell
+grideo [--dir /path/to/videos]
+```
+
+What it does:
+
+- Scans `~/Videos/obs` by default (override with `--dir`).
+- Generates a thumbnail cache in `/tmp/video_thumbs` and opens a grid in `sxiv`.
+- Maps thumbnails back to the real video for safe actions (rename/delete/play/info).
+- Writes the active directory to `/tmp/vidgrid_dir` for robust thumb→video mapping and drops a compatible key-handler in `~/.config/sxiv/exec/key-handler`.
+
+Gallery shortcuts (inside `sxiv`):
+
+- p: play video
+- P: play from ~30%
+- r: rename underlying video (thumbnail follows)
+- d: delete underlying video (with confirmation)
+- i: show size, duration, and resolution
+
+Dependencies:
+
+- Required: `sxiv`, `ffmpeg`/`ffprobe`, `mpv`
+- Optional: `dmenu`, `notify-send`, `mediainfo`, `ImageMagick`
+
+Notes:
+
+- Thumbnails are cached and can be kept or cleared on exit.
+- Renames preserve file extensions; deletes always confirm.
 
 ---
 
