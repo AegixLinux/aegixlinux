@@ -20,7 +20,7 @@ The **Scooter Pie** release marks our return after an extended period of deep de
 
 #### 📼✨ New video management functionality ✨📼 (terminal-based ofc :) 
 
-- grideo: thumbnail-first video reviewer and organizer
+- **grideo**: thumbnail-first video reviewer and organizer
   - Browse recordings in a fast thumbnail grid, then play, rename, or delete without leaving the gallery.
   - Installs/updates an `sxiv` key-handler with video-aware shortcuts.
   - Installed to `~/.local/bin/grideo` and on your PATH, so you can run it from any terminal.
