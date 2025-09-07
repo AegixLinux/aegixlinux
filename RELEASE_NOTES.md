@@ -8,7 +8,7 @@
 
 ---
 
-The **Scooter Pie** release is our first in a while after lots of hacking. 
+The **Scooter Pie** release marks our return after an extended period of deep development and experimentation. This release consolidates months of iterative improvements, system refinements, and the introduction of our first custom media management tool. Built on our proven Artix Linux foundation with runit init, Scooter Pie brings enhanced workflow tools for content creators and power users while maintaining the lightweight, terminal-centric philosophy that defines AEGIX.
 
 ---
 
