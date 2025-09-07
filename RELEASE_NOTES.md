@@ -14,8 +14,9 @@ The **Scooter Pie** release is our first in a while after lots of hacking.
 
 ### Major Changes
 
-- New cannonical artix-base-runit ISO
+- **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/- **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/artix-base-runit-20241014-x86_64.iso) 
 - New video management script **grideo**
+- Minor iterative improvements
 
 #### 📼✨ New video management functionality ✨📼 (terminal-based ofc :) 
 
@@ -59,7 +60,7 @@ Notes:
 
 ### Contributors to this Release
 
-A heartfelt thank you to our contributors:
+A heartfelt thank you & quantum-gratulations to our contributors 🪐
 
 - [Mason U. Borchard](https://github.com/mason-u-borchard)
 - [Timothy D. Beach](https://github.com/timbeach)
