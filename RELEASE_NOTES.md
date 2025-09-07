@@ -2,7 +2,7 @@
 
 ## Full Moon Release 6 - Scooter Pie
 
-**Branch name**: `release/scooter_pie
+**Branch name**: `release/scooter_pie`
 
 **Date**: 2025-09-07 Sun 
 
