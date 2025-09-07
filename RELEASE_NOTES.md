@@ -14,7 +14,7 @@ The **Scooter Pie** release is our first in a while after lots of hacking.
 
 ### Major Changes
 
-- **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/- **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/artix-base-runit-20241014-x86_64.iso) 
+- **Golden ISO Refresh**: The [Golden ISO](https://aegixlinux.org/artix-base-runit-20241014-x86_64.iso) 
 - New video management script **grideo**
 - Minor iterative improvements
 
