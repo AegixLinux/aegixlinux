@@ -51,6 +51,7 @@ LOCALE_DEFAULT=${LOCALE_DEFAULT:-en_US.UTF-8}
 KEYMAP_DEFAULT=${KEYMAP_DEFAULT:-us}
 BOOTLABEL=${BOOTLABEL:-Aegix}
 ROOT_MAPPER_NAME=${ROOT_MAPPER_NAME:-cryptroot}
+AEGIX_BASE_URL="aegixlinux.org"
 
 ### -------------------------------
 ### pick target disk
@@ -82,6 +83,13 @@ read -rp "Encrypt root with LUKS? [y/N]: " USE_LUKS; USE_LUKS=${USE_LUKS:-N}
 if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
   read -rsp "LUKS passphrase: " LUKS_PASS; echo
 fi
+
+### -------------------------------
+### download installation files
+### -------------------------------
+log "Downloading BARBS and program list..."
+curl -LO ${AEGIX_BASE_URL}/barbs.sh || warn "Failed to download barbs.sh (will skip desktop environment)"
+curl -LO ${AEGIX_BASE_URL}/aegix-programs.csv || warn "Failed to download aegix-programs.csv"
 
 ### -------------------------------
 ### partitioning (GPT + ESP at /boot)
@@ -178,6 +186,15 @@ if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
   echo "${ROOT_MAPPER_NAME} UUID=${ROOT_UUID} none luks" >> /mnt/etc/crypttab
 fi
 
+# Copy BARBS files to new system if they exist
+if [[ -f barbs.sh ]]; then
+  log "Copying BARBS to new system…"
+  cp barbs.sh /mnt/root/ || warn "Failed to copy barbs.sh"
+fi
+if [[ -f aegix-programs.csv ]]; then
+  cp aegix-programs.csv /mnt/root/ || warn "Failed to copy aegix-programs.csv"
+fi
+
 ### -------------------------------
 ### chroot configuration
 ### -------------------------------
@@ -263,6 +280,15 @@ else
 fi
 
 grub-mkconfig -o /boot/grub/grub.cfg
+
+# Run BARBS if available
+if [[ -f /root/barbs.sh ]]; then
+  log "Running BARBS for desktop environment setup…"
+  bash /root/barbs.sh || log "BARBS failed or was cancelled. You can run it manually later."
+else
+  log "BARBS not found. Skipping desktop environment setup."
+  log "You can download and run barbs.sh manually after rebooting."
+fi
 
 log "Done inside chroot."
 CHROOT_EOF
