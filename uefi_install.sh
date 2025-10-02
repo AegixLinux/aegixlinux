@@ -87,9 +87,11 @@ fi
 ### -------------------------------
 ### download installation files
 ### -------------------------------
-log "Downloading BARBS and program list..."
-curl -LO ${AEGIX_BASE_URL}/barbs.sh || warn "Failed to download barbs.sh (will skip desktop environment)"
+log "Downloading BARBS, program list, and backgrounds..."
+curl -LO ${AEGIX_BASE_URL}/barbs-canary.sh || warn "Failed to download barbs-canary.sh (will skip desktop environment)"
 curl -LO ${AEGIX_BASE_URL}/aegix-programs.csv || warn "Failed to download aegix-programs.csv"
+curl -LO ${AEGIX_BASE_URL}/images/ndh_aurora_mason.jpg || warn "Failed to download desktop background"
+curl -LO ${AEGIX_BASE_URL}/images/mt-aso-penguin.png || warn "Failed to download GRUB background"
 
 ### -------------------------------
 ### partitioning (GPT + ESP at /boot)
@@ -186,14 +188,12 @@ if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
   echo "${ROOT_MAPPER_NAME} UUID=${ROOT_UUID} none luks" >> /mnt/etc/crypttab
 fi
 
-# Copy BARBS files to new system if they exist
-if [[ -f barbs.sh ]]; then
-  log "Copying BARBS to new system…"
-  cp barbs.sh /mnt/root/ || warn "Failed to copy barbs.sh"
-fi
-if [[ -f aegix-programs.csv ]]; then
-  cp aegix-programs.csv /mnt/root/ || warn "Failed to copy aegix-programs.csv"
-fi
+# Copy BARBS files and backgrounds to new system
+log "Copying BARBS and backgrounds to new system…"
+[[ -f barbs-canary.sh ]] && cp barbs-canary.sh /mnt/root/ || warn "Failed to copy barbs-canary.sh"
+[[ -f aegix-programs.csv ]] && cp aegix-programs.csv /mnt/root/ || warn "Failed to copy aegix-programs.csv"
+[[ -f ndh_aurora_mason.jpg ]] && cp ndh_aurora_mason.jpg /mnt/root/aegix-bg.png || warn "Failed to copy desktop background"
+[[ -f mt-aso-penguin.png ]] && cp mt-aso-penguin.png /mnt/root/ || warn "Failed to copy GRUB background"
 
 ### -------------------------------
 ### chroot configuration
@@ -267,8 +267,15 @@ fi
 # Aegix branding
 sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
-# Quiet boot cosmetics optional (comment out if unwanted)
-sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=2/' /etc/default/grub
+# GRUB background image
+if [[ -f /root/mt-aso-penguin.png ]]; then
+  mkdir -p /boot/grub
+  cp /root/mt-aso-penguin.png /boot/grub/
+  sed -i "s|^#GRUB_BACKGROUND=.*|GRUB_BACKGROUND=\"/boot/grub/mt-aso-penguin.png\"|" /etc/default/grub
+fi
+
+# Boot timeout and cosmetics
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=14/' /etc/default/grub
 sed -i 's/^#GRUB_DISABLE_SUBMENU.*/GRUB_DISABLE_SUBMENU=y/' /etc/default/grub
 
 # Install GRUB (UEFI primary; legacy fallback if ever on an old box)
@@ -281,13 +288,13 @@ fi
 
 grub-mkconfig -o /boot/grub/grub.cfg
 
-# Run BARBS if available
-if [[ -f /root/barbs.sh ]]; then
-  log "Running BARBS for desktop environment setup…"
-  bash /root/barbs.sh || log "BARBS failed or was cancelled. You can run it manually later."
+# Run BARBS Canary if available
+if [[ -f /root/barbs-canary.sh ]]; then
+  log "Running BARBS Canary for desktop environment setup…"
+  bash /root/barbs-canary.sh || log "BARBS Canary failed or was cancelled. Check /root/barbs-errors.log for details."
 else
-  log "BARBS not found. Skipping desktop environment setup."
-  log "You can download and run barbs.sh manually after rebooting."
+  log "BARBS Canary not found. Skipping desktop environment setup."
+  log "You can download and run barbs-canary.sh manually after rebooting."
 fi
 
 log "Done inside chroot."
