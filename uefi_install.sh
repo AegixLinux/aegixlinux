@@ -21,6 +21,19 @@ need() { command -v "$1" >/dev/null 2>&1 || error_exit "missing dependency: $1";
 ### -------------------------------
 ### sanity checks (live ISO env)
 ### -------------------------------
+# Check for root
+if [[ $EUID -ne 0 ]]; then
+  error_exit "This script must be run as root"
+fi
+
+# Check for internet
+ping -c 1 8.8.8.8 >/dev/null 2>&1 || error_exit "No internet connection detected"
+
+# Install required tools not in base ISO
+log "Installing required packages..."
+pacman -Sy --noconfirm parted cryptsetup || error_exit "Failed to install required packages"
+
+# Now check for everything we need
 need parted; need lsblk; need sed; need awk; need cryptsetup; need mkfs.fat
 need basestrap; need fstabgen; need artix-chroot; need mkinitcpio
 
