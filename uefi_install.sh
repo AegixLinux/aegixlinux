@@ -100,7 +100,7 @@ mkfs.fat -F32 -n EFI "$boot_partition"
 ### -------------------------------
 if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
   log "Setting up LUKS on $root_partition…"
-  printf "%s" "$LUKS_PASS" | cryptsetup luksFormat --type luks2 "$root_partition" -q --batch-mode --pbkdf argon2id --iter-time 3000 --use-urandom --label AEGIX_ROOT --cipher aes-xts-plain64 --key-size 512 --hash sha512 --force-password
+  printf "%s" "$LUKS_PASS" | cryptsetup luksFormat --type luks2 "$root_partition" -q --batch-mode --pbkdf argon2id --iter-time 3000 --use-urandom --label AEGIX_ROOT --cipher aes-xts-plain64 --key-size 512 --hash sha512
   printf "%s" "$LUKS_PASS" | cryptsetup open "$root_partition" "$ROOT_MAPPER_NAME" -q --key-file -
   MAPPED_ROOT="/dev/mapper/${ROOT_MAPPER_NAME}"
 else
@@ -117,7 +117,7 @@ case "$FS_TYPE" in
     mkfs.btrfs -L ROOT "$MAPPED_ROOT"
     ;;
   *) error_exit "Unsupported FS_TYPE: $FS_TYPE";;
-endsac
+esac
 
 ### -------------------------------
 ### mount target
@@ -142,10 +142,10 @@ mount "$boot_partition" /mnt/boot
 ### base system install
 ### -------------------------------
 log "Installing base system (Artix + runit)…"
-PKGS_BASE=(base base-devel linux linux-firmware grub efibootmgr sudo vim nano less man-db man-pages)
+PKGS_BASE=(base base-devel linux linux-firmware grub efibootmgr sudo vim neovim nano less man-db man-pages)
 PKGS_FS=(dosfstools e2fsprogs btrfs-progs)
-PKGS_MISC=(openssh cryptsetup lvm2)
-PKGS_RUNIT=(runit elogind polkit-elogind)
+PKGS_MISC=(openssh cryptsetup lvm2 brightnessctl htop networkmanager)
+PKGS_RUNIT=(runit elogind polkit-elogind networkmanager-runit openssh-runit openntpd openntpd-runit cronie cronie-runit lvm2-runit)
 
 basestrap -i /mnt "${PKGS_BASE[@]}" "${PKGS_FS[@]}" "${PKGS_MISC[@]}" "${PKGS_RUNIT[@]}"
 
@@ -155,14 +155,26 @@ basestrap -i /mnt "${PKGS_BASE[@]}" "${PKGS_FS[@]}" "${PKGS_MISC[@]}" "${PKGS_RU
 log "Generating fstab…"
 fstabgen -U /mnt >> /mnt/etc/fstab
 
-### -------------------------------
-### chroot configuration
-### -------------------------------
+# Get UUIDs for bootloader and crypttab configuration
 ROOT_UUID=$(blkid -s UUID -o value "$root_partition")
 ESP_UUID=$(blkid -s UUID -o value "$boot_partition")
 
+# Add crypttab for LUKS
+if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
+  log "Configuring crypttab…"
+  echo "${ROOT_MAPPER_NAME} UUID=${ROOT_UUID} none luks" >> /mnt/etc/crypttab
+fi
+
+### -------------------------------
+### chroot configuration
+### -------------------------------
+
+# Export all variables needed in chroot
+export HOSTNAME NEWUSER USERPASS ROOTPASS HOST_TZ LOCALE KEYMAP
+export FS_TYPE USE_LUKS ROOT_MAPPER_NAME ROOT_UUID ESP_UUID BOOTLABEL selected_device
+
 log "Entering chroot for system config…"
-artix-chroot /mnt /bin/bash -euo pipefail << "CHROOT_EOF"
+artix-chroot /mnt /bin/bash -euo pipefail << CHROOT_EOF
 set -euo pipefail
 log() { printf "\n\033[1;32m[chroot] %s\033[0m\n" "$*"; }
 
@@ -188,9 +200,9 @@ EOF
 log "Initramfs hooks (encrypt if needed)…"
 # mkinitcpio hooks
 if [[ "${USE_LUKS}" =~ ^[Yy]$ ]]; then
-  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block keymap encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 else
-  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block filesystems fsck)/' /etc/mkinitcpio.conf
+  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/' /etc/mkinitcpio.conf
 fi
 mkinitcpio -P
 
@@ -200,24 +212,30 @@ useradd -m -G wheel,audio,video,storage,lp,network -s /bin/bash "${NEWUSER}"
 echo "${NEWUSER}:${USERPASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-log "Networking (dhcpcd + sshd runit services)…"
-pacman -S --noconfirm --needed dhcpcd dhcpcd-runit openssh-runit
-ln -sf /etc/runit/sv/dhcpcd /etc/runit/runsvdir/default/
+log "Enabling runit services (NetworkManager, sshd, openntpd, cronie)…"
+ln -sf /etc/runit/sv/NetworkManager /etc/runit/runsvdir/default/
 ln -sf /etc/runit/sv/sshd /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/openntpd /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/cronie /etc/runit/runsvdir/default/
 
 log "GRUB configuration…"
-# Ensure cryptodisk (allows GRUB to unlock LUKS)
-if grep -q '^#\?GRUB_ENABLE_CRYPTODISK' /etc/default/grub 2>/dev/null; then
-  sed -i 's/^#\?GRUB_ENABLE_CRYPTODISK.*/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
+# Kernel command line configuration
+if [[ "${USE_LUKS}" =~ ^[Yy]$ ]]; then
+  # Enable GRUB cryptodisk support for LUKS
+  if grep -q '^#\?GRUB_ENABLE_CRYPTODISK' /etc/default/grub 2>/dev/null; then
+    sed -i 's/^#\?GRUB_ENABLE_CRYPTODISK.*/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
+  else
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub
+  fi
+  # Use UUID of the physical LUKS container; GRUB unlocks to /dev/mapper/${ROOT_MAPPER_NAME}
+  sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=${ROOT_UUID}:${ROOT_MAPPER_NAME} root=/dev/mapper/${ROOT_MAPPER_NAME}\"|" /etc/default/grub
 else
-  echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub
+  # Non-encrypted: use filesystem UUID directly
+  sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"root=UUID=${ROOT_UUID}\"|" /etc/default/grub
 fi
 
-# Kernel command line for cryptsetup if used
-if [[ "${USE_LUKS}" =~ ^[Yy]$ ]]; then
-  # Use UUID of the physical LUKS container; GRUB unlocks to /dev/mapper/${ROOT_MAPPER_NAME}
-  sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=${ROOT_UUID}:${ROOT_MAPPER_NAME}\"|" /etc/default/grub
-fi
+# Aegix branding
+sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
 
 # Quiet boot cosmetics optional (comment out if unwanted)
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=2/' /etc/default/grub
@@ -225,17 +243,22 @@ sed -i 's/^#GRUB_DISABLE_SUBMENU.*/GRUB_DISABLE_SUBMENU=y/' /etc/default/grub
 
 # Install GRUB (UEFI primary; legacy fallback if ever on an old box)
 if [[ -d /sys/firmware/efi ]]; then
-  mkdir -p /boot/EFI
-  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=${BOOTLABEL} --recheck
+  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=\${BOOTLABEL} --recheck
 else
   # You won't hit this on Framework, but keep for portability
-  grub-install --target=i386-pc "${selected_device}"
+  grub-install --target=i386-pc "\${selected_device}"
 fi
 
 grub-mkconfig -o /boot/grub/grub.cfg
 
 log "Done inside chroot."
 CHROOT_EOF
+
+# Fix fstab for timeshift compatibility if using btrfs
+if [[ "$FS_TYPE" == "btrfs" ]]; then
+  log "Fixing fstab for timeshift compatibility…"
+  sed -i 's/subvolid=[0-9]*,//' /mnt/etc/fstab
+fi
 
 ### -------------------------------
 ### wrap up
