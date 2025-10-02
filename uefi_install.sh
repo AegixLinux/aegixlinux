@@ -158,9 +158,9 @@ log "Installing base system (Artix + runit)…"
 PKGS_BASE=(base base-devel linux linux-firmware grub efibootmgr sudo vim neovim nano less man-db man-pages)
 PKGS_FS=(dosfstools e2fsprogs btrfs-progs)
 PKGS_MISC=(openssh cryptsetup lvm2 brightnessctl htop networkmanager)
-PKGS_RUNIT=(runit elogind polkit-elogind networkmanager-runit openssh-runit openntpd openntpd-runit cronie cronie-runit lvm2-runit)
+PKGS_RUNIT=(runit elogind-runit networkmanager-runit openssh-runit openntpd openntpd-runit cronie cronie-runit lvm2-runit)
 
-basestrap -i /mnt "${PKGS_BASE[@]}" "${PKGS_FS[@]}" "${PKGS_MISC[@]}" "${PKGS_RUNIT[@]}"
+basestrap /mnt "${PKGS_BASE[@]}" "${PKGS_FS[@]}" "${PKGS_MISC[@]}" "${PKGS_RUNIT[@]}"
 
 ### -------------------------------
 ### fstab
