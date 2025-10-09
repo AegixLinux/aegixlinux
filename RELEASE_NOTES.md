@@ -1,5 +1,119 @@
 # RELEASE NOTES
 
+## Full Moon Release 7 - Harvest Moon
+
+**Branch name**: `release/harvest_moon`
+
+**Date**: 2025-10-09 Thu
+
+---
+
+The **Harvest Moon** release arrives under tonight's full moon, bringing production-ready UEFI support to Aegix Linux. This milestone release makes Aegix fully compatible with modern UEFI-only hardware like the Framework 13 laptop, while expanding our documentation to support 4K displays and post-installation LUKS management.
+
+---
+
+### Major Changes
+
+- **🚀 Production UEFI Installer (`uefi_install.sh`)**
+- **📖 Comprehensive Documentation Suite**
+- **🎨 4K Display Support**
+- **🔐 LUKS Encryption Management Guide**
+
+#### 🚀 Production-Ready UEFI Installation
+
+The cornerstone of this release: `uefi_install.sh` - a complete UEFI-native installer designed for modern hardware.
+
+**Features:**
+- GPT partitioning with ESP at `/boot`
+- UEFI boot requirement check
+- Optional LUKS full-disk encryption
+- Choice of ext4 (default) or btrfs filesystems
+- Robust error handling (`set -euo pipefail`)
+- Interactive configuration (hostname, users, timezone, locale)
+- Artix base with runit init
+
+**Supported Hardware:**
+- Framework 13 (UEFI-only, fully tested)
+- Any modern UEFI system (2012+)
+- Graceful fallback if UEFI not detected
+
+**Usage:**
+```bash
+curl -LO aegixlinux.org/uefi_install.sh
+bash uefi_install.sh
+```
+
+**Technical Details:**
+- ESP: 512 MiB at `/boot` (no `/boot/efi` mount point)
+- Root: Optional LUKS encryption on remaining space
+- GRUB UEFI bootloader installed to ESP
+- initramfs with LUKS hooks when encryption enabled
+
+#### 📖 Documentation Expansion
+
+**CLAUDE.md** - AI-assisted development guide:
+- Complete repository structure
+- Installation workflows
+- Suckless component build process
+- Website development commands
+- Git submodule management
+- System architecture documentation
+
+**4K_README.md** - High-DPI display configuration:
+- Native 4K resolution settings (no scaling blur)
+- Suckless software font size adjustments (dwm, st, dmenu)
+- Smart Brave browser wrapper (auto-detects resolution)
+- Seamless switching between 4K laptop and 1080p external displays
+- Tested on Framework 13 internal 4K panel
+
+**LUKS_MANAGEMENT.md** - Encryption passphrase management:
+- Safe two-step passphrase change process
+- Multi-key slot management
+- Emergency recovery procedures
+- Best practices for LUKS security
+- Partition identification for BIOS vs UEFI systems
+
+---
+
+### Installation
+
+**UEFI Systems (Framework 13, modern laptops):**
+```bash
+curl -LO aegixlinux.org/uefi_install.sh
+bash uefi_install.sh
+```
+
+**Legacy BIOS Systems:**
+```bash
+curl -LO aegixlinux.org/install.sh
+sh install.sh
+```
+
+**Desktop Environment (post-install):**
+```bash
+cd barbs && sh barbs.sh
+```
+
+---
+
+### Contributors to this Release
+
+Under the Harvest Moon, we give thanks to:
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+- [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
+### 🎂 Happy Birthday Mason! 🎂
+
+![Happy Birthday Mason](https://aegixlinux.org/images/happy-birthday-mason.png)
+
+This Harvest Moon release is dedicated to Mason U. Borchard on her birthday. May this year bring you joy, discovery, and countless adventures with your new tools. Thank you for being an amazing partner in this journey. Here's to another year of building beautiful things together! 🌕✨
+
+---
+
 ## Full Moon Release 6 - Scooter Pie
 
 **Branch name**: `release/scooter_pie`
