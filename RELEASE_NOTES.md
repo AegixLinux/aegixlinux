@@ -4,11 +4,11 @@
 
 **Branch name**: `release/harvest_moon`
 
-**Date**: 2025-10-06 Sun
+**Date**: 2025-10-09 Thu
 
 ---
 
-The **Harvest Moon** release arrives under tonight's full moon, bringing production-ready UEFI support to Aegix Linux. This milestone release makes Aegix fully compatible with modern UEFI-only hardware like the Framework 13 laptop, while expanding our documentation to support 4K displays, LUKS management, and custom ISO creation.
+The **Harvest Moon** release arrives under tonight's full moon, bringing production-ready UEFI support to Aegix Linux. This milestone release makes Aegix fully compatible with modern UEFI-only hardware like the Framework 13 laptop, while expanding our documentation to support 4K displays and post-installation LUKS management.
 
 ---
 
@@ -18,7 +18,6 @@ The **Harvest Moon** release arrives under tonight's full moon, bringing product
 - **📖 Comprehensive Documentation Suite**
 - **🎨 4K Display Support**
 - **🔐 LUKS Encryption Management Guide**
-- **💿 Custom ISO Creation Documentation**
 
 #### 🚀 Production-Ready UEFI Installation
 
@@ -74,13 +73,6 @@ bash uefi_install.sh
 - Best practices for LUKS security
 - Partition identification for BIOS vs UEFI systems
 
-**ISO.md** - Custom ISO creation guide:
-- Artix ISO building with archiso/artools
-- Package customization
-- Pre-install Aegix branding and scripts
-- QEMU testing workflows
-- Distribution and versioning
-
 ---
 
 ### Installation
@@ -111,6 +103,12 @@ Under the Harvest Moon, we give thanks to:
 - [Mason U. Borchard](https://github.com/mason-u-borchard)
 - [Timothy D. Beach](https://github.com/timbeach)
 - [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
+### 🎂 Happy Birthday Mason! 🎂
+
+This Harvest Moon release is dedicated to Mason U. Borchard on her birthday. May this year bring you joy, discovery, and countless adventures with your new tools. Thank you for being an amazing partner in this journey. Here's to another year of building beautiful things together! 🌕✨
 
 ---
 
