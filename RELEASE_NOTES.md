@@ -108,6 +108,8 @@ Under the Harvest Moon, we give thanks to:
 
 ### 🎂 Happy Birthday Mason! 🎂
 
+![Happy Birthday Mason](https://aegixlinux.org/images/happy-birthday-mason.png)
+
 This Harvest Moon release is dedicated to Mason U. Borchard on her birthday. May this year bring you joy, discovery, and countless adventures with your new tools. Thank you for being an amazing partner in this journey. Here's to another year of building beautiful things together! 🌕✨
 
 ---
