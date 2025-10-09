@@ -1,5 +1,129 @@
 # RELEASE NOTES
 
+## Full Moon Release 8 - Riparian Hydrology
+
+**Branch name**: `release/riparian_hydrology`
+
+**Date**: 2025-11-05 Wed, The Beaver Moon
+
+---
+
+The **Riparian Hydrology** release honors the Beaver Moon, named for the time when beavers build their winter dams and lodges before waters freeze. Just as beavers engineer waterways with precision and purpose, this release brings refined productivity tools that help you manage the flow of time and credentials with the same focused efficiency.
+
+Like riparian zones where water meets land, creating rich ecosystems, this release bridges multiple workflows: timing your work sessions, securing your keys, and preparing for Aegix's first custom ISO—a milestone in our journey toward a fully self-contained distribution.
+
+![Beaver Moon](https://aegixlinux.org/images/beaver_moon.png)
+
+---
+
+### Major Changes
+
+- **⏱️  Enhanced Time Management Tools**
+- **🔐 Credential Inspection Utilities**
+- **🎯 Refined Productivity Workflow**
+- **📀 Custom Aegix ISO (In Progress)**
+
+#### ⏱️  Time Management Suite
+
+**timer** - Countdown timer with pause/resume functionality:
+- Set timers in minutes with decimal precision
+- Interactive pause/resume with 'p' key
+- Audio notification on completion (taiko.mp3)
+- Music control with 's' key to stop playback
+- Clean terminal interface with countdown display
+
+**stopwatch** - High-precision stopwatch written in pure C:
+- Millisecond-accurate timing using POSIX system calls
+- Pause/resume functionality maintains accuracy
+- Split timing for interval tracking
+- Clean terminal control with proper signal handling
+- Portable across Unix-like systems (Linux, macOS, BSD)
+- Compiled binary included for immediate use
+
+Usage:
+```bash
+# Start a 25-minute Pomodoro session
+timer 25
+
+# Launch the stopwatch
+stopwatch
+
+# Stopwatch controls
+p        - pause/resume
+enter    - create split time
+ctrl+c   - stop
+```
+
+Both tools integrate seamlessly with terminal-based workflows, perfect for Pomodoro technique practitioners and anyone tracking time from the command line.
+
+#### 🔐 Credential Management Tools
+
+**ssh-parser** - SSH key information and inspection:
+- Automatically discovers all SSH keys in ~/.ssh
+- Displays algorithm, fingerprint, encryption status, and dates
+- Identifies the default key used by ssh commands
+- Interactive mode to view full public key contents
+- Comprehensive help system with man-page-style documentation
+
+**gpg-parser** - GPG secret key summary:
+- Lists all GPG secret keys with formatted output
+- Shows key ID, fingerprint, name, email, and expiration
+- Clean, parseable format for scripting integration
+- Quick overview of your GPG identity landscape
+
+Usage:
+```bash
+# View SSH key summary
+ssh-parser
+
+# Interactive mode to inspect public keys
+ssh-parser --interactive
+
+# View GPG keys
+gpg-parser
+```
+
+These tools provide at-a-glance visibility into your authentication landscape, making key management transparent and accessible.
+
+---
+
+### Looking Ahead: Custom Aegix ISO
+
+This release cycle marks our preparation for Aegix's first custom ISO—a self-contained installation image that includes all these refined tools out of the box. Like beavers preparing their lodge before winter, we're building the foundation for a complete, ready-to-deploy system that embodies the Aegix philosophy from first boot.
+
+---
+
+### Installation
+
+**UEFI Systems (Framework 13, modern laptops):**
+```bash
+curl -LO aegixlinux.org/uefi_install.sh
+bash uefi_install.sh
+```
+
+**Legacy BIOS Systems:**
+```bash
+curl -LO aegixlinux.org/install.sh
+sh install.sh
+```
+
+**Desktop Environment (post-install):**
+```bash
+cd barbs && sh barbs.sh
+```
+
+---
+
+### Contributors to this Release
+
+Under the Beaver Moon, we give thanks to:
+
+- [Mason U. Borchard](https://github.com/mason-u-borchard)
+- [Timothy D. Beach](https://github.com/timbeach)
+- [AegixLinux Community](https://github.com/AegixLinux)
+
+---
+
 ## Full Moon Release 7 - Harvest Moon
 
 **Branch name**: `release/harvest_moon`
