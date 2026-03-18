@@ -1,399 +1,345 @@
-#!/bin/sh
+#!/usr/bin/env bash
+# Aegix/Artix installer — unified UEFI + legacy BIOS
+# - Auto-detects boot mode (UEFI vs BIOS)
+# - GPT + ESP for UEFI, msdos + boot for BIOS
+# - Optional LUKS on root
+# - btrfs root by default with subvolumes and compression
+# - Artix base with runit services
 
-##
-# Metadata
-##
+set -euo pipefail
+IFS=$'\n\t'
 
-# install.sh
-# by Timothy Beach
-# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-# |A|e|g|i|x|L|i|n|u|x|.|o|r|g|
-# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-# License: GNU GPLv3
-# VERSION: Blood Moon 2025-03-14
+### -------------------------------
+### helpers
+### -------------------------------
+log() { printf "\n\033[1;32m[+] %s\033[0m\n" "$*"; }
+warn() { printf "\n\033[1;33m[!] %s\033[0m\n" "$*"; }
+err() { printf "\n\033[1;31m[✗] %s\033[0m\n" "$*"; }
+error_exit() { err "$*"; exit 1; }
+need() { command -v "$1" >/dev/null 2>&1 || error_exit "missing dependency: $1"; }
 
-# Configuration variables
-AEGIX_BASE_URL="aegixlinux.org"
-DEST_ROOT="/mnt"
-GRUB_BG="mt-aso-penguin.png"  # Fixed GRUB background
-
-# Exit on any error
-set -e
-
-# Function to display error messages and exit
-error_exit() {
-    echo "ERROR: $1" >&2
-    exit 1
-}
-
-# Check if running as root
-if [ "$(id -u)" -ne 0 ]; then
-    error_exit "This script must be run as root"
+### -------------------------------
+### sanity checks (live ISO env)
+### -------------------------------
+# Check for root
+if [[ $EUID -ne 0 ]]; then
+  error_exit "This script must be run as root"
 fi
 
-# Check for internet connection
+# Check for internet
 ping -c 1 8.8.8.8 >/dev/null 2>&1 || error_exit "No internet connection detected"
 
-# Ensure dialog is installed
-pacman -Sy --noconfirm dialog || error_exit "Failed to install dialog. Check your internet connection and Pacman."
+# Install required tools not in base ISO
+log "Installing required packages..."
+pacman -Sy --noconfirm parted cryptsetup btrfs-progs || error_exit "Failed to install required packages"
 
-# Function to get device selection
-get_device_selection() {
-    # Fetch available block devices
-    devices=$(lsblk -d -p -n -l -o NAME,SIZE,MODEL -e 7,11)
+# Now check for everything we need
+need parted; need lsblk; need sed; need awk; need cryptsetup; need mkfs.fat
+need basestrap; need fstabgen; need artix-chroot; need mkinitcpio
 
-    # Parse block devices for dialog display
-    device_list=""
-    while IFS= read -r line; do
-        device=$(echo "$line" | awk '{print $1}')
-        size=$(echo "$line" | awk '{print $2}')
-        model=$(echo "$line" | awk '{print $3}')
-        device_list="${device_list} $device \"$size $model\""
-    done <<< "$devices"
+### -------------------------------
+### detect boot mode
+### -------------------------------
+if [[ -d /sys/firmware/efi ]]; then
+  BOOT_MODE="uefi"
+  log "Detected UEFI boot mode"
+else
+  BOOT_MODE="bios"
+  log "Detected legacy BIOS boot mode"
+fi
 
-    # Prompt user to select a block device for installation
-    selected_device=$(eval dialog --stdout --menu \"Select a block device for your Aegix installation:\" 15 60 5 $device_list)
-    if [ -z "$selected_device" ]; then
-        error_exit "No block device was selected."
-    fi
-    
-    echo "Selected block device: $selected_device"
-    
-    # Warn user about potential data loss
-    dialog --defaultno \
-        --title "HIC SUNT DRACONES" \
-        --backtitle "HIC SUNT DRACONES" \
-        --yesno "DANGER! HERE BE DRAGONS\n\nSelecting < Yes > will destroy the contents of: \n\n$selected_device"  10 60 || exit
-    
-    echo "User confirmed device selection"
-    return 0
-}
+### -------------------------------
+### config (edit if you like)
+### -------------------------------
+FS_TYPE=${FS_TYPE:-btrfs}        # btrfs or ext4
+ESP_SIZE_MIB=${ESP_SIZE_MIB:-512}
+HOST_TZ_DEFAULT=${HOST_TZ_DEFAULT:-America/New_York}
+LOCALE_DEFAULT=${LOCALE_DEFAULT:-en_US.UTF-8}
+KEYMAP_DEFAULT=${KEYMAP_DEFAULT:-us}
+BOOTLABEL=${BOOTLABEL:-Aegix}
+ROOT_MAPPER_NAME=${ROOT_MAPPER_NAME:-cryptroot}
+AEGIX_BASE_URL="https://aegixlinux.org"
 
-# Function to download required files
-download_installation_files() {
-    echo "Downloading installation files..."
-    curl -LO $AEGIX_BASE_URL/barbs.sh || error_exit "Failed to download barbs.sh"
-    curl -LO $AEGIX_BASE_URL/ascii-aegix || error_exit "Failed to download ascii-aegix"
-    curl -LO $AEGIX_BASE_URL/README.md || error_exit "Failed to download README.md"
-    
-    # Download the fixed GRUB background
-    echo "Downloading GRUB background image..."
-    curl -LO $AEGIX_BASE_URL/images/$GRUB_BG || error_exit "Failed to download GRUB background"
-    
-    echo "Download complete"
-}
+### -------------------------------
+### pick target disk
+### -------------------------------
+log "Detecting block devices..."
+mapfile -t DEV_CHOICES < <(lsblk -dpno NAME,SIZE,MODEL | grep -E "/dev/(nvme|sd|vd|mmcblk)" || true)
+(( ${#DEV_CHOICES[@]} )) || error_exit "No suitable disks found."
 
-# Function to collect user input
-collect_user_input() {
-    # Get encryption passphrase
-    luks_pass1=$(dialog --no-cancel \
-        --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-        --title "SET LUKS PASSPHRASE" \
-        --passwordbox "Enter a passphrase for the LUKS encryption.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-    luks_pass2=$(dialog --no-cancel \
-        --backtitle "SET LUKS ENCRYPTION PASSPHRASE" \
-        --title "SET LUKS PASSPHRASE" \
-        --passwordbox "Retype the encryption passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
+printf "\nAvailable disks:\n"; printf "  %s\n" "${DEV_CHOICES[@]}"; printf "\n"
+read -rp "Enter target disk (e.g., /dev/nvme0n1): " selected_device
+[[ -b "$selected_device" ]] || error_exit "Not a block device: $selected_device"
 
-    while true; do
-        [[ "$luks_pass1" != "" && "$luks_pass1" == "$luks_pass2" ]] && break
-        luks_pass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-        luks_pass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-    done
+warn "THIS WILL WIPE $selected_device completely."
+read -rp "Type YES to confirm: " really
+[[ "$really" == "YES" ]] || error_exit "Aborted."
 
-    # Collect user input for hostname
-    hostname=$(dialog --stdout \
-        --backtitle "SET HOSTNAME" \
-        --title "SET HOSTNAME" \
-        --no-cancel --inputbox "Enter a hostname for your system." 10 60)
+### -------------------------------
+### basic questions
+### -------------------------------
+read -rp "Hostname [aegix]: " HOSTNAME; HOSTNAME=${HOSTNAME:-aegix}
+read -rp "Username to create [aegix]: " NEWUSER; NEWUSER=${NEWUSER:-aegix}
+read -rsp "Password for $NEWUSER: " USERPASS; echo
+read -rsp "Password for root: " ROOTPASS; echo
+read -rp "Timezone [$HOST_TZ_DEFAULT]: " HOST_TZ; HOST_TZ=${HOST_TZ:-$HOST_TZ_DEFAULT}
+read -rp "Locale to enable [$LOCALE_DEFAULT]: " LOCALE; LOCALE=${LOCALE:-$LOCALE_DEFAULT}
+read -rp "Keymap [$KEYMAP_DEFAULT]: " KEYMAP; KEYMAP=${KEYMAP:-$KEYMAP_DEFAULT}
 
-    # Set system's time zone
-    if dialog --defaultno \
-        --backtitle "Set your system's time zone." \
-        --title "Set your system's time zone." \
-        --yesno "\nDo you want to set the time zone to something other than Eastern time: America/New_York ?\n\nSelect yes to choose a different time zone."  10 60
-    then
-        timezone=$(tzselect)
-    else
-        timezone="America/New_York"
-    fi
+read -rp "Encrypt root with LUKS? [y/N]: " USE_LUKS; USE_LUKS=${USE_LUKS:-N}
+if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
+  read -rsp "LUKS passphrase: " LUKS_PASS; echo
+fi
 
-    # Get root user passphrase
-    rootpass1=$(dialog --no-cancel \
-        --backtitle "SET ROOT PASSPHRASE" \
-        --title "SET ROOT PASSPHRASE" \
-        --passwordbox "Enter a passphrase for the root user.\n\nMake it unique, and write it down." 10 60 3>&1 1>&2 2>&3 3>&1)
-    rootpass2=$(dialog --no-cancel \
-        --backtitle "SET ROOT PASSPHRASE" \
-        --title "SET ROOT PASSPHRASE" \
-        --passwordbox "Retype the root passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-    while true; do
-        [[ "$rootpass1" != "" && "$rootpass1" == "$rootpass2" ]] && break
-        rootpass1=$(dialog --no-cancel --passwordbox "Uh oh! Your passwordphrases do not match. Try again." 10 60 3>&1 1>&2 2>&3 3>&1)
-        rootpass2=$(dialog --no-cancel --passwordbox "Retype the passphrase." 10 60 3>&1 1>&2 2>&3 3>&1)
-    done
+### -------------------------------
+### download installation files
+### -------------------------------
+# Use a known working directory so curl -LO lands files predictably
+WORK_DIR="$(mktemp -d)"
+cd "$WORK_DIR"
+log "Downloading BARBS, program list, and backgrounds to ${WORK_DIR}..."
+curl -LO ${AEGIX_BASE_URL}/barbs.sh || warn "Failed to download barbs.sh (will skip desktop environment)"
+curl -LO ${AEGIX_BASE_URL}/aegix-programs.csv || warn "Failed to download aegix-programs.csv"
+curl -L -o aegix-bg.jpg ${AEGIX_BASE_URL}/images/ndh_aurora_mason.jpg || warn "Failed to download desktop background"
+curl -LO ${AEGIX_BASE_URL}/images/mt-aso-penguin.png || warn "Failed to download GRUB background"
 
-    # Ask if user wants to securely wipe the disk
-    dialog --defaultno \
-        --backtitle "WRITE ALL ZEROS instead of 1s and 0s across block device" \
-        --title "WRITE ZEROS" \
-        --yesno "\nATTENTION HACKERMAN:\n\nSelect < Yes > to commence a lengthy process of writing zeros across the entirety of:\n\n$selected_device" 15 60 && {
-            echo "Wiping disk with zeros..."
-            dd if=/dev/zero of=$selected_device bs=1M status=progress || error_exit "Failed to wipe disk"
-        } || echo "Skipping disk wiping..."
-}
+### -------------------------------
+### partitioning (by boot mode)
+### -------------------------------
+ESP_END_MIB=$((1 + ESP_SIZE_MIB))
 
-# Function to set up disk partitions and encryption
-setup_disk() {
-    echo "Installing disk setup packages..."
-    pacman -S openssl glibc parted cryptsetup lvm2 --noconfirm || error_exit "Failed to install disk setup packages"
+if [[ "$BOOT_MODE" == "uefi" ]]; then
+  log "Partitioning $selected_device (GPT, ESP ${ESP_SIZE_MIB}MiB)..."
+  parted -s -a optimal "$selected_device" mklabel gpt
+  parted -s -a optimal "$selected_device" mkpart ESP fat32 1MiB ${ESP_END_MIB}MiB
+  parted -s "$selected_device" set 1 esp on
+else
+  log "Partitioning $selected_device (msdos, boot ${ESP_SIZE_MIB}MiB)..."
+  parted -s -a optimal "$selected_device" mklabel msdos
+  parted -s -a optimal "$selected_device" mkpart primary fat32 1MiB ${ESP_END_MIB}MiB
+  parted -s "$selected_device" set 1 boot on
+fi
+parted -s -a optimal "$selected_device" mkpart primary ${ESP_END_MIB}MiB 100%
 
-    echo "Creating partitions..."
-    parted -s -a optimal $selected_device mklabel msdos || error_exit "Failed to create partition table"
-    parted -s -a optimal $selected_device mkpart primary fat32 1MiB 1GiB || error_exit "Failed to create boot partition"
-    
-    # Determine if the block device is nvme or not
-    if [[ $selected_device =~ [0-9]$ ]]; then
-        boot_partition="${selected_device}p1"
-    else
-        boot_partition="${selected_device}1"
-    fi
+# choose partition names based on device type
+if [[ "$selected_device" =~ (nvme|mmcblk) ]]; then
+  boot_partition="${selected_device}p1"
+  root_partition="${selected_device}p2"
+else
+  boot_partition="${selected_device}1"
+  root_partition="${selected_device}2"
+fi
 
-    # Setup the boot partition
-    echo "Formatting boot partition..."
-    mkfs.fat -F32 "$boot_partition" || error_exit "Failed to format boot partition"
-    parted -s $selected_device set 1 boot on
-    parted -s -a optimal $selected_device mkpart primary 1GiB 100% || error_exit "Failed to create system partition"
+sleep 2
 
-    # Setup the encryption partition
-    if [[ $selected_device =~ [0-9]$ ]]; then
-        luks_partition="${selected_device}p2"
-    else
-        luks_partition="${selected_device}2"
-    fi
+log "Formatting boot partition as FAT32..."
+mkfs.fat -F32 -n EFI "$boot_partition"
 
-    # Check if LUKS container already exists
-    luks_container_exists=$(cryptsetup isLuks "$luks_partition" && echo "yes" || echo "no")
+### -------------------------------
+### root filesystem (LUKS -> FS or plain FS)
+### -------------------------------
+if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
+  log "Setting up LUKS on $root_partition..."
+  printf "%s" "$LUKS_PASS" | cryptsetup luksFormat --type luks2 "$root_partition" -q --batch-mode --pbkdf argon2id --iter-time 3000 --use-urandom --label AEGIX_ROOT --cipher aes-xts-plain64 --key-size 512 --hash sha512
+  printf "%s" "$LUKS_PASS" | cryptsetup open "$root_partition" "$ROOT_MAPPER_NAME" -q --key-file -
+  MAPPED_ROOT="/dev/mapper/${ROOT_MAPPER_NAME}"
+else
+  MAPPED_ROOT="$root_partition"
+fi
 
-    # Handle existing LUKS container
-    if [ "$luks_container_exists" = "yes" ]; then
-        echo "LUKS Container Exists on ${luks_partition}. Proceeding with removal..."
-        if cryptsetup status aegixluks >/dev/null 2>&1; then
-            echo "Removing existing aegixluks mapping..."
-            cryptsetup remove aegixluks
-        fi
-        batch_mode_flag="-q"
-    else
-        batch_mode_flag=""
-    fi
+case "$FS_TYPE" in
+  ext4)
+    log "Creating ext4 filesystem on $MAPPED_ROOT..."
+    mkfs.ext4 -L ROOT "$MAPPED_ROOT";;
+  btrfs)
+    need mkfs.btrfs
+    log "Creating btrfs filesystem on $MAPPED_ROOT..."
+    mkfs.btrfs -f -L ROOT "$MAPPED_ROOT"
+    ;;
+  *) error_exit "Unsupported FS_TYPE: $FS_TYPE";;
+esac
 
-    # Set up LUKS encryption
-    echo "Setting up LUKS encryption..."
-    echo -n "$luks_pass1" | cryptsetup ${batch_mode_flag} luksFormat "$luks_partition" - || error_exit "Failed to format LUKS partition"
-    echo -n "$luks_pass1" | cryptsetup open --type luks "$luks_partition" aegixluks - || error_exit "Failed to open LUKS container"
+### -------------------------------
+### mount target
+### -------------------------------
+log "Mounting target filesystem..."
+mkdir -p /mnt
+if [[ "$FS_TYPE" == btrfs ]]; then
+  mount "$MAPPED_ROOT" /mnt
+  btrfs subvolume create /mnt/@
+  btrfs subvolume create /mnt/@home
+  umount /mnt
+  mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ "$MAPPED_ROOT" /mnt
+  mkdir -p /mnt/home
+  mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home "$MAPPED_ROOT" /mnt/home
+else
+  mount "$MAPPED_ROOT" /mnt
+fi
+mkdir -p /mnt/boot
+mount "$boot_partition" /mnt/boot
 
-    # BTRFS setup with subvolumes for timeshift auto-backup compatibility
-    echo "Setting up BTRFS filesystem..."
-    mkfs.btrfs -f -L BUTTER /dev/mapper/aegixluks || error_exit "Failed to create BTRFS filesystem"
-    mount /dev/mapper/aegixluks $DEST_ROOT || error_exit "Failed to mount BTRFS filesystem"
+### -------------------------------
+### base system install
+### -------------------------------
+log "Installing base system (Artix + runit)..."
+PKGS_BASE=(base base-devel linux linux-firmware grub efibootmgr sudo vim neovim nano less man-db man-pages xorg-server xorg-xinit go zsh)
+PKGS_FS=(dosfstools e2fsprogs btrfs-progs)
+PKGS_MISC=(openssh cryptsetup lvm2 brightnessctl htop networkmanager)
+PKGS_RUNIT=(runit elogind-runit networkmanager-runit openssh-runit openntpd openntpd-runit cronie cronie-runit lvm2-runit)
 
-    echo "Creating BTRFS subvolumes..."
-    btrfs sub cr $DEST_ROOT/@ || error_exit "Failed to create @ subvolume"
-    btrfs sub cr $DEST_ROOT/@home || error_exit "Failed to create @home subvolume"
+basestrap /mnt "${PKGS_BASE[@]}" "${PKGS_FS[@]}" "${PKGS_MISC[@]}" "${PKGS_RUNIT[@]}"
 
-    # Unmount and remount with subvolumes
-    echo "Remounting with subvolumes..."
-    umount $DEST_ROOT
-    mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@ /dev/mapper/aegixluks $DEST_ROOT || error_exit "Failed to mount @ subvolume"
-    mkdir -p $DEST_ROOT/home
-    mount -o relatime,space_cache=v2,ssd,compress=lzo,subvol=@home /dev/mapper/aegixluks $DEST_ROOT/home || error_exit "Failed to mount @home subvolume"
+### -------------------------------
+### fstab
+### -------------------------------
+log "Generating fstab..."
+fstabgen -U /mnt >> /mnt/etc/fstab
 
-    # Create boot directory and mount boot partition
-    mkdir -p $DEST_ROOT/boot
-    mount "$boot_partition" $DEST_ROOT/boot || error_exit "Failed to mount boot partition"
+# Get UUIDs for bootloader and crypttab configuration
+ROOT_UUID=$(blkid -s UUID -o value "$root_partition")
+ESP_UUID=$(blkid -s UUID -o value "$boot_partition")
 
-    # Show the partition layout
-    echo "Partition layout:"
-    lsblk -f
-    sleep 3
-}
+# Add crypttab for LUKS
+if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
+  log "Configuring crypttab..."
+  echo "${ROOT_MAPPER_NAME} UUID=${ROOT_UUID} none luks" >> /mnt/etc/crypttab
+fi
 
-# Function to install the base system
-install_base_system() {
-    echo "Installing base system..."
-    basestrap $DEST_ROOT base base-devel runit elogind-runit linux linux-firmware vim neovim grub btrfs-progs \
-    dosfstools brightnessctl htop cryptsetup lvm2 lvm2-runit efibootmgr go xorg || error_exit "Failed to install base system"
+# Copy BARBS files and backgrounds to new system
+log "Copying BARBS and backgrounds to new system..."
+[[ -f "$WORK_DIR/barbs.sh" ]] && cp "$WORK_DIR/barbs.sh" /mnt/root/ || warn "Failed to copy barbs.sh"
+[[ -f "$WORK_DIR/aegix-programs.csv" ]] && cp "$WORK_DIR/aegix-programs.csv" /mnt/root/ || warn "Failed to copy aegix-programs.csv"
+[[ -f "$WORK_DIR/aegix-bg.jpg" ]] && cp "$WORK_DIR/aegix-bg.jpg" /mnt/root/aegix-bg.jpg || warn "Failed to copy desktop background"
+[[ -f "$WORK_DIR/mt-aso-penguin.png" ]] && cp "$WORK_DIR/mt-aso-penguin.png" /mnt/root/ || warn "Failed to copy GRUB background"
 
-    # Setup hosts file
-    echo "Configuring network hosts..."
-    echo "127.0.0.1    localhost" > $DEST_ROOT/etc/hosts
-    echo "::1    localhost" >> $DEST_ROOT/etc/hosts
-    echo "127.0.1.1    $hostname.localdomain $hostname" >> $DEST_ROOT/etc/hosts
+### -------------------------------
+### chroot configuration
+### -------------------------------
 
-    # Generate fstab
-    echo "Generating fstab..."
-    fstabgen -U $DEST_ROOT >> $DEST_ROOT/etc/fstab || error_exit "Failed to generate fstab"
+# Export all variables needed in chroot
+export HOSTNAME NEWUSER USERPASS ROOTPASS HOST_TZ LOCALE KEYMAP
+export FS_TYPE USE_LUKS ROOT_MAPPER_NAME ROOT_UUID ESP_UUID BOOTLABEL selected_device BOOT_MODE
+export BARBS_USER="$NEWUSER" BARBS_PASS="$USERPASS"
 
-    # Collect UUIDs
-    encrypted_partition_uuid=$(cryptsetup luksUUID "$luks_partition")
-    luks_container_uuid=$(findmnt -no UUID $DEST_ROOT)
+log "Entering chroot for system config..."
+artix-chroot /mnt /bin/bash -euo pipefail << CHROOT_EOF
+set -euo pipefail
+log() { printf "\n\033[1;32m[chroot] %s\033[0m\n" "\$*"; }
 
-    echo "Encrypted partition UUID: $encrypted_partition_uuid"
-    echo "LUKS container UUID: $luks_container_uuid"
+# shell variables passed through env from outer script
+: "\${HOSTNAME:?}" "\${NEWUSER:?}" "\${USERPASS:?}" "\${ROOTPASS:?}" "\${HOST_TZ:?}" "\${LOCALE:?}" "\${KEYMAP:?}" "\${FS_TYPE:?}" "\${USE_LUKS:?}" "\${ROOT_MAPPER_NAME:?}" "\${ROOT_UUID:?}" "\${ESP_UUID:?}" "\${BOOTLABEL:?}" "\${BOOT_MODE:?}"
 
-    # Setup crypttab
-    echo "Configuring crypttab..."
-    echo "aegixluks UUID=$encrypted_partition_uuid none luks" >> $DEST_ROOT/etc/crypttab
-}
-
-# Function to select desktop background
-select_desktop_background() {
-    # Display dialog and capture user choice for desktop background
-    user_choice_desktop_bg=$(dialog --clear \
-        --backtitle "Aegix Desktop Background Image" \
-        --title "Choose a Desktop Background" \
-        --no-tags \
-        --item-help \
-        --menu "Choose your desktop background image\nSelect one:" 15 50 4 \
-        "alcove_bg.png" "Cyphertext Alcove" "" \
-        "ndh_aurora_mason.jpg" "North Davis Heights Aurora" "" \
-        2>&1 >/dev/tty)
-
-    # Download the selected desktop background image
-    case $user_choice_desktop_bg in
-        "alcove_bg.png")  
-            curl -LO $AEGIX_BASE_URL/images/alcove_bg.png || error_exit "Failed to download desktop background"
-            ;;
-        "ndh_aurora_mason.jpg")  
-            curl -LO $AEGIX_BASE_URL/images/ndh_aurora_mason.jpg || error_exit "Failed to download desktop background"
-            ;;
-    esac
-
-    # Copy the selected file to new system
-    desktop_bg=$user_choice_desktop_bg
-    cp $desktop_bg $DEST_ROOT/root/aegix-bg.png || error_exit "Failed to copy desktop background"
-    
-    # Copy the GRUB background to the root directory
-    cp $GRUB_BG $DEST_ROOT/root/ || error_exit "Failed to copy GRUB background"
-}
-
-# Function to configure the system with chroot
-configure_system() {
-    echo "Configuring system..."
-    
-    # Copy files to new system
-    cp barbs.sh $DEST_ROOT/root/ || error_exit "Failed to copy barbs.sh"
-    
-    # Enter new system via chroot
-    artix-chroot $DEST_ROOT /bin/bash <<EOF || error_exit "Chroot configuration failed"
-
-echo "Configuring system with UUIDs:"
-echo "Encrypted partition UUID: $encrypted_partition_uuid"
-echo "LUKS container UUID: $luks_container_uuid"
-
-# Modify the mkinitcpio configuration for encryption and LVM
-sed -i 's/\\(HOOKS=(.*block \\)\\(.*filesystems.*\\))/\\1encrypt lvm2 \\2)/' /etc/mkinitcpio.conf
-mkinitcpio -p linux || exit 1
-
-# Update GRUB configuration for LUKS encryption
-sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=\".*\"|GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 cryptdevice=UUID=$encrypted_partition_uuid:aegixluks root=/dev/mapper/aegixluks\"|" /etc/default/grub
-
-# Update GRUB distributor
-sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
-
-# Install GRUB
-grub-install "$selected_device" || exit 1
-
-# Copy GRUB background
-cp /root/$GRUB_BG /boot/grub/
-
-# Update GRUB background configuration
-sed -i "s|^#GRUB_BACKGROUND=\".*\"|GRUB_BACKGROUND=\"/boot/grub/$GRUB_BG\"|" /etc/default/grub
-
-# Update GRUB timeout
-sed -i 's/^GRUB_TIMEOUT=5$/GRUB_TIMEOUT=14/' /etc/default/grub
-
-# Generate GRUB configuration
-grub-mkconfig -o /boot/grub/grub.cfg || exit 1
-
-# Set root password
-echo "root:$rootpass1" | chpasswd
-
-# Configure system clock, timezone, and hostname
-hwclock --systohc
-ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
-echo "$hostname" > /etc/hostname
-
-# Generate and configure locale settings
-echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-echo "en_US ISO-8859-1" >> /etc/locale.gen
+log "Locale, time, hostname..."
+echo "KEYMAP=\${KEYMAP}" > /etc/vconsole.conf
+sed -i "s/^#\(\${LOCALE//\//\/}\)/\1/" /etc/locale.gen || true
+echo "\${LOCALE} UTF-8" >> /etc/locale.gen
 locale-gen
-echo "LANG=en_US.UTF-8" > /etc/locale.conf
-export "LANG=en_US.UTF-8"
-echo "LC_COLLATE=C" >> /etc/locale.conf
-export LC_COLLATE="C"
+echo "LANG=\${LOCALE}" > /etc/locale.conf
+ln -sf "/usr/share/zoneinfo/\${HOST_TZ}" /etc/localtime
+hwclock --systohc
 
-# Install and configure NetworkManager
-pacman -S networkmanager networkmanager-runit --noconfirm || exit 1
-ln -s /etc/runit/sv/NetworkManager/ /etc/runit/runsvdir/current
-
-# Install and configure NTP
-pacman -S openntpd openntpd-runit --noconfirm || exit 1
-ln -s /etc/runit/sv/openntpd/ /etc/runit/runsvdir/current
-
-# Install and configure SSH
-pacman -S openssh openssh-runit --noconfirm || exit 1
-ln -s /etc/runit/sv/sshd/ /etc/runit/runsvdir/current
-
-# Install and configure cron
-pacman -S cronie cronie-runit --noconfirm || exit 1
-ln -s /etc/runit/sv/cronie/ /etc/runit/runsvdir/current
-
-# Run BARBS script for desktop environment setup
-sh /root/barbs.sh || exit 1
-
+echo "\${HOSTNAME}" > /etc/hostname
+cat > /etc/hosts <<EOF
+127.0.0.1   localhost
+::1         localhost
+127.0.1.1   \${HOSTNAME}.localdomain \${HOSTNAME}
 EOF
 
-    # Fix fstab for timeshift compatibility
-    echo "Fixing fstab for timeshift compatibility..."
-    sed -i 's/subvolid=[0-9]*,//' $DEST_ROOT/etc/fstab
-}
+log "Initramfs hooks (encrypt if needed)..."
+# mkinitcpio hooks
+if [[ "\${USE_LUKS}" =~ ^[Yy]$ ]]; then
+  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block keyboard keymap encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+else
+  sed -i 's/^HOOKS=.*/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/' /etc/mkinitcpio.conf
+fi
+mkinitcpio -P
 
-# Function to show completion message
-show_completion() {
-    dialog --title "Aegix Installation Complete" \
-        --backtitle "Aegix Installation Complete" \
-        --msgbox "\nCongrats! Aegix Linux is now fully installed, and you have a truly secure and professional GNU/Linux system at your disposal...\n\n(unless you cancelled somewhere in BARBS :-)\n\nAfter you hit Enter one more time, you'll receive instructions to shutdown, remove the installer medium, and reboot into your new system.\n\nZenshin Suru!\n-Aegix" 18 60
+log "Users and passwords..."
+echo "root:\${ROOTPASS}" | chpasswd
+useradd -m -G wheel,audio,video,storage,lp,network -s /bin/zsh "\${NEWUSER}"
+echo "\${NEWUSER}:\${USERPASS}" | chpasswd
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-    cat ascii-aegix
-}
+log "Enabling runit services (NetworkManager, sshd, openntpd, cronie, dbus, elogind)..."
+ln -sf /etc/runit/sv/dbus /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/elogind /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/NetworkManager /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/sshd /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/openntpd /etc/runit/runsvdir/default/
+ln -sf /etc/runit/sv/cronie /etc/runit/runsvdir/default/
 
-# Main execution flow
-main() {
-    # Get device selection
-    get_device_selection
-    
-    # Download installation files
-    download_installation_files
-    
-    # Collect user input
-    collect_user_input
-    
-    # Set up disk
-    setup_disk
-    
-    # Install base system
-    install_base_system
-    
-    # Select desktop background (GRUB background is fixed)
-    select_desktop_background
-    
-    # Configure system
-    configure_system
-    
-    # Show completion message
-    show_completion
-}
+# Make openntpd wait for network before starting
+printf '#!/bin/sh\nip route get 1.1.1.1 >/dev/null 2>&1\n' > /etc/runit/sv/openntpd/check
+chmod +x /etc/runit/sv/openntpd/check
 
-# Run the main function
-main
+# Sync system clock (ntpd -s is deprecated, use direct date correction)
+log "Syncing system clock..."
+hwclock --systohc --utc || true
+
+log "GRUB configuration..."
+# Kernel command line configuration
+if [[ "\${USE_LUKS}" =~ ^[Yy]$ ]]; then
+  # Enable GRUB cryptodisk support for LUKS
+  if grep -q '^#\?GRUB_ENABLE_CRYPTODISK' /etc/default/grub 2>/dev/null; then
+    sed -i 's/^#\?GRUB_ENABLE_CRYPTODISK.*/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
+  else
+    echo 'GRUB_ENABLE_CRYPTODISK=y' >> /etc/default/grub
+  fi
+  # Use UUID of the physical LUKS container; GRUB unlocks to /dev/mapper/\${ROOT_MAPPER_NAME}
+  sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"cryptdevice=UUID=\${ROOT_UUID}:\${ROOT_MAPPER_NAME} root=/dev/mapper/\${ROOT_MAPPER_NAME}\"|" /etc/default/grub
+else
+  # Non-encrypted: use filesystem UUID directly
+  sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=\"root=UUID=\${ROOT_UUID}\"|" /etc/default/grub
+fi
+
+# Aegix branding
+sed -i 's/GRUB_DISTRIBUTOR="Artix"/GRUB_DISTRIBUTOR="Aegix"/' /etc/default/grub
+
+# GRUB background image
+if [[ -f /root/mt-aso-penguin.png ]]; then
+  mkdir -p /boot/grub
+  cp /root/mt-aso-penguin.png /boot/grub/
+  sed -i "s|^#GRUB_BACKGROUND=.*|GRUB_BACKGROUND=\"/boot/grub/mt-aso-penguin.png\"|" /etc/default/grub
+fi
+
+# Boot timeout and cosmetics
+sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=14/' /etc/default/grub
+sed -i 's/^#GRUB_DISABLE_SUBMENU.*/GRUB_DISABLE_SUBMENU=y/' /etc/default/grub
+
+# Install GRUB based on boot mode
+if [[ "\${BOOT_MODE}" == "uefi" ]]; then
+  grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=\${BOOTLABEL} --recheck
+else
+  grub-install --target=i386-pc "\${selected_device}"
+fi
+
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# Run BARBS if available
+if [[ -f /root/barbs.sh ]]; then
+  log "Running BARBS for desktop environment setup..."
+  bash /root/barbs.sh || log "BARBS failed or was cancelled. Check /root/barbs-errors.log for details."
+else
+  log "BARBS not found. Skipping desktop environment setup."
+  log "You can download and run barbs.sh manually after rebooting."
+fi
+
+log "Done inside chroot."
+CHROOT_EOF
+
+# Fix fstab for timeshift compatibility if using btrfs
+if [[ "$FS_TYPE" == "btrfs" ]]; then
+  log "Fixing fstab for timeshift compatibility..."
+  sed -i 's/subvolid=[0-9]*,//' /mnt/etc/fstab
+fi
+
+### -------------------------------
+### wrap up
+### -------------------------------
+log "Syncing and unmounting..."
+sync
+umount -R /mnt || true
+
+log "Installation finished!"
+log "Remove the installation media, then run: poweroff"
+log "Power on and select your drive from the boot menu."
