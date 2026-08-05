@@ -4,7 +4,7 @@
 # - GPT + ESP for UEFI, msdos + boot for BIOS
 # - Optional LUKS on root
 # - btrfs root by default with subvolumes and compression
-# - Artix base with runit services
+# - Aegix base (Artix-based) with runit services
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -86,10 +86,15 @@ read -rp "Timezone [$HOST_TZ_DEFAULT]: " HOST_TZ; HOST_TZ=${HOST_TZ:-$HOST_TZ_DE
 read -rp "Locale to enable [$LOCALE_DEFAULT]: " LOCALE; LOCALE=${LOCALE:-$LOCALE_DEFAULT}
 read -rp "Keymap [$KEYMAP_DEFAULT]: " KEYMAP; KEYMAP=${KEYMAP:-$KEYMAP_DEFAULT}
 
-read -rp "Encrypt root with LUKS? [y/N]: " USE_LUKS; USE_LUKS=${USE_LUKS:-N}
-if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
-  read -rsp "LUKS passphrase: " LUKS_PASS; echo
-fi
+# LUKS is mandatory on Aegix. Full-disk encryption is part of the distro's
+# identity, not an option. (If you don't want LUKS, don't install Aegix.)
+USE_LUKS=y
+while :; do
+  read -rsp "LUKS passphrase (required): " LUKS_PASS; echo
+  read -rsp "Confirm LUKS passphrase: " LUKS_PASS2; echo
+  [[ -n "$LUKS_PASS" && "$LUKS_PASS" == "$LUKS_PASS2" ]] && break
+  echo "Passphrases empty or mismatched, try again."
+done
 
 ### -------------------------------
 ### download installation files
@@ -97,9 +102,19 @@ fi
 # Use a known working directory so curl -LO lands files predictably
 WORK_DIR="$(mktemp -d)"
 cd "$WORK_DIR"
-log "Downloading BARBS, program list, and backgrounds to ${WORK_DIR}..."
-curl -LO ${AEGIX_BASE_URL}/barbs.sh || warn "Failed to download barbs.sh (will skip desktop environment)"
-curl -LO ${AEGIX_BASE_URL}/aegix-programs.csv || warn "Failed to download aegix-programs.csv"
+log "Gathering BARBS, program list, and backgrounds in ${WORK_DIR}..."
+# Prefer the copies baked into this ISO (they match the ISO's skel and package
+# set exactly); fall back to the website only when the ISO copy is absent.
+if [[ -f /root/barbs.sh ]]; then
+  cp /root/barbs.sh . && log "Using barbs.sh from ISO"
+else
+  curl -LO ${AEGIX_BASE_URL}/barbs.sh || warn "Failed to download barbs.sh (will skip desktop environment)"
+fi
+if [[ -f /root/aegix-programs.csv ]]; then
+  cp /root/aegix-programs.csv . && log "Using aegix-programs.csv from ISO"
+else
+  curl -LO ${AEGIX_BASE_URL}/aegix-programs.csv || warn "Failed to download aegix-programs.csv"
+fi
 curl -L -o aegix-bg.jpg ${AEGIX_BASE_URL}/images/ndh_aurora_mason.jpg || warn "Failed to download desktop background"
 curl -LO ${AEGIX_BASE_URL}/images/mt-aso-penguin.png || warn "Failed to download GRUB background"
 
@@ -181,7 +196,7 @@ mount "$boot_partition" /mnt/boot
 ### -------------------------------
 ### base system install
 ### -------------------------------
-log "Installing base system (Artix + runit)..."
+log "Installing base system (Aegix/Artix + runit)..."
 PKGS_BASE=(base base-devel linux linux-firmware grub efibootmgr sudo vim neovim nano less man-db man-pages xorg-server xorg-xinit go zsh)
 PKGS_FS=(dosfstools e2fsprogs btrfs-progs)
 PKGS_MISC=(openssh cryptsetup lvm2 brightnessctl htop networkmanager)
@@ -203,6 +218,23 @@ ESP_UUID=$(blkid -s UUID -o value "$boot_partition")
 if [[ "$USE_LUKS" =~ ^[Yy]$ ]]; then
   log "Configuring crypttab..."
   echo "${ROOT_MAPPER_NAME} UUID=${ROOT_UUID} none luks" >> /mnt/etc/crypttab
+fi
+
+# Seed the target's /etc/skel from this ISO's skel (the pipeline-synced Aegix
+# dotfiles). useradd -m in barbs then populates the user's home from it, making
+# the ISO the single source of truth for the desktop experience. The gohan
+# repo remains a published mirror, not the installer's source.
+if [[ -d /etc/skel/.config ]]; then
+  log "Seeding target /etc/skel from ISO skel..."
+  cp -aT /etc/skel /mnt/etc/skel || warn "Failed to seed /etc/skel (barbs will fall back to gohan clone)"
+fi
+
+# Record which ISO this system was installed from. Invaluable when a bug report
+# has to be tied back to an exact build.
+if [[ -f /etc/aegix-release ]]; then
+  cp /etc/aegix-release /mnt/etc/aegix-release
+  echo "AEGIX_INSTALL_DATE=$(date -Is)" >> /mnt/etc/aegix-release
+  log "Recorded install provenance in /etc/aegix-release"
 fi
 
 # Copy BARBS files and backgrounds to new system
@@ -304,7 +336,6 @@ fi
 
 # Boot timeout and cosmetics
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=14/' /etc/default/grub
-sed -i 's/^#GRUB_DISABLE_SUBMENU.*/GRUB_DISABLE_SUBMENU=y/' /etc/default/grub
 
 # Install GRUB based on boot mode
 if [[ "\${BOOT_MODE}" == "uefi" ]]; then
@@ -341,5 +372,6 @@ sync
 umount -R /mnt || true
 
 log "Installation finished!"
-log "Remove the installation media, then run: poweroff"
-log "Power on and select your drive from the boot menu."
+log "Run: poweroff"
+log "Once the machine is fully off, remove the installation media."
+log "Then power on and select your drive from the boot menu."
