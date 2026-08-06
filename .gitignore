@@ -1,4 +1,3 @@
-deploy.sh
 debugging
 tl424.sh
 Commenting_Style_Guide_for_Aegix.md
@@ -27,3 +26,7 @@ CLAUDE.md
 # src-sync WIP safety patches: local scratch, and they embed absolute home
 # paths from whichever machine made them.
 tools/backups/
+
+# Local archive of superseded material: kept on disk for reference, not
+# part of the published repo.
+ARCHIVED_NA/
