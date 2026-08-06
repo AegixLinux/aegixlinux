@@ -1,146 +1,161 @@
-# Working on Aegix Linux
+# Contributing to Aegix Linux
 
 Aegix is an Artix-based, X11 + suckless distribution: dwm, st, dmenu,
-dwmblocks, runit, mandatory full-disk encryption. This document is the
-onboarding path for anyone joining, human or agent.
+dwmblocks, runit, and mandatory full-disk encryption. See
+[REPOSITORIES.md](REPOSITORIES.md) for the map of what lives where.
 
-Start with [REPOSITORIES.md](REPOSITORIES.md) for the map of what lives where.
+## Read this first: how Aegix is built
 
-## The one idea that explains the whole project
-
-**The ISO follows a real, running machine.**
-
-Aegix is not assembled by hand. There is a maintainer's daily-driver machine,
-and a pipeline that captures it into the ISO: sanitizing personal data,
-blocking leaks, and remembering a decision for every file and package so
-nothing drifts in silently. When the maintainer improves their setup, the
-distro inherits it on the next sync.
-
-That means: **you do not edit the ISO's dotfiles directly.** You change the
-live system, then sync. The pipeline is the only path in.
+Aegix is a **curated** distribution. There is a maintainer's daily-driver
+machine, and a pipeline (`tools/aegix-sync`) that captures it into the ISO:
+sanitizing personal data, blocking leaks with a hard gate, and recording a
+decision for every file and package so nothing drifts in silently.
 
 ```
-live machine  --capture-->  sanitize  -->  verify gate  -->  git  -->  deploy  -->  ISO
-                                              (blocks leaks)
+maintainer's machine --capture--> sanitize --> leak gate --> git --> ISO
 ```
 
-## Getting set up
+That means **running the sync is inherently the maintainer's job** — it reads
+from a machine only they have. This is not a wall put up to keep you out; it
+is just what the tool does. Everything *downstream* of that capture is open,
+and that is most of the distro.
 
-You need an Artix or Arch machine (Aegix itself is ideal).
+If you have used projects where "contributing" means "reproduce the
+maintainer's environment first", the good news is that Aegix asks the
+opposite: you contribute by running the shipped artifact and improving the
+things that are plain code.
+
+## What you can work on
+
+### 1. The suckless forks
+
+Ordinary repositories, ordinary pull requests, no Aegix machine involved.
+
+- [dwm](https://github.com/aegixlinux/dwm) · [st](https://github.com/aegixlinux/st) · [dmenu](https://github.com/aegixlinux/dmenu) · [dwmblocks](https://github.com/aegixlinux/dwmblocks) · [tabbed](https://github.com/AegixLinux/tabbed)
+
+Build and test them the normal way (`make && sudo make install`). If you touch
+signal handling, concurrency, or anything with a failure that only appears
+under load, please include a regression test: `dwmblocks` has one at
+`tests/signal-deadlock-test.sh` that is a reasonable model.
+
+### 2. The installer and BARBS
+
+`iso-profile/live-overlay/root/install.sh` and `barbs.sh` are plain shell
+scripts. You can test both in a VM without any Aegix hardware:
 
 ```sh
-git clone git@github.com:timbeach/AEGIX_AGENTIC.git
-cd AEGIX_AGENTIC
-sudo pacman -S --needed artools qemu-base edk2-ovmf rsync git
-tools/tests/test-aegix-sync.sh        # 148 assertions; must pass before you start
+tools/qemu-test-aegix.sh                       # boot the ISO
+# install to the throwaway disk, then:
+tools/qemu-test-aegix.sh --snap base-installed # snapshot before BARBS
+tools/qemu-test-aegix.sh --restore base-installed
 ```
 
-The test suite runs entirely against fixtures in `mktemp` directories. It never
-touches your real home directory or `/usr/share`. If it passes, your checkout
-is sane.
+The snapshot turns a 40-minute install loop into a 2-minute one, which makes
+installer work genuinely pleasant. The VM's only disk is a file in `/tmp`;
+nothing can reach your real drives.
 
-## The everyday loop
+### 3. Install on your own hardware and report what the audit finds
+
+This is the single most valuable thing an outside contributor can do, and it
+needs nothing but a spare machine and a USB stick.
 
 ```sh
-tools/aegix-sync --status      # what has drifted from the live machine? (read-only)
-tools/aegix-sync --dry-run     # full pipeline, stops before committing
-tools/aegix-sync               # capture, sanitize, verify, triage, commit, deploy
-tools/build-aegix-iso.sh       # build the ISO (names it aegix-<date>-x86_64.iso)
-tools/qemu-test-aegix.sh       # boot it
+tools/aegix-audit-install.sh <host-or-ip>
 ```
 
-`aegix-sync` will stop and ask you about anything new it finds on the live
-machine: ship it, never ship it, or decide later. Your answer is recorded in
-`sync/files.manifest` or `sync/packages.manifest` and never asked again.
+It compares a real installed system against the shipped profile: per-file
+checksums, whether every command dwm spawns resolves on `PATH`, group
+membership, passwordless sudo, locales referenced but never generated,
+promised packages, services, and suckless build IDs.
 
-### The manifests
+**Different hardware finds different bugs.** Recent examples, all found this
+way and invisible on the maintainer's machine: a locale set but never
+generated (killed rofi on every install), users created without the `video`
+group (brightness silently needed root), and an rsync exclude that dropped
+every `README.md` from the ISO. Your laptop's wifi chipset, GPU, and firmware
+quirks are things no amount of local testing here can substitute for.
 
-- **`sync/files.manifest`** — one decision per path, relative to `$HOME`.
-  `ship` (capture it, live wins, deletions propagate), `never` (silently
-  ignored forever), `iso` (exists only in git; capture never overwrites it),
-  `watch` (a directory to scan for undecided items). Longest matching pattern
-  wins.
-- **`sync/packages.manifest`** — one line per package with a tag set:
-  `rootfs` (in the live ISO), `barbs` (installed post-install by pacman),
-  `aur` (installed by yay), `git <url>` (cloned and `make`d), `never`
-  (personal, never ships). `profile.yaml` and `aegix-programs.csv` are both
-  *generated* from this file, so they cannot contradict each other.
-- **`sync/sanitize.rules`** — `sub`/`strip-line`/`strip-block` rewrites, and
-  `forbid`/`allow` assertions for the leak gate. Comments in this file are
-  **full-line only**, because rules legitimately contain `#`.
+Include `/etc/aegix-release` in any report: it names the exact ISO build and
+profile commit your system came from.
 
-### The leak gate
+### 4. The tooling itself
 
-`verify_tree` runs every `forbid` rule over the entire staged profile before
-anything is committed. **There is no bypass flag and there never will be.** If
-it blocks you, the fix is one of:
+`tools/` is where the pipeline lives, and it is all testable:
 
-1. Wrap the personal part in a `# ===== PERSONAL: DO NOT SYNC TO AEGIX =====`
-   fence, which is stripped on capture.
-2. Mark the file `never` in `files.manifest`.
+```sh
+tools/tests/test-aegix-sync.sh     # 151 assertions, fixture-isolated
+```
+
+The suite runs entirely against `mktemp` fixtures — it never touches a real
+home directory or `/usr/share`. New behaviour needs a new assertion, and that
+assertion should fail before your change and pass after it.
+
+### 5. Propose manifest decisions
+
+You cannot run the capture, but you can propose what it should decide. The
+three files in `sync/` are readable and reviewable:
+
+- `files.manifest` — what ships (`ship`/`never`/`iso`/`watch`, longest match wins)
+- `packages.manifest` — which packages and by what mechanism (`rootfs`,
+  `barbs`, `aur`, `git <url>`, `never`); `profile.yaml` and
+  `aegix-programs.csv` are both *generated* from it, so they cannot disagree
+- `sanitize.rules` — rewrites plus the `forbid`/`allow` leak gate
+
+"This package should be `aur`, not `barbs`, because it is not in the repos" is
+a perfectly good pull request. So is a new `forbid` rule for a class of
+personal data we are not catching yet.
+
+## The leak gate
+
+Every sync runs every `forbid` rule over the whole staged profile before
+anything is committed. **There is no bypass flag, and adding one will not be
+accepted.** If it blocks something, the legitimate fixes are:
+
+1. Fence the personal part (`# ===== PERSONAL: DO NOT SYNC TO AEGIX =====`),
+   which capture strips.
+2. Mark the path `never` in `files.manifest`.
 3. Add a rule, if you have found a genuinely new class of leak.
 
-Allow rules are match-scoped: they suppress only the exact substring a forbid
+Allow rules are match-scoped: they suppress only the substring a forbid
 matched, so an allowlisted placeholder can never blind an unrelated secret on
-the same line. Binary files fail hard on any forbid match, with no allow
-narrowing, because a secret compiled into a binary is never legitimate.
+the same line. Binary files fail hard on any match, with no allow narrowing,
+because a secret compiled into a binary is never intentional.
 
-## Testing changes
+This matters more than it sounds. The gate has caught real leaks on their way
+into a public ISO, including a script that would have synced a new user's
+password store to the maintainer's server.
 
-Never trust "it works on the build machine": that assumption has produced most
-of this project's real bugs. A locale was set but never generated, so rofi died
-on every install while working perfectly here. Users were created without the
-`video` group, so brightness silently required root. Both looked fine locally.
+## Notes for AI agents
 
-```sh
-tools/qemu-test-aegix.sh --snap base-installed   # after base install, before BARBS
-tools/qemu-test-aegix.sh --restore base-installed # re-run BARBS in seconds
-tools/aegix-audit-install.sh <host>               # diff a real install vs this machine
-```
+If you are an agent working in this repository, these constraints are load
+bearing:
 
-`aegix-audit-install.sh` is the highest-value check before shipping an ISO. It
-compares an installed system against the shipped profile: per-file checksums,
-whether every command dwm spawns resolves, group membership, passwordless
-sudo, **locales referenced but not generated**, promised packages, services,
-and suckless build IDs.
-
-Every ISO stamps `/etc/aegix-release` with its version, the profile commit, and
-whether the tree was clean. Any bug report should start with that file.
-
-## Notes for agents
-
-If you are an AI agent working on this repo, the constraints that matter:
-
-- **`/usr/share/artools/iso-profiles/aegix/` is a deploy target.** Never edit
-  it, never `rsync --delete` into it by hand. It was destroyed exactly once
-  this way, by a well-meaning adversarial test of the deploy script; recovery
-  took a btrfs snapshot. `tools/iso-profile-deploy.sh` now requires `--prod`
-  explicitly, refuses an empty or dirty source, and gates mass deletions.
-- **Never run `install.sh` unattended**, in QEMU or anywhere. Destructive
-  installer flows are driven by a human, always.
-- **Fix the pipeline, not the artifact.** If the ISO is wrong, the manifest or
-  a tool is wrong. Editing the deployed profile by hand produces a fix that
-  vanishes on the next sync.
+- **`/usr/share/artools/iso-profiles/aegix/` is a deploy target, not a
+  source.** Never edit it, never `rsync --delete` into it by hand. It was
+  destroyed exactly once that way, by an adversarial test of the deploy
+  script; recovery needed a btrfs snapshot. `tools/iso-profile-deploy.sh` now
+  requires `--prod`, refuses an empty or dirty source, and gates mass deletes.
+- **Never run `install.sh` unattended**, in a VM or anywhere. Destructive
+  installer flows are driven by a human.
+- **Fix the pipeline, not the artifact.** If the ISO is wrong, a manifest or a
+  tool is wrong. Hand-editing the deployed profile produces a fix that
+  disappears at the next sync.
 - **Timestamps lie; build IDs do not.** `cp -f` preserves inodes, `make` skips
-  targets that look newer than their sources, and committed `.o` files have
-  silently shipped stale binaries here before. Compare build IDs and content
-  hashes.
-- **Prove a negative before believing it.** When a keybinding "does nothing",
-  validate your test harness against a binding that does work, then wrap the
-  spawned command in a tracer. The Mod+M bug looked like a missing file, then
-  a stale binary, and was actually rofi dying on an ungenerated locale.
-- Reports and design docs live in `docs/superpowers/{specs,plans}/`; session
-  records are the `STATUS-*.md` files at the repo root.
+  targets that look newer than their sources, and committed object files have
+  shipped stale binaries here before. Compare build IDs and content hashes.
+- **Verify the artifact, not your intent.** Three separate bugs here were
+  found only by mounting the built ISO and looking. A green pipeline is not
+  evidence that the right bytes shipped.
+- **Prove a negative before believing it.** When something "does nothing",
+  validate your test harness against a case that does work, then instrument
+  the thing itself. A dead keybinding looked like a missing file, then a stale
+  binary, and was actually rofi exiting on an ungenerated locale.
 
-## Contributing back
+## Submitting
 
-1. Branch from `main`.
-2. Make the change in the right place: a suckless patch goes in that fork; a
-   dotfile or script change goes on the live machine and comes in via
-   `aegix-sync`; pipeline and installer changes go here.
-3. `tools/tests/test-aegix-sync.sh` must pass. New behaviour needs a new
-   assertion, and it should fail before your fix and pass after it.
-4. Verify in QEMU, and on hardware when the change touches hardware.
-5. Open a pull request describing what you tested, not just what you changed.
+1. Branch from `main`. (There are no `master` branches anywhere in Aegix.)
+2. `tools/tests/test-aegix-sync.sh` must pass.
+3. Verify in QEMU; verify on hardware when the change touches hardware.
+4. Describe **what you tested**, not only what you changed.
 
-Questions, and the wider project: <https://aegixlinux.org>
+Project home: <https://aegixlinux.org>
