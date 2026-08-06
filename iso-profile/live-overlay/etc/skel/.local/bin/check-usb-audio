@@ -1,0 +1,11 @@
+#!/bin/bash
+# Check if USB audio interface is detected
+
+echo "=== ALSA Sound Cards ==="
+cat /proc/asound/cards
+
+echo -e "\n=== Pipewire Sinks ==="
+wpctl status | grep -A 10 "Sinks:"
+
+echo -e "\n=== Recent USB Events (last 20 lines) ==="
+sudo dmesg | grep -i usb | tail -20

@@ -1,0 +1,14 @@
+#!/bin/sh
+# dwmblocks block for futureme: shows "✉ N" while N delivered-but-unread
+# messages wait; prints nothing when the mailbox is clear.
+#
+# dwmblocks config (interval 0 = signal-driven; signal 11 matches `futureme tick`):
+#   { "", "fm-status", 0, 11 },
+# Click action (if your dwmblocks fork supports buttons): open the TUI in a
+# centered floating st:  st -n futureme -e futureme tui
+
+n=$(futureme check --count 2>/dev/null) || exit 0
+case "$n" in
+	''|0) exit 0 ;;
+	*) printf '✉ %s\n' "$n" ;;
+esac

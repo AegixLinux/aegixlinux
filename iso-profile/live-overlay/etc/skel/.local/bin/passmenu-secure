@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+# Aegix Password Menu - SECURE VERSION with enhanced clipboard clearing
+# Implements multiple security measures for handling sensitive data
+
+set -euo pipefail
+
+# Configuration
+readonly PASSWORD_STORE="${PASSWORD_STORE_DIR:-$HOME/.local/share/password-store}"
+readonly CLIPBOARD_TIMEOUT=45
+readonly NOTIFICATION_TIMEOUT=2000
+
+# Parse arguments
+typeit=0
+paste_once=0
+show_help=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --type|-t)
+            typeit=1
+            shift
+            ;;
+        --paste-once|-o)
+            paste_once=1
+            shift
+            ;;
+        --help|-h)
+            show_help=1
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $show_help -eq 1 ]]; then
+    cat <<EOF
+Aegix Secure Password Menu
+
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+    -t, --type        Type the password instead of copying
+    -o, --paste-once  Clear clipboard after first paste (more secure)
+    -h, --help        Show this help message
+
+Security Features:
+    - Saves clipboard state before copying
+    - Restores previous clipboard after timeout
+    - Optional paste-once mode (clears after single paste)
+    - Clears KDE Klipper history if present
+    - Uses base64 encoding to handle binary clipboard data
+    - Kills any existing clipboard clearing processes
+
+Password store: $PASSWORD_STORE
+Clipboard timeout: $CLIPBOARD_TIMEOUT seconds
+EOF
+    exit 0
+fi
+
+# Function to find best available menu program
+find_menu_program() {
+    if command -v fuzzel >/dev/null 2>&1; then
+        echo "fuzzel --dmenu --prompt='🔐 Password: ' --lines=15 --width=40"
+    elif command -v tofi >/dev/null 2>&1; then
+        echo "tofi --prompt-text='🔐 Password: ' --height=40% --width=40%"
+    elif command -v wmenu >/dev/null 2>&1; then
+        echo "wmenu -i -l 15 -p '🔐 Password:'"
+    elif command -v dmenu-wl >/dev/null 2>&1; then
+        echo "dmenu-wl -i -l 15 -p '🔐 Password:'"
+    else
+        return 1
+    fi
+}
+
+# Function to send notifications
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    local timeout="${4:-$NOTIFICATION_TIMEOUT}"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message" \
+            --urgency="$urgency" \
+            -t "$timeout" \
+            --app-name="passmenu-secure" \
+            --icon="dialog-password"
+    fi
+}
+
+# Enhanced secure clipboard function
+secure_clip() {
+    local password="$1"
+    local pass_name="$2"
+
+    # Identify clipboard commands based on display server
+    if [[ -n ${WAYLAND_DISPLAY:-} ]]; then
+        local copy_cmd=(wl-copy)
+        local paste_cmd=(wl-paste -n)
+        local clear_cmd=(wl-copy --clear)
+        local display_name="$WAYLAND_DISPLAY"
+
+        # Add paste-once flag if requested
+        if [[ $paste_once -eq 1 ]]; then
+            copy_cmd+=(--paste-once)
+        fi
+    elif [[ -n ${DISPLAY:-} ]]; then
+        local copy_cmd=(xclip -selection clipboard)
+        local paste_cmd=(xclip -o -selection clipboard)
+        local display_name="$DISPLAY"
+    else
+        notify critical "Display Error" "No X11 or Wayland display detected" 5000
+        exit 1
+    fi
+
+    # Kill any existing clipboard clearing processes for this script
+    local sleep_argv0="passmenu-secure clipboard clear on $display_name"
+    pkill -f "^$sleep_argv0" 2>/dev/null && sleep 0.5
+
+    # Save current clipboard contents (base64 encoded to handle binary data)
+    local before
+    before="$("${paste_cmd[@]}" 2>/dev/null | base64)" || before=""
+
+    # Copy password to clipboard
+    echo -n "$password" | "${copy_cmd[@]}" || {
+        notify critical "Clipboard Error" "Failed to copy password" 5000
+        exit 1
+    }
+
+    if [[ $paste_once -eq 1 ]]; then
+        notify normal "Password Copied (Paste-Once)" \
+            "$pass_name → clipboard (clears after ONE paste)" \
+            $NOTIFICATION_TIMEOUT
+    else
+        notify normal "Password Copied" \
+            "$pass_name → clipboard (clears in ${CLIPBOARD_TIMEOUT}s)" \
+            $NOTIFICATION_TIMEOUT
+
+        # Background process to clear clipboard
+        (
+            # Use a special process name so we can kill it if needed
+            exec -a "$sleep_argv0" bash <<-EOF
+				trap 'exit 0' TERM
+				sleep $CLIPBOARD_TIMEOUT
+
+				# Get current clipboard to check if it's still our password
+				current="\$("${paste_cmd[@]}" 2>/dev/null | base64)" || current=""
+				expected="\$(echo -n "$password" | base64)"
+
+				# Only restore if clipboard still contains our password
+				if [[ "\$current" == "\$expected" ]]; then
+					# Clear clipboard managers that store history in plaintext
+					if command -v qdbus >/dev/null 2>&1; then
+						qdbus org.kde.klipper /klipper org.kde.klipper.klipper.clearClipboardHistory &>/dev/null || true
+					fi
+
+					# Restore previous clipboard or clear it
+					if [[ -n "$before" ]]; then
+						echo "$before" | base64 -d | "${copy_cmd[@]}" 2>/dev/null
+						notify-send "Clipboard Restored" "Previous clipboard content restored" -t 1000 --urgency=low
+					else
+						if [[ -n \${WAYLAND_DISPLAY:-} ]]; then
+							wl-copy --clear 2>/dev/null || echo -n "" | wl-copy
+						else
+							echo -n "" | "${copy_cmd[@]}"
+						fi
+						notify-send "Clipboard Cleared" "Password removed from clipboard" -t 1000 --urgency=low
+					fi
+				fi
+			EOF
+        ) >/dev/null 2>&1 & disown
+    fi
+}
+
+# Check if password store exists
+if [[ ! -d "$PASSWORD_STORE" ]]; then
+    notify critical "Password Store Error" \
+        "Password store not found at: $PASSWORD_STORE" 5000
+    exit 1
+fi
+
+# Find menu program
+MENU_CMD=$(find_menu_program)
+if [[ -z "$MENU_CMD" ]]; then
+    notify critical "Menu Error" \
+        "No compatible menu program found" 5000
+    exit 1
+fi
+
+# Build password list
+shopt -s nullglob globstar
+password_files=()
+
+while IFS= read -r -d '' passfile; do
+    passfile="${passfile#"$PASSWORD_STORE"/}"
+    passfile="${passfile%.gpg}"
+    password_files+=("$passfile")
+done < <(find "$PASSWORD_STORE" \
+    -type f \
+    -name '*.gpg' \
+    -print0 2>/dev/null | sort -z)
+
+# Check if any passwords found
+if [[ ${#password_files[@]} -eq 0 ]]; then
+    notify critical "No Passwords" \
+        "No password files found in store" 5000
+    exit 1
+fi
+
+# Show menu and get selection
+password=$(printf '%s\n' "${password_files[@]}" | eval $MENU_CMD "$@")
+
+# Exit if nothing selected
+[[ -n "$password" ]] || exit 0
+
+# Retrieve password
+pass_output=$(pass show "$password" 2>&1) || {
+    notify critical "Password Error" \
+        "Failed to retrieve: $password" 5000
+    exit 1
+}
+
+# Extract first line (the password)
+pass_value=$(echo "$pass_output" | head -n1)
+
+if [[ -z "$pass_value" ]]; then
+    notify critical "Password Error" \
+        "Password is empty for: $password" 5000
+    exit 1
+fi
+
+# Handle password based on mode
+if [[ $typeit -eq 0 ]]; then
+    # Use secure clipboard function
+    secure_clip "$pass_value" "$password"
+else
+    # Type mode
+    if command -v ydotool >/dev/null 2>&1; then
+        sleep 0.2
+        echo -n "$pass_value" | ydotool type --file -
+        notify normal "Password Typed" \
+            "Typed password for: $password" \
+            1000
+    else
+        notify critical "Type Error" \
+            "ydotool not found - cannot type password" 5000
+        exit 1
+    fi
+fi
+
+# Clear sensitive variable from memory
+unset pass_value pass_output

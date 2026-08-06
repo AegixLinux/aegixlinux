@@ -1,0 +1,83 @@
+#!/bin/sh
+# Aegix Terminal Switcher Menu
+# Switch default terminal or launch a specific terminal
+
+HYPR_CONF="$HOME/.config/hypr/hyprland.conf"
+
+# Get current terminal from hyprland config
+get_current() {
+    grep '^\$terminal = ' "$HYPR_CONF" 2>/dev/null | sed 's/\$terminal = //' | tr -d ' '
+}
+
+# Set terminal in hyprland config
+set_terminal() {
+    local term="$1"
+    if grep -q '^\$terminal = ' "$HYPR_CONF"; then
+        sed -i "s/^\\\$terminal = .*$/\$terminal = $term/" "$HYPR_CONF"
+        hyprctl reload >/dev/null 2>&1
+        notify-send "Terminal Changed" "Default terminal set to: $term" -t 3000
+    else
+        notify-send "Error" "Could not find \$terminal in hyprland.conf" -t 3000
+    fi
+}
+
+# Check which terminals are installed
+check_installed() {
+    local term="$1"
+    command -v "$term" >/dev/null 2>&1
+}
+
+CURRENT=$(get_current)
+
+# Build menu with status indicators
+build_menu() {
+    # Show current default at top
+    echo "━━━ Current: $CURRENT ━━━"
+    echo ""
+
+    # Installed terminals
+    if check_installed foot; then
+        [ "$CURRENT" = "foot" ] && echo "● foot (minimal, Wayland-native) [DEFAULT]" || echo "○ foot (minimal, Wayland-native)"
+    fi
+
+    if check_installed alacritty; then
+        [ "$CURRENT" = "alacritty" ] && echo "● alacritty (GPU-accelerated) [DEFAULT]" || echo "○ alacritty (GPU-accelerated)"
+    fi
+
+    if check_installed kitty; then
+        [ "$CURRENT" = "kitty" ] && echo "● kitty (feature-rich, tabs/splits) [DEFAULT]" || echo "○ kitty (feature-rich, tabs/splits)"
+    fi
+
+    echo ""
+    echo "━━━ Actions ━━━"
+    echo "🚀 Launch foot"
+    echo "🚀 Launch alacritty"
+    echo "🚀 Launch kitty"
+}
+
+# Show menu
+CHOICE=$(build_menu | fuzzel --dmenu -w 50 -l 12 -p "Terminal: ")
+
+case "$CHOICE" in
+    *"foot"*DEFAULT*|"○ foot"*)
+        set_terminal "foot"
+        ;;
+    *"alacritty"*DEFAULT*|"○ alacritty"*)
+        set_terminal "alacritty"
+        ;;
+    *"kitty"*DEFAULT*|"○ kitty"*)
+        set_terminal "kitty"
+        ;;
+    "🚀 Launch foot")
+        foot &
+        ;;
+    "🚀 Launch alacritty")
+        alacritty &
+        ;;
+    "🚀 Launch kitty")
+        kitty &
+        ;;
+    *)
+        exit 0
+        ;;
+esac

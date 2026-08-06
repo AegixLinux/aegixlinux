@@ -1,0 +1,6 @@
+#!/bin/sh
+# Fix stuck cursor (IBeam/text selection mode)
+
+xdotool key Escape
+xsetroot -cursor_name left_ptr
+xdotool keyup Super_L Alt_L Control_L Shift_L

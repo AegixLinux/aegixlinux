@@ -1,0 +1,336 @@
+.de LI
+.LIST
+.SHIFT_LIST 10p
+..
+.PARA_SPACE 1m
+.TITLE "\s+(10Welcome to Aegix!\s0"
+.AUTHOR "\s+5Timothy Beach\s0"
+.DOCTYPE    DEFAULT
+.COPYSTYLE  FINAL
+.PRINTSTYLE TYPESET
+.PT_SIZE 12
+.START
+\fIShoutout to Luke Smith whose larbs ministry of magic file this borrows heavily from!\fP
+.SP
+.RULE
+.SP
+.SP
+Start by trying out some key bindings to navigate this document: 
+.LI
+.ITEM
+Press \fBs\fP to fit text to your window
+.ITEM 
+Press \fBa\fP to revert text width 
+.ITEM
+Navigate the document with \fBh/j/k/l\fP
+.ITEM 
+\fBShift+K\fP and \fBShift+J\fP zooms in and out
+.ITEM 
+\fBUltra+f\fP to toggles fullscreen
+.ITEM
+\fBq\fP to quit
+.ITEM 
+\fB/\fP to search for text
+.ITEM 
+\fBCtrl+r\fP toggles reader mode, inverting the colors
+.ITEM
+\fBUltra+F1\fP shows this document at any time
+.LIST OFF
+By Ultra, I mean the key usually known as the Windows Key. Sometimes it's known as the Super key or the Mod key or the Meta key.
+.HEADING 1 "Welcome! Yokoso! Bienvenidos! Willkommen!"
+.HEADING 2 "Principles of the system"
+.LI
+.ITEM
+\fBDrive-ability\fP \(en
+Learning to drive this system like a car, \f[BI]or a tank\fP, is easy and fun
+.ITEM
+\fBSimplicity\fP \(en
+Modularity & extensibility, no bloat, no unnecessary complexity
+.ITEM
+\fBVim-centricity\fP \(en
+Key bindings feel familiar, and fingers don't need to stray far from the home row
+.ITEM
+\fBUnix philosophy\fP \(en
+Small programs, each doing one thing well, easily customizable
+.LIST OFF
+.HEADING 2 "Keyboard optimizations"
+.LI
+.ITEM
+Capslock is remapped to Escape for convenient vim use.
+If you hold it down and it can act as another \fBUltra\fP key.
+.ITEM
+The menu button, sometimes located between right Alt and right Ctrl, is another alternative \fBUltra\fP key.
+.LIST OFF
+.PP
+These customizations can be found in the \f(CWremaps\fP script along with other custom scripts located in \f(CW~/.local/bin/\fP.
+.HEADING 2 "The suckless top bar"
+.PP
+In the top left of your screen, you'll see at least one number corresponding to what dwm calls a "tag" also sometimes referred to as a "workspace".
+On the right, you'll see various system status notifiers, displaying information about things like the time, date, battery status, volume, etc.
+Each module on the right of the statusbar is controlled by a script located in \f(CW~/.local/bin/statusbar/\fP.
+You can interact with some modules with your mouse. 
+Hover your cursor over the battery section and scroll up or down to change the brightness. The source code and configuration for the top bar is located here: \f(CW~/.local/src/dwmblocks/\fP. Feel free to tinker with it.
+.HEADING 3 "High-def displays"
+.PP
+If your top bar text is too small for your liking, you can edit \f(CW~/.config/x11/xprofile\fP, change the \f(CWxrandr --dpi\fP value and reboot.
+In order to test what value might work for you, run \f(CWxrandr --dpi 96\fP, in a terminal, replacing 96 with a higher value. After that, "renew dwm," using the the menu at \f(CWUltra+backspace\fP to see the ephemeral change without rebooting. 
+.\".HEADING 2 "Deeper tutorials"
+.\".PP
+.\"Press \f(CWUltra+F2\fP at any time to get a menu of programs to watch videos about streaming directly from YouTube.
+.\"You can also check the config files for programs which detail a lot of the specific bindings.
+.HEADING 1 "The suckless window manager's key bindings"
+.PP
+Aegix uses dwm, a window manager from suckless that is controlled entirely by the keyboard.
+It abstractly orders all of your windows into a stack from most important to least based on your interactions.
+If you're unfamiliar, it will be fun to wrap your head around how this stack layout works. Play with the default key bindings. Imagine you're learning a new instrument.
+.LI 
+.ITEM
+\f(CWUltra+Enter\fP \(en Open a terminal
+.ITEM
+\f(CWUltra+q\fP \(en Close a window your cursor is hovering over
+.ITEM
+\f(CWUltra+d\fP \(en dmenu from suckless (For running commands or programs without shortcuts)
+.ITEM
+\f(CWUltra+j/k\fP \(en Cycle through the window stack
+.ITEM
+\f(CWUltra+Space\fP \(en Make the selected window master (or switch master with 2nd in stack)
+.ITEM
+\f(CWUltra+h/l\fP \(en Change the width of the master window
+.ITEM
+\f(CWUltra+z/x\fP \(en Increase/decrease gaps (may also hold \f(CWUltra\fP and scroll mouse)
+.ITEM
+\f(CWUltra+a\fP \(en Toggle gaps on and off
+.ITEM
+\f(CWUltra+A\fP \(en Gaps return to default values (may also hold \f(CWUltra\fP and middle click)
+.ITEM
+\f(CWUltra+Shift+Space\fP \(en Make a window float (move and resize with \f(CWUltra+\fPleft/right click).
+.ITEM
+\f(CWUltra+s\fP \(en Make/unmake a window "sticky" so it follows you from tag to tag
+.ITEM
+\f(CWUltra+b\fP \(en Toggle statusbar (may also middle click on desktop)
+.ITEM
+\f(CWUltra+v\fP \(en Jump to master window
+.LIST OFF
+.HEADING 2 "Window layouts"
+.LI
+.ITEM
+\f(CWUltra+t\fP \(en Tiling mode (default)
+.ITEM
+\f(CWUltra+T\fP \(en Bottom stack mode (similar to tiling, but master is on top)
+.ITEM
+\f(CWUltra+f\fP \(en Fullscreen mode
+.ITEM
+\f(CWUltra+F\fP \(en Floating windows mode
+.ITEM
+\f(CWUltra+y\fP \(en Fibonacci spiral mode
+.ITEM
+\f(CWUltra+Y\fP \(en Dwindle mode (similar to Fibonacci)
+.ITEM
+\f(CWUltra+u\fP \(en Master on left, other windows in monocle mode
+.ITEM
+\f(CWUltra+U\fP \(en Monocle mode (all windows fullscreen to cycle through each)
+.ITEM
+\f(CWUltra+i\fP \(en Center the master window
+.ITEM
+\f(CWUltra+I\fP \(en Center and float the master window
+.ITEM
+\f(CWUltra+o/O\fP \(en Increase/decrease the number of master windows
+.LIST OFF
+.HEADING 2 "Basic programs"
+.LI
+.ITEM
+\f(CWUltra+r\fP \(en lf (file browser/manager)
+.ITEM
+\f(CWUltra+R\fP \(en htop (task manager, system monitor that R*dditors use to look cool)
+.\".ITEM
+.\"\f(CWUltra+e\fP \(en neomutt (email) \(en Must be first configured by running \f(CWmw add\fP.
+.ITEM
+\f(CWUltra+E\fP \(en abook (contacts, addressbook, emails)
+.\".ITEM
+.\"\f(CWUltra+m\fP \(en ncmpcpp (music player)
+.ITEM
+\f(CWUltra+w\fP \(en Web browser (Brave by default)
+.ITEM
+\f(CWUltra+W\fP \(en nmtui (for connecting to wireless internet)
+.ITEM
+\f(CWUltra+n\fP \(en vimwiki (for notes)
+.ITEM
+\f(CWUltra+N\fP \(en newsboat (RSS feed reader)
+.ITEM
+\f(CWUltra+F4\fP \(en pulsemixer (audio system control)
+.ITEM
+\f(CWUltra+Shift+Enter\fP \(en Show/hide dropdown terminal
+.ITEM
+\f(CWUltra+'\fP \(en Show/hide dropdown calculator
+.ITEM
+\f(CWUltra+D\fP \(en passmenu (password manager)
+.LIST OFF
+.HEADING 2 "Tags/Workspaces"
+.PP
+There are nine tags, active tags are highlighted in the top left.
+.LI
+.ITEM
+\f(CWUltra+(Number)\fP \(en Go to that number tag
+.ITEM
+\f(CWUltra+Shift+(Number)\fP \(en Send window to that tag
+.ITEM
+\f(CWUltra+Tab\fP \(en Go to previous tag (may also use \f(CW\\\fP for Tab)
+.ITEM
+\f(CWUltra+g\fP \(en Go to left tag (hold shift to send window there)
+.ITEM
+\f(CWUltra+;\fP \(en Go to right tag (hold shift to send window there)
+.ITEM
+\f(CWUltra+Left/Right\fP \(en Go to another display
+.ITEM
+\f(CWUltra+Shift+Left/+Right\fP \(en Move window to another display
+.LIST OFF
+.HEADING 2 "System"
+.LI
+.ITEM
+\f(CWUltra+BackSpace\fP \(enChoose to lock screen, logout, shutdown, reboot, etc.
+.ITEM
+\f(CWUltra+F1\fP \(en Show this document
+.ITEM
+\f(CWUltra+F2\fP \(en Watch tutorial videos on a subject
+.ITEM
+\f(CWUltra+F3\fP \(en Select screen/display to use
+.ITEM
+\f(CWUltra+F4\fP \(en pulsemixer (audio control)
+.ITEM
+\f(CWUltra+F6\fP \(en Transmission torrent client (not installed by default)
+.ITEM
+\f(CWUltra+F7\fP \(en Toggle on/off transmission client via dmenu
+.ITEM
+\f(CWUltra+F8\fP \(en Check mail, if mutt-wizard is configured. (Run \f(CWmw add\fP to set up.)
+.ITEM
+\f(CWUltra+F9\fP \(en Mount a USB drive/hard drive or Android
+.ITEM
+\f(CWUltra+F10\fP \(en Unmount a non-essential drive or Android
+.ITEM
+\f(CWUltra+F11\fP \(en View webcam
+.ITEM
+\f(CWUltra+F12\fP \(en Rerun keyboard mapping scripts if new keyboard is attached
+.ITEM
+\f(CWUltra+`\fP \(en Select an emoji to copy to clipboard
+.ITEM
+\f(CWUltra+Insert\fP \(en Pastes text you have saved in a file at ~/.local/share/barbs/snippets
+.LIST OFF
+.HEADING 2 "Audio"
+.\".PP
+.\"I use ncmpcpp as a music player, which is a front end for mpd.
+.LI
+.\".ITEM
+.\"\f(CWUltra+m\fP \(en ncmpcpp, the music player
+.\".ITEM
+.\"\f(CWUltra+.\fP \(en Next track
+.\".ITEM
+.\"\f(CWUltra+,\fP \(en Previous track
+.\".ITEM
+.\"\f(CWUltra+<\fP \(en Restart track
+.\".ITEM
+.\"\f(CWUltra+>\fP \(en Toggle playlist looping
+.\".ITEM
+.\"\f(CWUltra+p\fP \(en Toggle pause
+.\".ITEM
+.\"\f(CWUltra+p\fP \(en Force pause music player daemon and all mpv videos
+.ITEM
+\f(CWUltra+M\fP \(en Mute all audio
+.ITEM
+\f(CWUltra+-\fP \(en Decrease volume (holding shift increases amount)
+.ITEM
+\f(CWUltra++\fP \(en Increase volume (holding shift increases amount)
+.\".ITEM
+.\"\f(CWUltra+[\fP \(en Back 10 seconds (holding shift moves by one minute)
+.\".ITEM
+.\"\f(CWUltra+]\fP \(en Forward 10 seconds (holding shift moves by one minute)
+.ITEM
+\f(CWUltra+F4\fP \(en pulsemixer (general audio/volume sink/source control)
+.LIST OFF
+.HEADING 2 "Recording"
+.PP
+maim and ffmpeg are used to make recordings of the desktop and audio.
+Recording shortcuts will output into \f(CW~\fP, with timestamp-based naming.
+.LI
+.ITEM
+\f(CWPrintScreen\fP \(en Take a screenshot
+.ITEM
+\f(CWShift+PrintScreen\fP \(en Select area to screenshot
+.ITEM
+\f(CWUltra+PrintScreen\fP \(en Opens dmenu menu to select kind of audio/video recording
+.ITEM
+\f(CWUltra+Delete\fP \(en Kills any recording started in the above way.
+.ITEM
+\f(CWUltra+Shift+c\fP \(en Toggles a webcam in the bottom right for screencasting.
+.ITEM
+\f(CWUltra+ScrollLock\fP \(en Toggle screenkey (if installed) to show keypresses
+.LIST OFF
+.HEADING 2 "Other buttons"
+.PP
+Extra buttons mapped to do things you'd expect, like play, pause, screen brightness, email, web, etc.
+.HEADING 1 "Configuration"
+.PP
+Configuration files commonly known as dotfiles are located in \f(CW~/.config/\fP.
+.PP
+The suckless programs however, are located in \f(CW~/.local/src/\fP (press \f(CWrr\fP to jump to that directory).
+These use \f(CWconfig.h\fP files for configuration. 
+After making edits there, you may simply run \f(CWsudo make install\fP for your changes to take effect. In the case of dwm, you can "renew dwm" from the menu accessible via \f(CWUltra+backspace\fP. To see recompiled st changes to st, you may simply spawn a new terminal.
+.\".PP
+.\"v\"im is set to automatically recompile and install these programs whenever you save changes to any \f(CWconfig.h\fP file
+.\"(compilation will be nearly instantaneous).
+.\"You'll have to restart the program to see its effects obviously.
+.HEADING 1 "Frequently Asked Questions (FAQs)"
+.HEADING 2 "My keyboard isn't working as expected!"
+.PP
+Check the \f(CWremaps\fP script as mentioned above.
+.HEADING 2 "My audio isn't working!"
+.PP
+Check \f(CWpulsemixer\fP (\f(CWUltra+F4\fP).
+.HEADING 2 "How do I copy and paste?"
+.PP
+In most graphical programs, copy and paste will be the same as they are on other systems: \f(CWctrl-c\fP and \f(CWctrl-v\fP.
+In the terminal, those key bindings do other things. Instead, use \f(CWAlt-c\fP and \f(CWAlt-v\fP.
+.PP
+Additionally, vim is set to use the clipboard as the default buffer, which means when you yank or delete something in vim, it will be in your system clipboard as well, so you can \f(CWctrl-v\fP it into your browser, for instance. You can also paste material copied from other programs into vim with the typical vim bindings.
+.HEADING 2 "How do I change the opacity of the terminal on the fly?"
+.PP
+You can change the opacity of the terminal, on the fly, by holding \f(CWAlt\fP and tapping \f(CWs/a\fP.
+You can change it permanently by editing \f(CWst/config.h\fP and recompiling st.
+.HEADING 2 "How do I change the background/wallpaper?"
+.PP
+The system will always read the file \f(CW~/.local/share/bg\fP as the wallpaper.
+The script \f(CWsetbg\fP, if run on an image will set it as the persistent background.
+When using the file manager, you can simply hover over an image name and type \f(CWb\fP and this will run \f(CWsetbg\fP.
+.HEADING 2 "How I change the colorscheme?"
+.PP
+Check \f(CW~/.config/x11/xresources\fP for a list of color schemes you can activate or add your own. When you save the file, vim will automatically update the colorscheme. If you'd like these colors activated by default on login, there is a line in \f(CW~/.config/x11/xprofile\fP you can uncomment to allow that.
+.PP
+Or, if you want to use \f(CWwal\fP to automatically generate colorschemes from your wallpapers, just install it and \f(CWsetbg\fP will automatically detect and run it on startup and wallpaper change.
+.HEADING 2 "How do I update BARBS or Aegix?"
+.PP
+To update your Aegix, there is an alias \f(CWupdate\fP you can run from the terminal. 
+Type: \f(CW alias update\fP to see the command it will run.
+.PP
+If you want to just get the latest barbs.sh script, you can always get it from \f(CWcurl -LO aegixlinux.org/barbs.sh\fP. 
+BARBS is deployed as a git repository in your home directory, if you want to go down the git route there. Otherwise, you can just run \f(CWbarbs.sh\fP again to reinstall it. 
+If you give it the same user it will overwrite your dot files. 
+If you want to experiment with it, you may run it again and give it a different username writing new dotfiles to the specified user's home directory.
+.HEADING 1 "Some neat links"
+.PP
+You can follow links via the keyboard in this pdf reader by pressing \f(CWf\fP followed by the number that appears on the desired link.
+.LI
+.ITEM
+.PDF_WWW_LINK "mailto:timbeach@protonmail.com" "timbeach@protonmail.com"
+\(en To get in touch
+.ITEM
+.PDF_WWW_LINK "http://aegixlinux.org" "https://aegixlinux.org"
+\(en To check in on the project
+.\".ITEM
+.\".PDF_WWW_LINK "https://aegixlinux.org/donate" "https://aegixlinux.org/donate"
+.\"\(en To incentivize more development of BARBS!
+.ITEM
+.PDF_WWW_LINK "https://github.com/aegixlinux" "https://github.com/aegixlinux"
+\(en To check out the source
+.\".ITEM
+.\".PDF_WWW_LINK "http://aegixlinux.org/rss.xml" "RSS"
+.\"\(en For updates!
+.LIST OFF

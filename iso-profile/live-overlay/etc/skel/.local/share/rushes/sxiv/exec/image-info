@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+# rushes' sxiv image-info hook — supplies the info bar text in image mode.
+#
+# sxiv runs this with the displayed file as $1 (plus width and height) and puts
+# its stdout in the bar. Thumbnails are named by path hash, so without this the
+# bar would show 40 hex characters; the manifest turns that back into the real
+# clip name, its length and its size.
+#
+# $1  : thumbnail path      $2/$3 : image width/height (unused)
+
+[ -n "${RUSHES_MANIFEST:-}" ] && [ -r "$RUSHES_MANIFEST" ] || {
+    basename "$1"; exit 0
+}
+
+awk -F'\t' -v t="${1##*/}" '
+    function human(b,   u, i) {
+        split("B K M G T", u, " ")
+        for (i = 1; b >= 1024 && i < 5; i++) b /= 1024
+        return sprintf("%.1f%s", b, u[i])
+    }
+    function dur(d,   s) {
+        s = int(d)
+        if (s >= 3600) return sprintf("%dh%02dm", s/3600, (s%3600)/60)
+        if (s >= 60)   return sprintf("%dm%02ds", s/60, s%60)
+        return sprintf("%ds", s)
+    }
+    $1 == t {
+        n = split($2, parts, "/")
+        printf "%s | %s | %s\n", parts[n], dur($5), human($4)
+        found = 1
+        exit
+    }
+    END { if (!found) print t }
+' "$RUSHES_MANIFEST"

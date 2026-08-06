@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# prompt the user for the snippet and the comment using dmenu
+snippet=$(echo | dmenu -p "Enter the snippet:")
+[ -z "$snippet" ] && exit 1
+
+comment=$(echo | dmenu -p "Enter the searchable comment:")
+
+# ensure file does not end with a newline
+sed -i '${/^$/d;}' "$SNIPPETS_FILE"
+
+# append new snippet and comment to the snippets file on a newline
+echo "$snippet # $comment" >> "$SNIPPETS_FILE"
+
+# notify the user that the snippet has been added
+notify-send "Snippet added" "'$snippet' with comment '$comment' added to snippets."

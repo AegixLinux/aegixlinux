@@ -1,0 +1,30 @@
+#!/bin/sh
+
+# ##### This script provides a menu to select a snippet from a list of snippets in the terminal. #####
+
+# Path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# Display the list of snippets with numbering
+echo "Select a snippet to copy to the clipboard:"
+grep -v '^#' "$SNIPPETS_FILE" | awk -F'#' '{printf "%d) %s # %s\n", NR, $1, $2}'
+
+# Prompt the user to enter a number
+echo "Enter the number of the snippet to copy:"
+read number
+
+# Exit if no input or invalid input
+[ -z "$number" ] && echo "No snippet selected." && exit 1
+
+# Get the chosen snippet
+chosen=$(grep -v '^#' "$SNIPPETS_FILE" | awk -v num="$number" -F'#' 'NR == num {print $1}' | sed 's/[[:blank:]]*$//')
+
+# Exit if the chosen snippet is empty
+[ -z "$chosen" ] && echo "Invalid selection." && exit 1
+
+# Copy the snippet to the clipboard
+echo -n "$chosen" | xclip -selection clipboard
+
+# Notify the user that the snippet has been copied
+echo "Snippet copied: '$chosen'"
+notify-send "Snippet copied" "'$chosen' copied to clipboard."

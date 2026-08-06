@@ -1,0 +1,23 @@
+---
+
+live-session:
+  user: aegix
+  password: root
+  autologin: true
+  use-xlibre: false
+  services:
+    - acpid
+    - cronie
+    - NetworkManager
+rootfs:
+  packages:
+@ROOTFS_PACKAGES@
+  packages-init:
+    runit:
+@ROOTFS_INIT_RUNIT@
+livefs:
+  packages:
+@LIVEFS_PACKAGES@
+  packages-init:
+    runit:
+@LIVEFS_INIT_RUNIT@

@@ -23,3 +23,7 @@ aegix-forest.png
 iso/
 Claude.md
 CLAUDE.md
+
+# src-sync WIP safety patches: local scratch, and they embed absolute home
+# paths from whichever machine made them.
+tools/backups/

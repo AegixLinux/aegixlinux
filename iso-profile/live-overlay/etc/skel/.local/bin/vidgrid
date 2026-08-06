@@ -1,0 +1,29 @@
+#!/bin/sh
+# vidgrid — compatibility shim.
+#
+# vidgrid was rewritten and renamed to `rushes` on 2026-07-28. This forwards the
+# old invocation so existing habits, scripts and the Aegix ISO keep working.
+#
+# The original is kept at ~/.local/bin/.vidgrid.bk.20260728 for reference. Note
+# that it rewrote ~/.config/sxiv/exec/key-handler from an embedded copy on every
+# run, silently discarding local customisations — rushes cannot do this, because
+# it points sxiv at its own config tree instead of editing yours.
+#
+# See: rushes(1), ~/obsidian/KNOWLEDGE_BASE/rushes.md
+
+command -v rushes >/dev/null 2>&1 || {
+	echo "vidgrid: 'rushes' is not installed (see ~/code/PROJECTS/rushes)" >&2
+	exit 1
+}
+
+# Old interface was: vidgrid [--dir /path/to/videos]
+dir=
+while [ $# -gt 0 ]; do
+	case $1 in
+		--dir) dir=$2; shift 2 ;;
+		*)     break ;;
+	esac
+done
+
+printf 'vidgrid is now "rushes" — forwarding. See: rushes --help\n' >&2
+exec rushes ${dir:+"$dir"} "$@"

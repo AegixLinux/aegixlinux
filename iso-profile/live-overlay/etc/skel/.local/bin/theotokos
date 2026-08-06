@@ -1,0 +1,66 @@
+#!/bin/sh
+
+# terminal dimensions
+term_width=$(tput cols)
+term_height=$(tput lines)
+
+# adjust message position to fit dynamically
+box_width=44
+box_height=18
+message_col=$(( (term_width - box_width) / 2 ))  # center horizontally
+message_row=$(( (term_height - box_height) / 2 ))  # center vertically
+
+# generate the bonsai tree
+(
+    cbonsai -t 0.25 -li -w 30 -m ""
+) &
+
+# add a trap to ensure the script exits cleanly with Ctrl+C
+trap 'tput cnorm; exit' INT
+
+# function to draw the prayer box
+draw_prayer_box() {
+    tput cup $message_row $message_col
+    echo "+------------------------------------------+"
+    tput cup $((message_row + 1)) $message_col
+    echo "| O my most holy lady Theotokos, through   |"
+    tput cup $((message_row + 2)) $message_col
+    echo "| thy holy and all-powerful prayers,       |"
+    tput cup $((message_row + 3)) $message_col
+    echo "| banish from me, thy lowly and wretched   |"
+    tput cup $((message_row + 4)) $message_col
+    echo "| servant, DESPONDENCY, FORGETFULNESS,     |"
+    tput cup $((message_row + 5)) $message_col
+    echo "| FOLLY, CARELESSNESS, and all FILTHY,     |"
+    tput cup $((message_row + 6)) $message_col
+    echo "| EVIL, and BLASPHEMOUS THOUGHTS from my   |"
+    tput cup $((message_row + 7)) $message_col
+    echo "| wretched heart and my darkened mind. AND |"
+    tput cup $((message_row + 8)) $message_col
+    echo "| quench the flame 🔥 of my passions,      |"
+    tput cup $((message_row + 9)) $message_col
+    echo "| for I am poor and wretched, and DELIVER  |"
+    tput cup $((message_row + 10)) $message_col
+    echo "| ME FROM MANY AND CRUEL MEMORIES AND      |"
+    tput cup $((message_row + 11)) $message_col
+    echo "| DEEDS, and free me from their evil       |"
+    tput cup $((message_row + 12)) $message_col
+    echo "| effects. For blessed art thou by all     |"
+    tput cup $((message_row + 13)) $message_col
+    echo "| generations, and glorified is thy most   |"
+    tput cup $((message_row + 14)) $message_col
+    echo "| honourable name unto the ages of ages.   |"
+    tput cup $((message_row + 15)) $message_col
+    echo "| Amen.                                    |"
+    tput cup $((message_row + 16)) $message_col
+    echo "+------------------------------------------+"
+}
+
+# some time for the bonsai to generate
+sleep 1
+
+# ensure the text box doesn't disappear & redraws continuously
+while true; do
+    draw_prayer_box
+    sleep 1
+done

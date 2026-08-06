@@ -1,0 +1,44 @@
+# Maintainer: Timothy Beach <beachtimothyd@gmail.com>
+
+pkgname=nsxiv-aegix-git
+_pkgname=nsxiv
+pkgver=r1082.f412263
+pkgrel=1
+pkgdesc="Aegix Linux's build of nsxiv (maintained sxiv fork) with key-handler path fix and aegix-flavored defaults"
+arch=('x86_64')
+url="https://github.com/aegixlinux/nsxiv"
+license=('GPL2')
+depends=('imlib2' 'libxft' 'libexif' 'desktop-file-utils' 'xdg-utils' 'hicolor-icon-theme')
+makedepends=('git')
+provides=('nsxiv')
+conflicts=('nsxiv')
+source=("$_pkgname::git+https://github.com/aegixlinux/nsxiv.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$_pkgname"
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+    cd "$_pkgname"
+    # nsxiv keeps PREFIX in config.mk, not the Makefile as dwm/st/dmenu/dwmblocks
+    # do. Sedding the Makefile here would silently match nothing and the package
+    # would install everything under /usr/local.
+    sed -i 's|^PREFIX = /usr/local|PREFIX = /usr|' config.mk
+}
+
+build() {
+    cd "$_pkgname"
+    make
+}
+
+package() {
+    cd "$_pkgname"
+    # install-all, not install: the plain target ships only the binary, man page
+    # and example hooks, omitting nsxiv.desktop and the hicolor icons. Since this
+    # package conflicts with and replaces `nsxiv`, it needs to leave a desktop
+    # entry behind the way the repo package does.
+    make DESTDIR="$pkgdir" install-all
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

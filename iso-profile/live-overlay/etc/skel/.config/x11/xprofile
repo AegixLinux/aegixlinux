@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# This file runs when a DM logs you into a graphical session.
+# If you use startx/xinit like a Chad, this file will also be sourced.
+
+# Source shell profile for environment variables (TERMINAL, EDITOR, etc.)
+[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile"
+
+# Auto-detect and apply monitor configuration (like kanshi for Wayland)
+autorandr --change --force
+
+xrandr --dpi 96		# Set DPI (96 = standard, no scaling)
+setbg &			# set the background with the `setbg` script
+xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources	# Load Xresources settings
+xrdb -merge ~/.cache/wal/colors.Xresources 2>/dev/null & xrdbpid=$!	# Merge pywal colors
+(sleep 1 && remaps) &	# delay remaps slightly to ensure X is ready for xcape
+
+# Cursor settings (for mixed DPI monitors)
+export XCURSOR_THEME=capitaine-cursors
+export XCURSOR_SIZE=20
+# brightnessctl set 100% &
+
+autostart="mpd xcompmgr dunst unclutter pipewire wireplumber"
+
+for program in $autostart; do
+	pidof -s "$program" || "$program" &
+done >/dev/null 2>&1
+
+# PipeWire PulseAudio layer (needs args, so launched separately)
+pidof -s pipewire-pulse || pipewire -c pipewire-pulse.conf &
+
+# Ensure that xrdb has finished running before moving on to start the WM/DE.
+[ -n "$xrdbpid" ] && wait "$xrdbpid"

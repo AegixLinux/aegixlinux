@@ -1,0 +1,297 @@
+#!/bin/bash
+
+# Function to display help
+show_help() {
+    cat << 'EOF'
+ssh-parser - SSH Key Information Tool
+
+SYNOPSIS
+    ssh-parser [OPTIONS]
+
+DESCRIPTION
+    ssh-parser displays a summary of SSH keys found in the user's ~/.ssh
+    directory, including both private and public key information such as
+    algorithms, fingerprints, encryption status, and modification dates.
+
+OPTIONS
+    -h, --help
+        Display this help message and exit.
+
+    -i, --interactive
+        Enter interactive mode to view public key contents. After displaying
+        the key summary, presents a menu to select and view the full content
+        of specific public key files.
+
+OUTPUT FORMAT
+    For each SSH key found, the following information is displayed:
+
+    Private Key:    Name of the private key file. The default key used by ssh
+                    commands (when no -i option is specified) is marked with
+                    "(DEFAULT)"
+    Public Key:     Name of the corresponding public key file (or "not found")
+    Algorithm:      Key algorithm (ssh-rsa, ssh-ed25519, etc.)
+    Fingerprint:    SHA256 fingerprint of the key
+    Comment:        Comment/label associated with the key
+    Encrypted:      Whether the private key is encrypted
+    Modified:       Last modification date of the private key file
+
+KEY DISCOVERY
+    ssh-parser automatically discovers SSH keys by:
+    - Checking common key files: id_rsa, id_ecdsa, id_ed25519, id_dsa
+    - Scanning ~/.ssh directory for additional private key files
+    - Matching private keys with their corresponding .pub files
+
+DEFAULT KEY SELECTION
+    The default key is determined using the same priority order as OpenSSH:
+    1. id_rsa
+    2. id_ecdsa
+    3. id_ecdsa_sk (security key)
+    4. id_ed25519
+    5. id_ed25519_sk (security key)
+    6. id_xmss
+    7. id_dsa
+
+    This is the key that would be used automatically by 'ssh user@host' commands
+    when no specific key is specified with the -i option.
+
+INTERACTIVE MODE
+    When run with -i or --interactive, ssh-parser enters an interactive menu
+    where you can:
+    - View a numbered list of all discovered keys
+    - Select a key by number to display its full public key content
+    - Navigate between multiple keys
+    - Exit with 'q'
+
+EXAMPLES
+    ssh-parser
+        Display summary of all SSH keys
+
+    ssh-parser --interactive
+        Display summary and enter interactive mode to view key contents
+
+    ssh-parser -h
+        Show this help message
+
+FILES
+    ~/.ssh/
+        Directory containing SSH keys and configuration
+
+AUTHOR
+    Created as a companion to gpg-parser for SSH key management.
+
+SEE ALSO
+    ssh-keygen(1), gpg-parser(1)
+EOF
+}
+
+# Check for help or interactive mode
+INTERACTIVE=false
+case "$1" in
+    -h|--help)
+        show_help
+        exit 0
+        ;;
+    -i|--interactive)
+        INTERACTIVE=true
+        ;;
+    "")
+        # No arguments, continue with normal operation
+        ;;
+    *)
+        echo "Unknown option: $1" >&2
+        echo "Use 'ssh-parser --help' for usage information." >&2
+        exit 1
+        ;;
+esac
+
+echo "SSH Keys Summary"
+echo "================"
+echo
+
+# Check for SSH directory
+if [ ! -d "$HOME/.ssh" ]; then
+    echo "No SSH directory found at $HOME/.ssh"
+    exit 1
+fi
+
+# Store key info for interactive mode
+declare -a KEY_FILES
+declare -a PUB_FILES
+
+# Function to determine SSH default key order (same as ssh client)
+get_default_key_priority() {
+    local keyfile="$1"
+    local basename_key=$(basename "$keyfile")
+
+    case "$basename_key" in
+        id_rsa) echo 1 ;;
+        id_ecdsa) echo 2 ;;
+        id_ecdsa_sk) echo 3 ;;
+        id_ed25519) echo 4 ;;
+        id_ed25519_sk) echo 5 ;;
+        id_xmss) echo 6 ;;
+        id_dsa) echo 7 ;;
+        *) echo 99 ;;  # Non-default keys
+    esac
+}
+
+# Function to get key info
+parse_ssh_key() {
+    local keyfile="$1"
+    local is_default="$2"
+
+    if [ ! -f "$keyfile" ]; then
+        return
+    fi
+
+    # Get public key content and store for interactive mode
+    local pubfile="${keyfile}.pub"
+    if [ -f "$pubfile" ]; then
+        algorithm=$(echo "$pubkey" | cut -d' ' -f1)
+        fingerprint=$(ssh-keygen -lf "$pubfile" 2>/dev/null | awk '{print $2}')
+        comment=$(echo "$pubkey" | cut -d' ' -f3-)
+        pubkey_file="$(basename "$pubfile")"
+
+        # Store for interactive mode
+        KEY_FILES+=("$keyfile")
+        PUB_FILES+=("$pubfile")
+    else
+        # Generate public key info from private key
+        fingerprint=$(ssh-keygen -lf "$keyfile" 2>/dev/null | awk '{print $2}')
+        algorithm=$(ssh-keygen -lf "$keyfile" 2>/dev/null | awk '{print $4}' | tr -d '()')
+        comment="(no public key file)"
+        pubkey_file="(not found)"
+
+        # Store for interactive mode anyway
+        KEY_FILES+=("$keyfile")
+        PUB_FILES+=("")
+    fi
+
+    # Check if key is encrypted
+    if grep -q "ENCRYPTED" "$keyfile" 2>/dev/null; then
+        encrypted="Yes"
+    else
+        encrypted="No"
+    fi
+
+    # Get file modification time
+    modified=$(stat -c %Y "$keyfile" 2>/dev/null)
+    if [ -n "$modified" ]; then
+        created=$(date -d "@$modified" "+%Y-%m-%d %H:%M")
+    else
+        created="Unknown"
+    fi
+
+    local default_indicator=""
+    if [ "$is_default" = "true" ]; then
+        default_indicator=" (DEFAULT)"
+    fi
+
+    printf "Private Key: %s%s\n" "$(basename "$keyfile")" "$default_indicator"
+    printf "Public Key:  %s\n" "$pubkey_file"
+    printf "Algorithm:   %s\n" "${algorithm:-Unknown}"
+    printf "Fingerprint: %s\n" "${fingerprint:-Unable to determine}"
+    printf "Comment:     %s\n" "${comment:-None}"
+    printf "Encrypted:   %s\n" "$encrypted"
+    printf "Modified:    %s\n" "$created"
+    printf -- "---\n\n"
+}
+
+# Find all SSH keys first and determine default
+declare -a ALL_KEYS
+declare -a KEY_PRIORITIES
+
+# Collect common SSH key files
+for keyfile in "$HOME/.ssh/id_rsa" "$HOME/.ssh/id_ecdsa" "$HOME/.ssh/id_ecdsa_sk" "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_ed25519_sk" "$HOME/.ssh/id_xmss" "$HOME/.ssh/id_dsa"; do
+    if [ -f "$keyfile" ]; then
+        ALL_KEYS+=("$keyfile")
+        KEY_PRIORITIES+=($(get_default_key_priority "$keyfile"))
+    fi
+done
+
+# Collect any other private keys in .ssh directory
+for keyfile in "$HOME/.ssh"/*; do
+    if [ -f "$keyfile" ] && [ ! "${keyfile##*.}" = "pub" ] && [ ! "${keyfile##*.}" = "known_hosts" ] && [ ! "${keyfile##*.}" = "authorized_keys" ] && [ ! "${keyfile##*/}" = "config" ]; then
+        # Skip if already processed above
+        case "$(basename "$keyfile")" in
+            id_rsa|id_ecdsa|id_ecdsa_sk|id_ed25519|id_ed25519_sk|id_xmss|id_dsa) continue ;;
+        esac
+
+        # Check if it looks like a private key
+        if grep -q "BEGIN.*PRIVATE KEY" "$keyfile" 2>/dev/null || grep -q "BEGIN OPENSSH PRIVATE KEY" "$keyfile" 2>/dev/null; then
+            ALL_KEYS+=("$keyfile")
+            KEY_PRIORITIES+=($(get_default_key_priority "$keyfile"))
+        fi
+    fi
+done
+
+# Find the default key (lowest priority number)
+default_key=""
+min_priority=999
+for i in "${!ALL_KEYS[@]}"; do
+    if [ "${KEY_PRIORITIES[$i]}" -lt "$min_priority" ]; then
+        min_priority="${KEY_PRIORITIES[$i]}"
+        default_key="${ALL_KEYS[$i]}"
+    fi
+done
+
+# Parse and display all keys
+for keyfile in "${ALL_KEYS[@]}"; do
+    is_default="false"
+    if [ "$keyfile" = "$default_key" ]; then
+        is_default="true"
+    fi
+    parse_ssh_key "$keyfile" "$is_default"
+done
+
+# Interactive mode to view public keys
+if [ "$INTERACTIVE" = true ]; then
+    if [ ${#KEY_FILES[@]} -eq 0 ]; then
+        echo "No SSH keys found for interactive viewing."
+        exit 0
+    fi
+
+    echo "Interactive Mode - View Public Keys"
+    echo "==================================="
+    echo "Available keys:"
+
+    for i in "${!KEY_FILES[@]}"; do
+        printf "%d) %s\n" $((i+1)) "$(basename "${KEY_FILES[$i]}")"
+    done
+
+    echo "q) Quit"
+    echo
+
+    while true; do
+        printf "Select a key to view (1-${#KEY_FILES[@]}, q to quit): "
+        read -r choice
+
+        case "$choice" in
+            q|Q) break ;;
+            [0-9]*)
+                if [ "$choice" -ge 1 ] && [ "$choice" -le ${#KEY_FILES[@]} ]; then
+                    idx=$((choice-1))
+                    pubfile="${PUB_FILES[$idx]}"
+
+                    if [ -n "$pubfile" ] && [ -f "$pubfile" ]; then
+                        echo
+                        echo "Public key content for $(basename "${KEY_FILES[$idx]}"):"
+                        echo "----------------------------------------"
+                        cat "$pubfile"
+                        echo
+                        echo "----------------------------------------"
+                        echo
+                    else
+                        echo "No public key file found for $(basename "${KEY_FILES[$idx]}")"
+                        echo
+                    fi
+                else
+                    echo "Invalid selection. Please choose 1-${#KEY_FILES[@]} or q."
+                fi
+                ;;
+            *)
+                echo "Invalid input. Please choose 1-${#KEY_FILES[@]} or q."
+                ;;
+        esac
+    done
+fi

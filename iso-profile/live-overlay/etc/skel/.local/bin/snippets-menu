@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# Select a snippet using dmenu and remove trailing spaces
+chosen=$(grep -v '^#' "$SNIPPETS_FILE" | dmenu -i -l 50 | awk -F'#' '{print $1}' | sed 's/[[:blank:]]*$//')
+
+# Exit if none chosen.
+[ -z "$chosen" ] && exit
+
+# If you run this command with an argument, it will automatically insert the
+# character. Otherwise, copy to clipboard and notify.
+if [ -n "$1" ]; then
+    xdotool type "$chosen"
+else
+    echo -n "$chosen" | xclip -selection clipboard
+    notify-send "'$chosen' copied to clipboard." &
+fi

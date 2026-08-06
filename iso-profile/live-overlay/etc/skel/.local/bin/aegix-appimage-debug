@@ -1,0 +1,48 @@
+#!/bin/bash
+# Debug version of AppImage manager menu
+# Shows exactly what's happening
+
+set -x  # Enable debug output
+
+echo "=== AppImage Manager Debug ==="
+echo "DISPLAY: $DISPLAY"
+echo "WAYLAND_DISPLAY: $WAYLAND_DISPLAY"
+echo "User: $(whoami)"
+echo "PWD: $(pwd)"
+echo ""
+
+# Check registry
+REGISTRY_FILE="$HOME/.config/aegix/appimages.json"
+echo "Registry file: $REGISTRY_FILE"
+
+if [[ ! -f "$REGISTRY_FILE" ]]; then
+    echo "ERROR: Registry file doesn't exist!"
+    exit 1
+fi
+
+# Count AppImages
+COUNT=$(jq '.appimages | length' "$REGISTRY_FILE")
+echo "Found $COUNT AppImages in registry"
+
+if [[ "$COUNT" -eq "0" ]]; then
+    echo "ERROR: No AppImages in registry!"
+    exit 1
+fi
+
+# Show first 3 AppImages
+echo ""
+echo "First 3 AppImages:"
+jq -r '.appimages[:3] | .[] | .name' "$REGISTRY_FILE"
+
+echo ""
+echo "Testing fuzzel directly..."
+echo -e "Test Option 1\nTest Option 2\nTest Option 3" | fuzzel --dmenu --prompt="Debug Test > " --lines=5
+
+echo ""
+echo "Exit code from fuzzel: $?"
+
+echo ""
+echo "Now trying the actual manager..."
+aegix-appimage-manager menu
+
+echo "Done!"

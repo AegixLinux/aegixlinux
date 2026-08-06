@@ -1,0 +1,33 @@
+#!/bin/sh
+# Quick cursor theme/size switcher
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: set-cursor <theme> [size]"
+    echo ""
+    echo "Available themes:"
+    ls -1 /usr/share/icons/*/cursors 2>/dev/null | sed 's|/usr/share/icons/||; s|/cursors||' | sed 's/^/  - /'
+    echo ""
+    echo "Current settings:"
+    echo "  Theme: $XCURSOR_THEME"
+    echo "  Size: $XCURSOR_SIZE"
+    exit 0
+fi
+
+THEME="$1"
+SIZE="${2:-24}"
+
+# Update .Xresources
+sed -i "s/^Xcursor.theme:.*/Xcursor.theme: $THEME/" ~/.Xresources
+sed -i "s/^Xcursor.size:.*/Xcursor.size: $SIZE/" ~/.Xresources
+
+# Update .zshrc
+sed -i "s/^export XCURSOR_THEME=.*/export XCURSOR_THEME=$THEME/" ~/.config/zsh/.zshrc
+sed -i "s/^export XCURSOR_SIZE=.*/export XCURSOR_SIZE=$SIZE/" ~/.config/zsh/.zshrc
+
+# Apply immediately
+xrdb -merge ~/.Xresources
+export XCURSOR_THEME="$THEME"
+export XCURSOR_SIZE="$SIZE"
+
+echo "✓ Cursor set to: $THEME (size $SIZE)"
+echo "  Restart dwm (Mod+Shift+Q) to apply to all applications"

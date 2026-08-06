@@ -1,0 +1,24 @@
+#!/bin/bash
+# Switch all active audio streams to USB interface
+
+echo "Finding USB audio device..."
+USB_SINK=$(wpctl status | grep -E "Volt|Zen Go|USB" | grep "Sinks:" -A 5 | grep -o "[0-9]*\." | head -1 | tr -d '.')
+
+if [ -z "$USB_SINK" ]; then
+    echo "No USB audio device found!"
+    exit 1
+fi
+
+echo "USB Sink ID: $USB_SINK"
+echo "Setting as default..."
+wpctl set-default "$USB_SINK"
+
+echo "Moving active streams..."
+for stream in $(wpctl status | grep "Stream" -A 20 | grep -o "^[[:space:]]*[0-9]*\." | tr -d '. '); do
+    if [ -n "$stream" ]; then
+        echo "Moving stream $stream to sink $USB_SINK"
+        wpctl set-sink "$stream" "$USB_SINK"
+    fi
+done
+
+echo "Done! USB audio is now default."

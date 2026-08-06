@@ -1,0 +1,30 @@
+#!/bin/bash
+
+echo "GPG Secret Keys Summary"
+echo "======================="
+echo
+
+gpg --list-secret-keys --keyid-format LONG --with-colons | \
+awk -F: '
+/^sec/ {
+    keyid = $5
+    expires = ($7 == "" ? "Never" : strftime("%Y-%m-%d", $7))
+}
+/^fpr/ {
+    fingerprint = $10
+}
+/^uid/ && $2 == "u" {
+    # Extract name and email from uid field
+    split($10, parts, "<")
+    name = parts[1]
+    email = parts[2]
+    gsub(">", "", email)
+    gsub(/^ +| +$/, "", name)  # trim whitespace
+    
+    printf "ID:          %s\n", keyid
+    printf "Fingerprint: %s\n", fingerprint
+    printf "Name:        %s\n", name
+    printf "Email:       %s\n", email
+    printf "Expires:     %s\n", expires
+    printf "---\n\n"
+}'

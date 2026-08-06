@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# Aegix Power Menu - System power/lock options for Wayland
+# Invoked with Super+Backspace
+#
+# Features:
+# - Lock screen
+# - Placeholder options for future functionality
+# - Keyboard navigation (arrows or vim-style j/k)
+# - Consistent styling with passmenu
+
+set -euo pipefail
+
+# Function to find best available menu program
+find_menu_program() {
+    if command -v fuzzel >/dev/null 2>&1; then
+        echo "fuzzel --dmenu --prompt='⚡ Power: ' --lines=5 --width=30"
+    elif command -v tofi >/dev/null 2>&1; then
+        echo "tofi --prompt-text='⚡ Power: ' --height=30% --width=30%"
+    elif command -v wmenu >/dev/null 2>&1; then
+        echo "wmenu -i -l 5 -p '⚡ Power:'"
+    elif command -v dmenu-wl >/dev/null 2>&1; then
+        echo "dmenu-wl -i -l 5 -p '⚡ Power:'"
+    else
+        return 1
+    fi
+}
+
+# Function to send notifications
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    local timeout="${4:-2000}"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message" \
+            --urgency="$urgency" \
+            -t "$timeout" \
+            --app-name="powermenu" \
+            --icon="system-shutdown"
+    fi
+}
+
+# Find menu program
+MENU_CMD=$(find_menu_program)
+if [[ -z "$MENU_CMD" ]]; then
+    notify critical "Menu Error" \
+        "No compatible menu program found (fuzzel/tofi/wmenu/dmenu-wl)" 5000
+    exit 1
+fi
+
+# Update line count for more options
+MENU_CMD=$(echo "$MENU_CMD" | sed 's/--lines=5/--lines=7/' | sed 's/-l 5/-l 7/')
+
+# Define menu options
+# Using icons for visual appeal (optional - will work without icon fonts too)
+options=(
+    "🔒  Lock Screen"
+    "🔁  Reload Waybar"
+    "💤  Suspend"
+    "🚪  Logout"
+    "🔄  Reboot"
+    "⏻   Shutdown"
+    "❌  Cancel"
+)
+
+# Show menu and get selection
+# fuzzel supports j/k vim bindings by default
+choice=$(printf '%s\n' "${options[@]}" | eval $MENU_CMD)
+
+# Exit if nothing selected (user pressed Escape)
+[[ -n "$choice" ]] || exit 0
+
+# Function to confirm dangerous actions
+confirm_action() {
+    local action="$1"
+    local prompt="$2"
+
+    # Create a simple yes/no menu
+    local confirm_options=("✅  Yes, $action" "❌  No, Cancel")
+    local confirm_choice=$(printf '%s\n' "${confirm_options[@]}" | eval $MENU_CMD --prompt="'$prompt '")
+
+    [[ "$confirm_choice" == "✅  Yes, $action" ]]
+}
+
+# Handle the selection
+case "$choice" in
+    "🔒  Lock Screen")
+        notify normal "Locking" "Locking screen..." 1000
+        sleep 0.2
+        hyprlock
+        ;;
+
+    "🔁  Reload Waybar")
+        notify normal "Reloading" "Reloading waybar..." 1000
+        killall waybar
+        sleep 1
+        hyprctl dispatch exec "waybar -c ~/.config/waybar/config.hyprland -s ~/.config/waybar/style.hyprland.css"
+        notify normal "Success" "Waybar reloaded" 1500
+        ;;
+
+    "💤  Suspend")
+        notify normal "Suspending" "System will suspend now" 1500
+        sleep 1.5
+        loginctl suspend
+        ;;
+
+    "🚪  Logout")
+        if confirm_action "Logout" "⚠️ Logout from Hyprland?"; then
+            notify normal "Logging Out" "Exiting Hyprland..." 1500
+            sleep 1.5
+            hyprctl dispatch exit
+        else
+            notify normal "Cancelled" "Logout cancelled" 1000
+        fi
+        ;;
+
+    "🔄  Reboot")
+        if confirm_action "Reboot" "⚠️ Reboot system?"; then
+            notify normal "Rebooting" "System will reboot now..." 2000
+            sleep 2
+            loginctl reboot
+        else
+            notify normal "Cancelled" "Reboot cancelled" 1000
+        fi
+        ;;
+
+    "⏻   Shutdown")
+        if confirm_action "Shutdown" "⚠️ Shutdown system?"; then
+            notify normal "Shutting Down" "System will shutdown now..." 2000
+            sleep 2
+            loginctl poweroff
+        else
+            notify normal "Cancelled" "Shutdown cancelled" 1000
+        fi
+        ;;
+
+    "❌  Cancel"|"")
+        # User cancelled or pressed Escape
+        exit 0
+        ;;
+
+    *)
+        notify critical "Error" "Unknown option: $choice" 3000
+        exit 1
+        ;;
+esac

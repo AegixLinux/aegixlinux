@@ -1,0 +1,20 @@
+pkgbase = nsxiv-aegix-git
+	pkgdesc = Aegix Linux's build of nsxiv (maintained sxiv fork) with key-handler path fix and aegix-flavored defaults
+	pkgver = r1082.f412263
+	pkgrel = 1
+	url = https://github.com/aegixlinux/nsxiv
+	arch = x86_64
+	license = GPL2
+	makedepends = git
+	depends = imlib2
+	depends = libxft
+	depends = libexif
+	depends = desktop-file-utils
+	depends = xdg-utils
+	depends = hicolor-icon-theme
+	provides = nsxiv
+	conflicts = nsxiv
+	source = nsxiv::git+https://github.com/aegixlinux/nsxiv.git
+	sha256sums = SKIP
+
+pkgname = nsxiv-aegix-git

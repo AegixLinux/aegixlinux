@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# aur-git — wrapper that runs git against an AUR package's isolated git state.
+#
+# The AUR state lives at the repo's aur/.aur-git/<pkgname>/ (a real
+# git dir), while the work tree is the repo's aur/<pkgname>/ (plain
+# files, tracked by the parent monorepo).
+#
+# Usage: aur-git <pkgname> <git args...>
+# Example:
+#   aur-git dwm-aegix-git status
+#   aur-git dwm-aegix-git log --oneline
+#   aur-git dwm-aegix-git add PKGBUILD .SRCINFO
+#   aur-git dwm-aegix-git commit -m 'Bump deps'
+#   aur-git dwm-aegix-git push
+
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "usage: $(basename "$0") <pkgname> <git args...>" >&2
+  exit 2
+fi
+
+PKG="$1"
+shift
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+GIT_DIR="$REPO_ROOT/aur/.aur-git/$PKG"
+WORK_TREE="$REPO_ROOT/aur/$PKG"
+
+if [[ ! -d "$GIT_DIR" ]]; then
+  echo "error: AUR git state not found at $GIT_DIR" >&2
+  echo "To initialize a new package, use:" >&2
+  echo "  mkdir -p $GIT_DIR" >&2
+  echo "  git --git-dir=$GIT_DIR --work-tree=$WORK_TREE init -q -b master" >&2
+  echo "  git --git-dir=$GIT_DIR --work-tree=$WORK_TREE remote add origin ssh://aur@aur.archlinux.org/$PKG.git" >&2
+  exit 1
+fi
+
+if [[ ! -d "$WORK_TREE" ]]; then
+  echo "error: AUR work tree not found at $WORK_TREE" >&2
+  exit 1
+fi
+
+export GIT_DIR
+export GIT_WORK_TREE="$WORK_TREE"
+exec git "$@"

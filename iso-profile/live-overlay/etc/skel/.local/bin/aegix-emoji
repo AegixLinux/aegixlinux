@@ -1,0 +1,285 @@
+#!/usr/bin/env bash
+# Aegix Custom Emoji Manager
+# Manage your custom emoji list
+
+set -eo pipefail
+
+# Colors
+readonly GREEN='\033[0;32m'
+readonly RED='\033[0;31m'
+readonly CYAN='\033[0;36m'
+readonly BOLD='\033[1m'
+readonly NC='\033[0m'
+
+# Emoji data directory
+readonly EMOJI_DIR="$HOME/.local/share/aegix/emojis"
+readonly CUSTOM_EMOJIS="$EMOJI_DIR/custom-emojis.txt"
+readonly FREQUENTLY_USED="$EMOJI_DIR/frequently-used.txt"
+
+# Ensure directory exists
+mkdir -p "$EMOJI_DIR"
+
+# Create custom emojis file if it doesn't exist
+if [[ ! -f "$CUSTOM_EMOJIS" ]]; then
+    cat > "$CUSTOM_EMOJIS" << 'EOF'
+# Custom Emoji List
+# Add your own emojis here!
+# Format: emoji description
+# Example: 🚀 rocket
+
+EOF
+fi
+
+show_usage() {
+    cat << EOF
+${BOLD}Aegix Custom Emoji Manager${NC}
+
+${CYAN}Usage:${NC}
+    aegix-emoji                 Interactive menu
+    aegix-emoji add             Add a new custom emoji
+    aegix-emoji list            List custom emojis
+    aegix-emoji frequent        List frequently used emojis
+    aegix-emoji edit            Edit custom emoji file
+    aegix-emoji remove          Remove a custom emoji
+    aegix-emoji clear-frequent  Clear frequently used list
+    aegix-emoji count           Count custom emojis
+    aegix-emoji --help          Show this help
+
+${CYAN}Examples:${NC}
+    aegix-emoji add
+    aegix-emoji list
+    aegix-emoji remove
+
+${CYAN}Custom Emoji Format:${NC}
+    Each line: emoji description
+    Example: 🚀 my rocket
+    
+${CYAN}Notes:${NC}
+    - Custom emojis appear first in the picker
+    - Comments start with #
+    - Empty lines are ignored
+    - File location: $CUSTOM_EMOJIS
+EOF
+}
+
+# Add a custom emoji
+add_emoji() {
+    echo -e "${CYAN}Add Custom Emoji${NC}"
+    echo ""
+    
+    read -p "Enter emoji: " emoji
+    read -p "Enter description: " description
+    
+    if [[ -z "$emoji" ]] || [[ -z "$description" ]]; then
+        echo -e "${RED}Error: Both emoji and description are required${NC}"
+        return 1
+    fi
+    
+    # Add to file
+    echo "$emoji $description" >> "$CUSTOM_EMOJIS"
+    
+    echo -e "${GREEN}✓ Added: $emoji $description${NC}"
+    echo "Custom emoji saved to: $CUSTOM_EMOJIS"
+}
+
+# List custom emojis
+list_emojis() {
+    echo -e "${CYAN}Custom Emojis:${NC}"
+    echo ""
+    
+    # Count emojis (excluding comments and empty lines)
+    local count=$(grep -v '^#' "$CUSTOM_EMOJIS" | grep -v '^$' | wc -l)
+    
+    if [[ "$count" -eq 0 ]]; then
+        echo -e "${RED}No custom emojis found${NC}"
+        echo "Add some with: aegix-emoji add"
+        return
+    fi
+    
+    # Show emojis
+    grep -v '^#' "$CUSTOM_EMOJIS" | grep -v '^$' | nl -w 3 -s '. '
+    
+    echo ""
+    echo -e "${GREEN}Total: $count custom emoji(s)${NC}"
+}
+
+# Edit custom emoji file
+edit_emojis() {
+    local editor="${EDITOR:-nvim}"
+    
+    if ! command -v "$editor" >/dev/null 2>&1; then
+        editor="vi"
+    fi
+    
+    echo -e "${CYAN}Opening custom emoji file in $editor...${NC}"
+    "$editor" "$CUSTOM_EMOJIS"
+}
+
+# Remove a custom emoji
+remove_emoji() {
+    echo -e "${CYAN}Remove Custom Emoji${NC}"
+    echo ""
+    
+    # Show numbered list
+    local emojis=$(grep -v '^#' "$CUSTOM_EMOJIS" | grep -v '^$')
+    
+    if [[ -z "$emojis" ]]; then
+        echo -e "${RED}No custom emojis to remove${NC}"
+        return 1
+    fi
+    
+    echo "$emojis" | nl -w 3 -s '. '
+    echo ""
+    
+    read -p "Enter number to remove (or 'cancel'): " num
+    
+    if [[ "$num" == "cancel" ]]; then
+        echo "Cancelled"
+        return 0
+    fi
+    
+    if ! [[ "$num" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}Error: Invalid number${NC}"
+        return 1
+    fi
+    
+    # Get the line to remove
+    local line_to_remove=$(echo "$emojis" | sed -n "${num}p")
+    
+    if [[ -z "$line_to_remove" ]]; then
+        echo -e "${RED}Error: Number out of range${NC}"
+        return 1
+    fi
+    
+    # Remove the line (create backup first)
+    cp "$CUSTOM_EMOJIS" "$CUSTOM_EMOJIS.bak"
+    grep -v "^$line_to_remove$" "$CUSTOM_EMOJIS.bak" > "$CUSTOM_EMOJIS"
+    rm "$CUSTOM_EMOJIS.bak"
+    
+    echo -e "${GREEN}✓ Removed: $line_to_remove${NC}"
+}
+
+# Count custom emojis
+count_emojis() {
+    local count=$(grep -v '^#' "$CUSTOM_EMOJIS" 2>/dev/null | grep -v '^$' | wc -l | tr -d ' ')
+    local freq_count=0
+    if [[ -f "$FREQUENTLY_USED" ]]; then
+        freq_count=$(grep -v '^#' "$FREQUENTLY_USED" 2>/dev/null | grep -v '^$' | wc -l | tr -d ' ')
+    fi
+    echo -e "${CYAN}Custom emojis:${NC} ${count:-0}"
+    echo -e "${CYAN}Frequently used:${NC} ${freq_count:-0}"
+}
+
+# List frequently used emojis
+list_frequent() {
+    echo -e "${CYAN}Frequently Used Emojis:${NC}"
+    echo ""
+    
+    if [[ ! -f "$FREQUENTLY_USED" ]] || [[ ! -s "$FREQUENTLY_USED" ]]; then
+        echo -e "${RED}No frequently used emojis yet${NC}"
+        echo "Use emojis with Super+\` and they'll appear here!"
+        return
+    fi
+    
+    local count=$(grep -v '^#' "$FREQUENTLY_USED" | grep -v '^$' | wc -l)
+    
+    if [[ "$count" -eq 0 ]]; then
+        echo -e "${RED}No frequently used emojis yet${NC}"
+        echo "Use emojis with Super+\` and they'll appear here!"
+        return
+    fi
+    
+    grep -v '^#' "$FREQUENTLY_USED" | grep -v '^$' | nl -w 3 -s '. '
+    echo ""
+    echo -e "${GREEN}Total: $count frequently used emoji(s)${NC}"
+    echo -e "${CYAN}Tip:${NC} These appear first in the emoji picker!"
+}
+
+# Clear frequently used list
+clear_frequent() {
+    echo -e "${CYAN}Clear Frequently Used Emojis${NC}"
+    echo ""
+    
+    read -p "Are you sure you want to clear the frequently used list? (y/N): " confirm
+    
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        echo "# Frequently Used Emojis" > "$FREQUENTLY_USED"
+        echo -e "${GREEN}✓ Frequently used list cleared${NC}"
+    else
+        echo "Cancelled"
+    fi
+}
+
+# Interactive menu
+interactive() {
+    echo -e "${BOLD}${CYAN}Aegix Custom Emoji Manager${NC}"
+    echo ""
+    echo "1) Add new emoji"
+    echo "2) List custom emojis"
+    echo "3) List frequently used"
+    echo "4) Edit emoji file"
+    echo "5) Remove emoji"
+    echo "6) Clear frequently used"
+    echo "7) Count emojis"
+    echo "8) Show emoji picker"
+    echo "9) Exit"
+    echo ""
+    
+    read -p "Choose option [1-9]: " choice
+    
+    case "$choice" in
+        1) add_emoji ;;
+        2) list_emojis ;;
+        3) list_frequent ;;
+        4) edit_emojis ;;
+        5) remove_emoji ;;
+        6) clear_frequent ;;
+        7) count_emojis ;;
+        8)
+            if [[ -x "$HOME/.local/bin/emojimenu-aegix" ]]; then
+                exec "$HOME/.local/bin/emojimenu-aegix"
+            else
+                echo -e "${RED}Error: emojimenu-aegix not found${NC}"
+            fi
+            ;;
+        9) exit 0 ;;
+        *) echo -e "${RED}Invalid choice${NC}"; exit 1 ;;
+    esac
+}
+
+# Main
+case "${1:-interactive}" in
+    add)
+        add_emoji
+        ;;
+    list|ls)
+        list_emojis
+        ;;
+    frequent|freq)
+        list_frequent
+        ;;
+    edit)
+        edit_emojis
+        ;;
+    remove|rm)
+        remove_emoji
+        ;;
+    clear-frequent|clear)
+        clear_frequent
+        ;;
+    count)
+        count_emojis
+        ;;
+    -h|--help|help)
+        show_usage
+        ;;
+    interactive)
+        interactive
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        echo "Run 'aegix-emoji --help' for usage"
+        exit 1
+        ;;
+esac
+

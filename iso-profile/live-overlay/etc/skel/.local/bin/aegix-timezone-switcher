@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# aegix-timezone-switcher - Interactive timezone switcher for Aegix
+# Prioritizes Pacific and Eastern time for US travelers
+
+set -euo pipefail
+
+# Lockfile to prevent multiple instances
+LOCKFILE="/tmp/aegix-timezone-switcher.lock"
+LOCKFILE_TIMEOUT=5
+
+# Colors for terminal output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to acquire lock
+acquire_lock() {
+    # Simple approach: if lock exists and is older than 5 seconds, remove it
+    if [ -f "$LOCKFILE" ]; then
+        local lock_age
+        lock_age=$(($(date +%s) - $(stat -c %Y "$LOCKFILE" 2>/dev/null || echo 0)))
+        if [ "$lock_age" -gt "$LOCKFILE_TIMEOUT" ]; then
+            rm -f "$LOCKFILE"
+        else
+            # Another instance is running, exit quietly
+            exit 0
+        fi
+    fi
+    echo $$ > "$LOCKFILE"
+}
+
+# Function to release lock
+release_lock() {
+    rm -f "$LOCKFILE"
+}
+
+# Ensure lock is released on exit
+trap release_lock EXIT
+
+# Function to get current timezone
+get_current_timezone() {
+    if [ -L /etc/localtime ]; then
+        readlink /etc/localtime | sed 's|/usr/share/zoneinfo/||'
+    else
+        echo "Unknown"
+    fi
+}
+
+# Function to get friendly timezone name
+get_friendly_name() {
+    local tz="$1"
+    case "$tz" in
+        "America/Los_Angeles") echo "🌊 Pacific Time (PST/PDT)" ;;
+        "America/New_York") echo "🗽 Eastern Time (EST/EDT)" ;;
+        "America/Chicago") echo "🌆 Central Time (CST/CDT)" ;;
+        "America/Denver") echo "⛰️  Mountain Time (MST/MDT)" ;;
+        "America/Phoenix") echo "🌵 Arizona Time (MST - no DST)" ;;
+        "America/Anchorage") echo "🐻 Alaska Time (AKST/AKDT)" ;;
+        "Pacific/Honolulu") echo "🌺 Hawaii Time (HST - no DST)" ;;
+        "UTC") echo "🌍 Coordinated Universal Time (UTC)" ;;
+        "Europe/London") echo "🇬🇧 London Time (GMT/BST)" ;;
+        "Europe/Paris") echo "🇫🇷 Central European Time (CET/CEST)" ;;
+        "Asia/Tokyo") echo "🇯🇵 Japan Time (JST)" ;;
+        "Australia/Sydney") echo "🇦🇺 Sydney Time (AEST/AEDT)" ;;
+        *) echo "⏰ $tz" ;;
+    esac
+}
+
+# Function to switch timezone (requires sudo)
+switch_timezone() {
+    local new_tz="$1"
+    local tz_path="/usr/share/zoneinfo/$new_tz"
+
+    # Check if timezone exists
+    if [ ! -f "$tz_path" ]; then
+        notify-send -u critical "⏰ Timezone Error" "Timezone file not found: $new_tz"
+        echo -e "${RED}Error: Timezone not found: $new_tz${NC}" >&2
+        exit 1
+    fi
+
+    # Switch timezone (requires root)
+    if sudo ln -sf "$tz_path" /etc/localtime; then
+        # Also update Waybar configs to use new timezone
+        update_waybar_timezone "$new_tz"
+
+        # Restart Waybar to apply changes
+        killall waybar 2>/dev/null || true
+        sleep 0.5
+        waybar &
+
+        # Success notification
+        local friendly=$(get_friendly_name "$new_tz")
+        notify-send -u normal "⏰ Timezone Changed" "Now using: $friendly"
+        echo -e "${GREEN}✓ Timezone changed to: $new_tz${NC}"
+        echo -e "${BLUE}  Waybar restarted to reflect changes${NC}"
+    else
+        notify-send -u critical "⏰ Timezone Error" "Failed to change timezone (check sudo permissions)"
+        echo -e "${RED}Error: Failed to change timezone${NC}" >&2
+        exit 1
+    fi
+}
+
+# Function to update Waybar configs with new timezone
+update_waybar_timezone() {
+    local new_tz="$1"
+
+    # Update both docked and undocked configs
+    for config in "$HOME/.config/waybar/config.hyprland.docked" "$HOME/.config/waybar/config.hyprland.undocked"; do
+        if [ -f "$config" ]; then
+            # Use sed to replace timezone in clock module
+            sed -i "s|\"timezone\": \".*\"|\"timezone\": \"$new_tz\"|g" "$config"
+        fi
+    done
+}
+
+# Main menu function
+show_menu() {
+    # Acquire lock to prevent multiple instances
+    acquire_lock
+
+    local current_tz
+    current_tz=$(get_current_timezone)
+    local current_friendly
+    current_friendly=$(get_friendly_name "$current_tz")
+
+    # Build menu options (prioritize Pacific and Eastern)
+    local menu_options
+    menu_options=$(cat <<EOF
+🌊 Pacific Time (Los Angeles)
+🗽 Eastern Time (New York)
+━━━━━━━━━━━━━━━━━━━━━━━━
+🌆 Central Time (Chicago)
+⛰️  Mountain Time (Denver)
+🌵 Arizona (no DST)
+🐻 Alaska Time
+🌺 Hawaii Time
+━━━━━━━━━━━━━━━━━━━━━━━━
+🌍 UTC (Universal Time)
+🇬🇧 London (UK)
+🇫🇷 Paris (Europe)
+🇯🇵 Tokyo (Japan)
+🇦🇺 Sydney (Australia)
+EOF
+)
+
+    # Show current timezone in rofi/fuzzel prompt
+    local prompt="Current: $current_friendly"
+
+    # Use fuzzel for selection (Aegix style)
+    local selection
+    if command -v fuzzel &> /dev/null; then
+        selection=$(echo "$menu_options" | fuzzel --dmenu --prompt="⏰ $prompt  " --width=50)
+    elif command -v rofi &> /dev/null; then
+        selection=$(echo "$menu_options" | rofi -dmenu -p "⏰ $prompt" -theme-str 'window {width: 600px;}')
+    else
+        # Fallback to terminal-based selection
+        echo -e "${YELLOW}Current timezone: $current_friendly${NC}"
+        echo ""
+        echo "$menu_options" | nl -w2 -s'. '
+        echo ""
+        read -p "Select timezone (number): " choice
+        selection=$(echo "$menu_options" | sed -n "${choice}p")
+    fi
+
+    # Map selection to timezone path
+    case "$selection" in
+        *"Pacific Time"*) switch_timezone "America/Los_Angeles" ;;
+        *"Eastern Time"*) switch_timezone "America/New_York" ;;
+        *"Central Time"*) switch_timezone "America/Chicago" ;;
+        *"Mountain Time"*) switch_timezone "America/Denver" ;;
+        *"Arizona"*) switch_timezone "America/Phoenix" ;;
+        *"Alaska"*) switch_timezone "America/Anchorage" ;;
+        *"Hawaii"*) switch_timezone "Pacific/Honolulu" ;;
+        *"UTC"*) switch_timezone "UTC" ;;
+        *"London"*) switch_timezone "Europe/London" ;;
+        *"Paris"*) switch_timezone "Europe/Paris" ;;
+        *"Tokyo"*) switch_timezone "Asia/Tokyo" ;;
+        *"Sydney"*) switch_timezone "Australia/Sydney" ;;
+        "")
+            # User cancelled
+            exit 0
+            ;;
+        "━"*)
+            # User selected separator
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid selection${NC}" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle command line arguments
+if [ $# -eq 0 ]; then
+    # No arguments - show interactive menu
+    show_menu
+else
+    # Direct timezone specification
+    case "$1" in
+        --help|-h)
+            echo "Usage: $0 [TIMEZONE]"
+            echo ""
+            echo "Interactive timezone switcher for Aegix"
+            echo ""
+            echo "Options:"
+            echo "  (no args)         Show interactive menu"
+            echo "  pacific           Switch to Pacific Time"
+            echo "  eastern           Switch to Eastern Time"
+            echo "  central           Switch to Central Time"
+            echo "  mountain          Switch to Mountain Time"
+            echo "  utc               Switch to UTC"
+            echo "  current           Show current timezone"
+            echo "  --help            Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  $0                # Show menu"
+            echo "  $0 pacific        # Quick switch to Pacific"
+            echo "  $0 eastern        # Quick switch to Eastern"
+            ;;
+        current)
+            current_tz=$(get_current_timezone)
+            current_friendly=$(get_friendly_name "$current_tz")
+            echo "Current timezone: $current_friendly"
+            echo "  Path: $current_tz"
+            ;;
+        pacific)
+            switch_timezone "America/Los_Angeles"
+            ;;
+        eastern)
+            switch_timezone "America/New_York"
+            ;;
+        central)
+            switch_timezone "America/Chicago"
+            ;;
+        mountain)
+            switch_timezone "America/Denver"
+            ;;
+        arizona)
+            switch_timezone "America/Phoenix"
+            ;;
+        alaska)
+            switch_timezone "America/Anchorage"
+            ;;
+        hawaii)
+            switch_timezone "Pacific/Honolulu"
+            ;;
+        utc)
+            switch_timezone "UTC"
+            ;;
+        *)
+            # Try to use as direct timezone path
+            switch_timezone "$1"
+            ;;
+    esac
+fi

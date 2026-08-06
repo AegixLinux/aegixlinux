@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# aegix-src-sync post-commit hook.
+# Symlinked into ~/.local/src/<repo>/.git/hooks/post-commit by install-src-sync.sh.
+# Pushes the live commit, advances the AEGIX submodule, stages the pointer bump.
+
+set -euo pipefail
+
+# Clean up git environment to avoid issues with nested git commands in post-commit context.
+# In some git versions, post-commit hooks can't properly run nested git operations.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES 2>/dev/null || true
+
+# Resolve this script's real location (follow symlink) to find src-sync-lib.sh.
+SCRIPT_SRC="${BASH_SOURCE[0]}"
+while [[ -L "$SCRIPT_SRC" ]]; do
+  SCRIPT_SRC="$(readlink "$SCRIPT_SRC")"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_SRC")" && pwd)"
+
+# Defaults (overridable via env for tests)
+: "${SRC_SYNC_CONF:=$HOME/code/PROJECTS/AEGIX/tools/src-sync.conf}"
+: "${SRC_SYNC_AEGIX_PARENT:=$HOME/code/PROJECTS/AEGIX}"
+
+source "$SCRIPT_DIR/src-sync-lib.sh"
+
+# Find the live repo we were invoked from.
+LIVE_ROOT="$(git rev-parse --show-toplevel)"
+
+# Look up its AEGIX counterpart.
+if ! AEGIX_PATH="$(find_aegix_path "$SRC_SYNC_CONF" "$LIVE_ROOT")"; then
+  log_line "$(basename "$LIVE_ROOT")" "SKIP" "repo not listed in src-sync.conf"
+  exit 0
+fi
+
+REPO_NAME="$(basename "$LIVE_ROOT")"
+
+# Precondition: branch must be the repo's primary branch.
+#
+# Accepts main as well as master. Aegix is standardising on main, and the four
+# tracked repos are being renamed; a master-only check would make this hook
+# skip every commit after the rename -- and it skips *quietly*, so the first
+# symptom would be submodule pointers silently going stale.
+BRANCH="$(git -C "$LIVE_ROOT" rev-parse --abbrev-ref HEAD)"
+if [[ "$BRANCH" != "master" && "$BRANCH" != "main" ]]; then
+  log_line "$REPO_NAME" "SKIP" "branch=$BRANCH (not main/master)"
+  printf '[aegix-src-sync] %s: skipped (branch=%s)\n' "$REPO_NAME" "$BRANCH"
+  exit 0
+fi
+
+# Precondition: AEGIX submodule exists.
+if [[ ! -d "$AEGIX_PATH/.git" && ! -f "$AEGIX_PATH/.git" ]]; then
+  log_line "$REPO_NAME" "WARN" "aegix submodule missing: $AEGIX_PATH"
+  printf '[aegix-src-sync] %s: AEGIX submodule missing at %s\n' "$REPO_NAME" "$AEGIX_PATH" >&2
+  exit 0
+fi
+
+# Precondition: AEGIX submodule is on its primary branch OR detached.
+# (Submodules are frequently in detached HEAD after `git submodule update`; that's normal.)
+AEGIX_BRANCH="$(git -C "$AEGIX_PATH" rev-parse --abbrev-ref HEAD)"
+if [[ "$AEGIX_BRANCH" != "master" && "$AEGIX_BRANCH" != "main" && "$AEGIX_BRANCH" != "HEAD" ]]; then
+  log_line "$REPO_NAME" "WARN" "aegix branch=$AEGIX_BRANCH (not main/master, not detached)"
+  printf '[aegix-src-sync] %s: AEGIX submodule on %s (not main/master); skipping\n' "$REPO_NAME" "$AEGIX_BRANCH" >&2
+  exit 0
+fi
+
+# If AEGIX submodule is dirty, back up first.
+if BACKUP_PATH="$(backup_aegix_wip "$AEGIX_PATH")" && [[ -n "$BACKUP_PATH" ]]; then
+  printf '[aegix-src-sync] %s: AEGIX-side WIP saved to %s\n' "$REPO_NAME" "$BACKUP_PATH"
+fi
+
+# Debug: check the AEGIX path exists
+if [[ ! -d "$AEGIX_PATH" ]]; then
+  log_line "$REPO_NAME" "WARN" "AEGIX path does not exist: $AEGIX_PATH"
+  printf '[aegix-src-sync] %s: ERROR AEGIX path does not exist: %s\n' "$REPO_NAME" "$AEGIX_PATH" >&2
+  exit 0
+fi
+
+# Do the sync. If it fails, lib already logged and printed the warning.
+sync_repo "$LIVE_ROOT" "$AEGIX_PATH" "$SRC_SYNC_AEGIX_PARENT" || true
+
+# post-commit exit status is ignored by git anyway, but be explicit.
+exit 0

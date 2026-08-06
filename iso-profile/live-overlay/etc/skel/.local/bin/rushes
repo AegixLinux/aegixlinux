@@ -1,0 +1,352 @@
+#!/bin/bash
+# rushes — review a pile of raw captures as a thumbnail grid.
+#
+# "Rushes" (US: dailies) are the day's raw unedited footage, screened to decide
+# what is worth keeping. This builds a contact grid of them and hands it to sxiv,
+# which is already an excellent grid viewer — rushes only does what sxiv cannot:
+# turn videos into images, and remember which image came from which video.
+#
+# https://github.com/…/rushes    Licence: MIT
+
+set -euo pipefail
+
+VERSION=0.1.0
+PROGNAME=${0##*/}
+
+# ---------------------------------------------------------------- defaults ---
+DIR=${RUSHES_DIR:-$HOME/Videos/obs}
+SEEK_PCT=10
+THUMB_SIZE=320
+JOBS=$(nproc 2>/dev/null || echo 4)
+REBUILD=0
+OVERLAY=1
+PRINT_ONLY=0
+SORT_FIELD='date'
+REVERSE=0
+SINCE=
+LONGER_THAN=
+LARGER_THAN=
+
+EXTS=(mkv mp4 webm mov avi m4v flv wmv ts mpg mpeg)
+
+CACHE_ROOT=${XDG_CACHE_HOME:-$HOME/.cache}/rushes
+
+# --------------------------------------------------------------- discovery ---
+# Locate our sxiv hooks. Checked in order so an in-repo checkout "just runs"
+# without installing, and RUSHES_SHARE always wins for testing.
+SELF=$(readlink -f -- "$0")
+SELF_DIR=$(dirname -- "$SELF")
+SHARE_DIR=
+for cand in "${RUSHES_SHARE:-}" "$SELF_DIR/share" \
+            "${XDG_DATA_HOME:-$HOME/.local/share}/rushes" \
+            /usr/local/share/rushes /usr/share/rushes; do
+	[ -n "$cand" ] && [ -x "$cand/sxiv/exec/key-handler" ] && { SHARE_DIR=$cand; break; }
+done
+
+die() { printf '%s: %s\n' "$PROGNAME" "$*" >&2; exit 1; }
+
+usage() {
+	cat <<EOF
+$PROGNAME $VERSION — review raw captures as a thumbnail grid
+
+Usage: $PROGNAME [OPTIONS] [DIRECTORY]
+
+Options:
+  -s, --seek PCT        grab the frame at PCT% of duration (default: $SEEK_PCT)
+  -S, --size PX         thumbnail width in pixels (default: $THUMB_SIZE)
+  -j, --jobs N          parallel ffmpeg workers (default: one per core)
+  -r, --rebuild         regenerate every thumbnail, ignoring the cache
+      --no-overlay      do not burn name/duration/size into thumbnails
+
+      --since SPEC      only videos modified within SPEC (e.g. 7d, 12h, 2w)
+      --longer-than T   only videos longer than T (e.g. 30s, 5m, 1h)
+      --larger-than S   only videos larger than S (e.g. 500M, 2G)
+
+      --sort FIELD      date | size | duration | name   (default: $SORT_FIELD)
+      --reverse         flip the sort order
+      --print           print matching video paths and exit, one per line
+
+  -h, --help            this message
+  -V, --version         version
+
+In the gallery, press Ctrl+b then ? for the list of actions.
+Cache lives in $CACHE_ROOT
+EOF
+}
+
+# ------------------------------------------------------------- formatting ---
+fmt_dur() { # seconds (may be fractional) -> 1h02m / 5m03s / 42s
+	local s=${1%%.*}
+	[[ $s =~ ^[0-9]+$ ]] || { printf '?'; return; }
+	if   (( s >= 3600 )); then printf '%dh%02dm' $(( s/3600 )) $(( (s%3600)/60 ))
+	elif (( s >= 60 ));   then printf '%dm%02ds' $(( s/60 ))   $(( s%60 ))
+	else                       printf '%ds' "$s"
+	fi
+}
+
+fmt_size() { # bytes -> 1.2G
+	numfmt --to=iec --format='%.1f' -- "$1" 2>/dev/null || printf '%sB' "$1"
+}
+
+to_seconds() { # 90 / 90s / 5m / 2h / 3d / 1w -> seconds
+	local v=${1^^} n u
+	n=${v%[SMHDW]}; u=${v#"$n"}
+	[[ $n =~ ^[0-9]+$ ]] || die "bad time value: $1"
+	case $u in
+		''|S) printf '%s' "$n" ;;
+		M) printf '%s' $(( n * 60 )) ;;
+		H) printf '%s' $(( n * 3600 )) ;;
+		D) printf '%s' $(( n * 86400 )) ;;
+		W) printf '%s' $(( n * 604800 )) ;;
+		*) die "bad time unit in: $1" ;;
+	esac
+}
+
+to_bytes() { # 500M / 2G / 1024 -> bytes
+	local v=${1^^} n u
+	n=${v%[BKMGT]}; u=${v#"$n"}
+	[[ $n =~ ^[0-9]+$ ]] || die "bad size value: $1"
+	case $u in
+		''|B) printf '%s' "$n" ;;
+		K) printf '%s' $(( n * 1024 )) ;;
+		M) printf '%s' $(( n * 1048576 )) ;;
+		G) printf '%s' $(( n * 1073741824 )) ;;
+		T) printf '%s' $(( n * 1099511627776 )) ;;
+		*) die "bad size unit in: $1" ;;
+	esac
+}
+
+# ------------------------------------------------------ thumbnail worker ---
+# Invoked as: rushes --_gen-thumb <video> <thumb>
+# Writes <thumb> plus a <thumb>.meta sidecar of "video<TAB>mtime<TAB>size<TAB>duration".
+# Sidecars rather than shared state because these run in parallel under xargs;
+# concatenating them afterwards needs no locking.
+gen_thumb() {
+	local video=$1 thumb=$2
+	local dur size mtime ss vf label stats fs
+
+	dur=$(ffprobe -v error -show_entries format=duration \
+	              -of default=noprint_wrappers=1:nokey=1 -- "$video" 2>/dev/null || true)
+	[[ $dur =~ ^[0-9]+([.][0-9]+)?$ ]] || dur=0
+	size=$(stat -c %s -- "$video")
+	mtime=$(stat -c %Y -- "$video")
+
+	# -ss BEFORE -i is an input seek: ffmpeg jumps to the nearest keyframe
+	# instead of decoding from frame zero. On a 2h capture that is the
+	# difference between milliseconds and minutes.
+	ss=$(awk -v d="$dur" -v p="$SEEK_PCT" 'BEGIN { v = d * p / 100; printf "%.3f", (v > 0 ? v : 0) }')
+
+	vf="scale=${THUMB_SIZE}:-2"
+	if [ "$OVERLAY" = 1 ] && [ -n "${RUSHES_FONT:-}" ]; then
+		# Only characters we generate ourselves reach drawtext: the label is
+		# scrubbed to [A-Za-z0-9._-] and the stats are digits and unit letters.
+		# Nothing here can contain ':' or '\', so no filter-syntax escaping.
+		label=${video##*/}; label=${label%.*}
+		label=$(printf '%s' "$label" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-30)
+		stats="$(fmt_dur "$dur")  $(fmt_size "$size")"
+		fs=$(( THUMB_SIZE / 22 )); (( fs < 10 )) && fs=10
+		vf+=",drawtext=fontfile=${RUSHES_FONT}:text='${label}':x=6:y=5"
+		vf+=":fontsize=${fs}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=4"
+		vf+=",drawtext=fontfile=${RUSHES_FONT}:text='${stats}':x=6:y=h-th-5"
+		vf+=":fontsize=${fs}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=4"
+	fi
+
+	ffmpeg -nostdin -loglevel error -y -ss "$ss" -i "$video" \
+	       -frames:v 1 -an -sn -vf "$vf" -q:v 3 -- "$thumb" 2>/dev/null || true
+
+	# Seeking past the last keyframe yields nothing; fall back to frame zero.
+	if [ ! -s "$thumb" ]; then
+		ffmpeg -nostdin -loglevel error -y -i "$video" \
+		       -frames:v 1 -an -sn -vf "$vf" -q:v 3 -- "$thumb" 2>/dev/null || true
+	fi
+
+	if [ -s "$thumb" ]; then
+		printf '%s\t%s\t%s\t%s\n' "$video" "$mtime" "$size" "$dur" > "$thumb.meta"
+		printf '  ✓ %s\n' "${video##*/}" >&2
+	else
+		rm -f -- "$thumb" "$thumb.meta"
+		printf '  ✗ %s (no frame extracted)\n' "${video##*/}" >&2
+	fi
+}
+
+thumb_for() { printf '%s/%s.jpg' "$CACHE" "$(printf '%s' "$1" | sha1sum | cut -c1-40)"; }
+
+# Hidden modes, dispatched before normal argument parsing.
+case ${1:-} in
+	--_gen-thumb)
+		SEEK_PCT=${RUSHES_SEEK:-10}
+		THUMB_SIZE=${RUSHES_SIZE:-320}
+		OVERLAY=${RUSHES_OVERLAY:-1}
+		gen_thumb "$2" "$3"
+		exit 0
+		;;
+	--_thumb-for)
+		# The key-handler asks us where a video's thumbnail lives rather than
+		# recomputing the hash itself — one definition, no chance of drift.
+		CACHE=${RUSHES_CACHE:?--_thumb-for needs RUSHES_CACHE}
+		thumb_for "$2"
+		exit 0
+		;;
+esac
+
+# ------------------------------------------------------------------- args ---
+while [ $# -gt 0 ]; do
+	case $1 in
+		-s|--seek)         SEEK_PCT=${2:?--seek needs a value}; shift 2 ;;
+		-S|--size)         THUMB_SIZE=${2:?--size needs a value}; shift 2 ;;
+		-j|--jobs)         JOBS=${2:?--jobs needs a value}; shift 2 ;;
+		-r|--rebuild)      REBUILD=1; shift ;;
+		--no-overlay)      OVERLAY=0; shift ;;
+		--since)           SINCE=${2:?--since needs a value}; shift 2 ;;
+		--longer-than)     LONGER_THAN=${2:?--longer-than needs a value}; shift 2 ;;
+		--larger-than)     LARGER_THAN=${2:?--larger-than needs a value}; shift 2 ;;
+		--sort)            SORT_FIELD=${2:?--sort needs a value}; shift 2 ;;
+		--reverse)         REVERSE=1; shift ;;
+		--print)           PRINT_ONLY=1; shift ;;
+		-d|--dir)          DIR=${2:?--dir needs a value}; shift 2 ;;
+		-h|--help)         usage; exit 0 ;;
+		-V|--version)      printf '%s %s\n' "$PROGNAME" "$VERSION"; exit 0 ;;
+		--)                shift; [ $# -gt 0 ] && DIR=$1; break ;;
+		-*)                die "unknown option: $1  (try --help)" ;;
+		*)                 DIR=$1; shift ;;
+	esac
+done
+
+[[ $SEEK_PCT   =~ ^[0-9]+$ ]] || die "--seek must be a whole percentage"
+[[ $THUMB_SIZE =~ ^[0-9]+$ ]] || die "--size must be a pixel count"
+[[ $JOBS       =~ ^[0-9]+$ ]] || die "--jobs must be a number"
+case $SORT_FIELD in date|size|duration|name) ;; *) die "--sort must be date, size, duration or name" ;; esac
+
+[ -d "$DIR" ] || die "not a directory: $DIR"
+DIR=$(readlink -f -- "$DIR")
+
+command -v ffmpeg  >/dev/null || die "ffmpeg is required"
+command -v ffprobe >/dev/null || die "ffprobe is required"
+
+# Overlays need a truetype font and an ffmpeg built with libfreetype.
+if [ "$OVERLAY" = 1 ]; then
+	# Not `ffmpeg -filters | grep -q`: grep exits at the first match, ffmpeg
+	# takes SIGPIPE, and `set -o pipefail` reports the whole pipeline as failed
+	# — which silently disabled overlays on a perfectly capable ffmpeg.
+	_filters=$(ffmpeg -hide_banner -filters 2>/dev/null || true)
+	if [[ $_filters != *drawtext* ]]; then
+		printf '%s: ffmpeg lacks drawtext; continuing without overlays\n' "$PROGNAME" >&2
+		OVERLAY=0
+	else
+		RUSHES_FONT=${RUSHES_FONT:-$(fc-match -f '%{file}' monospace 2>/dev/null || true)}
+		if [ -z "$RUSHES_FONT" ] || [ ! -r "$RUSHES_FONT" ]; then
+			printf '%s: no usable font found; continuing without overlays\n' "$PROGNAME" >&2
+			OVERLAY=0
+		fi
+	fi
+fi
+
+# ------------------------------------------------------------------ cache ---
+# Keyed on the absolute directory path, so two directories sharing a basename
+# never collide, and the cache survives reboots (unlike the old /tmp scheme).
+dirkey=$(printf '%s' "$DIR" | sha1sum | cut -c1-12)
+CACHE="$CACHE_ROOT/${DIR##*/}-$dirkey"
+mkdir -p -- "$CACHE"
+
+# ----------------------------------------------------------- find videos ---
+find_args=()
+for e in "${EXTS[@]}"; do find_args+=(-iname "*.$e" -o); done
+unset 'find_args[${#find_args[@]}-1]'
+
+mapfile -d '' -t videos < <(find "$DIR" -type f \( "${find_args[@]}" \) -print0 2>/dev/null)
+[ "${#videos[@]}" -gt 0 ] || die "no videos found in $DIR"
+
+# ------------------------------------------------- generate what's missing ---
+worklist=$(mktemp) || die "mktemp failed"
+trap 'rm -f -- "$worklist"' EXIT
+
+todo=0
+for v in "${videos[@]}"; do
+	t=$(thumb_for "$v")
+	if [ "$REBUILD" = 1 ] || [ ! -s "$t" ] || [ ! -s "$t.meta" ] || [ "$v" -nt "$t" ]; then
+		printf '%s\0%s\0' "$v" "$t" >> "$worklist"
+		todo=$(( todo + 1 ))
+	fi
+done
+
+if [ "$todo" -gt 0 ]; then
+	printf '%s: %d of %d thumbnails to build (%d jobs)\n' \
+	       "$PROGNAME" "$todo" "${#videos[@]}" "$JOBS" >&2
+	RUSHES_SEEK=$SEEK_PCT RUSHES_SIZE=$THUMB_SIZE \
+	RUSHES_OVERLAY=$OVERLAY RUSHES_FONT=${RUSHES_FONT:-} \
+		xargs -0 -n2 -P "$JOBS" "$SELF" --_gen-thumb < "$worklist"
+fi
+
+# ----------------------------------------------------- filter, sort, emit ---
+now=$(date +%s)
+since_cut=0;      [ -n "$SINCE" ]        && since_cut=$(( now - $(to_seconds "$SINCE") ))
+min_seconds=0;    [ -n "$LONGER_THAN" ]  && min_seconds=$(to_seconds "$LONGER_THAN")
+min_bytes=0;      [ -n "$LARGER_THAN" ]  && min_bytes=$(to_bytes "$LARGER_THAN")
+
+records=$(mktemp) || die "mktemp failed"
+trap 'rm -f -- "$worklist" "$records"' EXIT
+
+for v in "${videos[@]}"; do
+	t=$(thumb_for "$v")
+	[ -s "$t" ] && [ -s "$t.meta" ] || continue
+	IFS=$'\t' read -r _mv mtime size dur < "$t.meta" || continue
+
+	(( mtime >= since_cut ))                    || continue
+	(( size  >= min_bytes ))                    || continue
+	awk -v d="$dur" -v m="$min_seconds" 'BEGIN { exit !(d >= m) }' || continue
+
+	case $SORT_FIELD in
+		date)     key=$mtime ;;
+		size)     key=$size ;;
+		duration) key=${dur%%.*} ;;
+		name)     key=${v##*/} ;;
+	esac
+	printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$key" "${t##*/}" "$v" "$mtime" "$size" "$dur" >> "$records"
+done
+
+[ -s "$records" ] || die "no videos matched the given filters"
+
+# date/size/duration sort newest-or-largest first; --reverse flips it.
+#
+# The 'r' MUST ride on the key spec. GNU sort ignores global ordering flags for
+# any key that carries its own modifiers, so `-k1,1n -r` silently sorts
+# ascending while `-k1,1nr` actually reverses.
+case "$SORT_FIELD:$REVERSE" in
+	name:0) key_spec='-k1,1'   ;;
+	name:1) key_spec='-k1,1r'  ;;
+	*:0)    key_spec='-k1,1nr' ;;
+	*:1)    key_spec='-k1,1n'  ;;
+esac
+sorted=$(mktemp) || die "mktemp failed"
+trap 'rm -f -- "$worklist" "$records" "$sorted"' EXIT
+sort -t $'\t' "$key_spec" "$records" > "$sorted"
+
+if [ "$PRINT_ONLY" = 1 ]; then
+	cut -f3 -- "$sorted"
+	exit 0
+fi
+
+# The manifest is how the sxiv hooks map a thumbnail back to its video. Rebuilt
+# every run, in display order, so it can never drift from what is on screen.
+cut -f2- -- "$sorted" > "$CACHE/manifest"
+
+mapfile -t thumbs < <(cut -f2 -- "$sorted" | sed "s|^|$CACHE/|")
+printf '%s: %d clips\n' "$PROGNAME" "${#thumbs[@]}" >&2
+
+# ----------------------------------------------------------- launch sxiv ---
+[ -n "$SHARE_DIR" ] || die "cannot find rushes' sxiv hooks (set RUSHES_SHARE)"
+command -v sxiv >/dev/null || die "sxiv is required"
+
+# A user copy of the hooks wins over the shipped ones, so customising them
+# never means forking the package.
+user_share=${XDG_CONFIG_HOME:-$HOME/.config}/rushes
+[ -x "$user_share/sxiv/exec/key-handler" ] && SHARE_DIR=$user_share
+
+# THIS is the whole trick: sxiv resolves its hooks from $XDG_CONFIG_HOME and
+# uses that variable for nothing else. Pointing it at our own tree means rushes
+# ships a complete gallery UI while the user's ~/.config/sxiv is never read,
+# never written, and never at risk.
+export RUSHES_MANIFEST="$CACHE/manifest"
+export RUSHES_CACHE="$CACHE"
+export RUSHES_SELF="$SELF"
+exec env XDG_CONFIG_HOME="$SHARE_DIR" sxiv -t -- "${thumbs[@]}"

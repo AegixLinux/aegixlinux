@@ -1,0 +1,176 @@
+#!/bin/bash
+# fitter-happier - Vintage robotic text-to-speech reader
+# Named after the Radiohead track that uses similar TTS
+#
+# Dependencies:
+#   - espeak-ng (text-to-speech synthesizer)
+#   - pcaudiolib (audio output library)
+#   - libsonic (audio processing)
+#
+# Install on Arch-based systems:
+#   sudo pacman -S espeak-ng
+#
+# Usage: fitter-happier <file> [variant]
+
+show_help() {
+    cat << EOF
+fitter-happier - Vintage Robotic TTS Reader
+
+Usage: fitter-happier <file> [variant] [-o output.wav|output.mp3] [-g gap] [-v voice]
+
+Variants:
+  1 - Classic Robot (slow, low pitch) [s=140, p=30]
+  2 - Vintage Apple (medium, slightly low) [s=160, p=40] [DEFAULT]
+  3 - Fast Robot (faster, monotone) [s=180, p=35]
+  4 - Deep Machine (slow, very low) [s=130, p=20]
+
+Options:
+  -o, --output FILE    Save audio to file (WAV 44.1kHz or MP3 320kbps)
+  -g, --gap NUMBER     Word gap in 10ms units (default: 0, try 5-20 for spacing)
+  -v, --voice VOICE    Voice/accent (default: en-us)
+                       Try: fr-fr, ja, de, ru, it, es, en-gb, etc.
+                       Use 'espeak-ng --voices' to see all available voices
+
+Examples:
+  fitter-happier document.md 2
+  fitter-happier notes.txt 4
+  fitter-happier rumi.txt 4 -o rumi.wav
+  fitter-happier poem.txt 1 -o poem.mp3
+  fitter-happier rumi.txt 4 -g 10 -o spaced.wav  # 100ms gaps between words
+  fitter-happier rumi.txt 4 -v fr-fr -o french.wav  # French accent
+  fitter-happier rumi.txt 4 -v ja -g 5 -o japanese.wav  # Japanese (very slow!)
+
+EOF
+}
+
+# Check for espeak-ng
+if ! command -v espeak-ng &> /dev/null; then
+    echo "Error: espeak-ng not found"
+    echo "Install with: sudo pacman -S espeak-ng"
+    exit 1
+fi
+
+# Check for help flag
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+# Check if file argument provided
+if [[ -z "$1" ]]; then
+    echo "Error: No file specified"
+    show_help
+    exit 1
+fi
+
+# Parse arguments
+FILE="$1"
+VARIANT="2"  # Default to variant 2 (Vintage Apple)
+OUTPUT=""
+WORD_GAP="0"  # Default to no extra word gap
+VOICE="en-us"  # Default to US English
+
+shift  # Move past first argument
+
+# Parse remaining arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o|--output)
+            OUTPUT="$2"
+            shift 2
+            ;;
+        -g|--gap)
+            WORD_GAP="$2"
+            shift 2
+            ;;
+        -v|--voice)
+            VOICE="$2"
+            shift 2
+            ;;
+        [1-4])
+            VARIANT="$1"
+            shift
+            ;;
+        *)
+            echo "Error: Unknown argument '$1'"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Check if file exists
+if [[ ! -f "$FILE" ]]; then
+    echo "Error: File '$FILE' not found"
+    exit 1
+fi
+
+# Check ffmpeg if MP3 output requested
+if [[ "$OUTPUT" == *.mp3 ]]; then
+    if ! command -v ffmpeg &> /dev/null; then
+        echo "Error: ffmpeg not found (required for MP3 output)"
+        echo "Install with: sudo pacman -S ffmpeg"
+        exit 1
+    fi
+fi
+
+# Set voice parameters based on variant
+case "$VARIANT" in
+    1)
+        SPEED=140
+        PITCH=30
+        echo "🤖 Classic Robot mode"
+        ;;
+    2)
+        SPEED=160
+        PITCH=40
+        echo "🍎 Vintage Apple mode"
+        ;;
+    3)
+        SPEED=180
+        PITCH=35
+        echo "⚡ Fast Robot mode"
+        ;;
+    4)
+        SPEED=130
+        PITCH=20
+        echo "🔊 Deep Machine mode"
+        ;;
+    *)
+        echo "Error: Invalid variant '$VARIANT'. Must be 1-4."
+        show_help
+        exit 1
+        ;;
+esac
+
+# Prepare cleaned text
+CLEANED_TEXT=$(sed 's/^#\+\s*//g' "$FILE" | \
+sed 's/\*\*//g' | \
+sed 's/__//g' | \
+sed 's/`//g' | \
+sed 's/\[//g' | \
+sed 's/\]//g' | \
+sed '/^$/d')
+
+# Output handling
+if [[ -z "$OUTPUT" ]]; then
+    # Play through speakers (original behavior)
+    echo "$CLEANED_TEXT" | espeak-ng -v "$VOICE" -s "$SPEED" -p "$PITCH" -g "$WORD_GAP"
+elif [[ "$OUTPUT" == *.wav ]]; then
+    # Output to WAV at 44.1kHz
+    TEMP_WAV=$(mktemp --suffix=.wav)
+    echo "$CLEANED_TEXT" | espeak-ng -v "$VOICE" -s "$SPEED" -p "$PITCH" -g "$WORD_GAP" -w "$TEMP_WAV"
+    ffmpeg -i "$TEMP_WAV" -ar 44100 -acodec pcm_s16le "$OUTPUT" -y &> /dev/null
+    rm "$TEMP_WAV"
+    echo "💾 Saved to: $OUTPUT (44.1kHz WAV, voice: $VOICE)"
+elif [[ "$OUTPUT" == *.mp3 ]]; then
+    # Output to MP3 at 320kbps CBR
+    TEMP_WAV=$(mktemp --suffix=.wav)
+    echo "$CLEANED_TEXT" | espeak-ng -v "$VOICE" -s "$SPEED" -p "$PITCH" -g "$WORD_GAP" -w "$TEMP_WAV"
+    ffmpeg -i "$TEMP_WAV" -ar 44100 -codec:a libmp3lame -b:a 320k "$OUTPUT" -y &> /dev/null
+    rm "$TEMP_WAV"
+    echo "💾 Saved to: $OUTPUT (320kbps MP3, voice: $VOICE)"
+else
+    echo "Error: Output file must end in .wav or .mp3"
+    exit 1
+fi

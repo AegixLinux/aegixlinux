@@ -1,0 +1,88 @@
+#!/bin/sh
+# Aegix Bar Switcher - Toggle between Waybar and Hyprpanel
+
+CURRENT_BAR_FILE="$HOME/.config/aegix/current-bar"
+
+# Ensure config dir exists
+mkdir -p "$HOME/.config/aegix"
+
+# Get current bar (default to waybar)
+get_current() {
+    if [ -f "$CURRENT_BAR_FILE" ]; then
+        cat "$CURRENT_BAR_FILE"
+    else
+        # Detect what's running
+        if pgrep -x hyprpanel >/dev/null; then
+            echo "hyprpanel"
+        else
+            echo "waybar"
+        fi
+    fi
+}
+
+start_waybar() {
+    pkill -x hyprpanel 2>/dev/null
+    pkill -x waybar 2>/dev/null
+    sleep 0.3
+    waybar -c ~/.config/waybar/config.hyprland -s ~/.config/waybar/style.hyprland.css &
+    echo "waybar" > "$CURRENT_BAR_FILE"
+    notify-send "Bar Switched" "Now using Waybar" -t 2000
+}
+
+start_hyprpanel() {
+    pkill -x waybar 2>/dev/null
+    pkill -x hyprpanel 2>/dev/null
+    sleep 0.3
+    hyprpanel &
+    echo "hyprpanel" > "$CURRENT_BAR_FILE"
+    notify-send "Bar Switched" "Now using Hyprpanel" -t 2000
+}
+
+# Handle arguments
+case "$1" in
+    waybar)
+        start_waybar
+        ;;
+    hyprpanel)
+        start_hyprpanel
+        ;;
+    toggle)
+        CURRENT=$(get_current)
+        if [ "$CURRENT" = "waybar" ]; then
+            start_hyprpanel
+        else
+            start_waybar
+        fi
+        ;;
+    status)
+        echo "Current bar: $(get_current)"
+        ;;
+    menu)
+        # Fuzzel menu for bar selection
+        CURRENT=$(get_current)
+        CHOICE=$(printf "Waybar (traditional)\nHyprpanel (modern)\nToggle (switch)" | \
+            fuzzel --dmenu -w 35 -l 3 -p "Bar [$CURRENT]: ")
+        case "$CHOICE" in
+            *Waybar*) start_waybar ;;
+            *Hyprpanel*) start_hyprpanel ;;
+            *Toggle*)
+                if [ "$CURRENT" = "waybar" ]; then
+                    start_hyprpanel
+                else
+                    start_waybar
+                fi
+                ;;
+        esac
+        ;;
+    *)
+        echo "Usage: aegix-bar-switch [waybar|hyprpanel|toggle|status|menu]"
+        echo ""
+        echo "Commands:"
+        echo "  waybar     - Switch to Waybar"
+        echo "  hyprpanel  - Switch to Hyprpanel"
+        echo "  toggle     - Toggle between bars"
+        echo "  status     - Show current bar"
+        echo "  menu       - Show fuzzel menu to choose"
+        exit 1
+        ;;
+esac

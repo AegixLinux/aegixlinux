@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Update the variables ping_thing$ to IP addresses or domains
+# within a private network to keep your VPN connection from timing out
+
+ping_thing_1="timbeach.com"
+ping_thing_2="9.9.9.9"
+
+while true; do
+        ping -c 1 $ping_thing_1
+        sleep 10
+        ping -c 1 $ping_thing_2
+        sleep 10
+done

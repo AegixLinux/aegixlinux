@@ -1,0 +1,9 @@
+#!/bin/sh
+# Menu launcher module for dwmblocks
+
+case $BLOCK_BUTTON in
+    1) setsid -f dmenu-master ;;
+    3) notify-send "≡ Menu" "Left click to open app launcher" ;;
+esac
+
+echo "≡"

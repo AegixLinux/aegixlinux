@@ -1,0 +1,114 @@
+#!/bin/sh
+# wav2mp3 — convert WAV (or any ffmpeg-readable audio) to high-quality MP3.
+#
+# Aegix Linux utility. Defaults to 320 kbps CBR — the ceiling for MP3 and the
+# right choice for masters/distribution. Uses ffmpeg's libmp3lame encoder.
+#
+# Usage:
+#   wav2mp3 FILE...                 convert each FILE to 320k CBR MP3 (FILE.mp3)
+#   wav2mp3 -b 256 FILE...          override bitrate (kbps, CBR)
+#   wav2mp3 -V 0 FILE...            use VBR quality 0 (highest) instead of CBR
+#   wav2mp3 -o OUT FILE             write to a specific output path (single input)
+#   wav2mp3 *.wav                   batch-convert every WAV in the directory
+#
+# Options:
+#   -b BITRATE   CBR bitrate in kbps (default: 320)
+#   -V QUALITY   VBR quality 0-9 (0=best); overrides -b when given
+#   -o OUT       explicit output file (only valid with a single input)
+#   -f           overwrite existing output without prompting
+#   -h           show this help
+#
+# Notes:
+#   * Audio is copied at its native sample rate/channels — no resampling.
+#   * Basic metadata carried over automatically by ffmpeg where present.
+#   * Exit status is non-zero if ANY file fails.
+
+set -eu
+
+prog=$(basename "$0")
+
+usage() {
+	sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
+}
+
+bitrate=320
+vbr=""
+out=""
+force=""
+
+while getopts ":b:V:o:fh" opt; do
+	case "$opt" in
+		b) bitrate=$OPTARG ;;
+		V) vbr=$OPTARG ;;
+		o) out=$OPTARG ;;
+		f) force="-y" ;;
+		h) usage 0 ;;
+		:) echo "$prog: option -$OPTARG requires an argument" >&2; exit 2 ;;
+		\?) echo "$prog: unknown option -$OPTARG" >&2; exit 2 ;;
+	esac
+done
+shift $((OPTIND - 1))
+
+if [ "$#" -eq 0 ]; then
+	echo "$prog: no input files given" >&2
+	usage 2
+fi
+
+if command -v ffmpeg >/dev/null 2>&1; then :; else
+	echo "$prog: ffmpeg not found. Install it: sudo pacman -S ffmpeg" >&2
+	exit 127
+fi
+
+if [ -n "$out" ] && [ "$#" -gt 1 ]; then
+	echo "$prog: -o can only be used with a single input file" >&2
+	exit 2
+fi
+
+# Build the libmp3lame quality flags once.
+if [ -n "$vbr" ]; then
+	enc="-q:a $vbr"
+	label="VBR q$vbr"
+else
+	enc="-b:a ${bitrate}k"
+	label="${bitrate}k CBR"
+fi
+
+status=0
+for in in "$@"; do
+	if [ ! -f "$in" ]; then
+		echo "$prog: no such file: $in" >&2
+		status=1
+		continue
+	fi
+
+	if [ -n "$out" ]; then
+		target=$out
+	else
+		# strip any extension, append .mp3
+		target="${in%.*}.mp3"
+	fi
+
+	if [ -z "$force" ] && [ -e "$target" ]; then
+		printf '%s: %s exists — overwrite? [y/N] ' "$prog" "$target" >&2
+		read -r ans </dev/tty || ans=n
+		case "$ans" in
+			[yY]*) : ;;
+			*) echo "  skipped $in" >&2; continue ;;
+		esac
+	fi
+
+	echo ">> $in  ->  $target  ($label)"
+	# -map_metadata 0 carries tags; -id3v2_version 3 = broad compatibility.
+	# shellcheck disable=SC2086
+	if ffmpeg -hide_banner -loglevel error -stats ${force:-} -i "$in" \
+		-map_metadata 0 -id3v2_version 3 \
+		-codec:a libmp3lame $enc "$target"; then
+		:
+	else
+		echo "$prog: FAILED on $in" >&2
+		status=1
+	fi
+done
+
+exit $status

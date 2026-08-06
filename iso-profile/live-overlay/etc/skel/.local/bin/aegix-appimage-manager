@@ -1,0 +1,539 @@
+#!/usr/bin/env bash
+# Aegix AppImage Manager - Interactive management utility
+# Provides detailed information viewing and duplicate management
+
+set -euo pipefail
+
+# Configuration
+REGISTRY_FILE="$HOME/.config/aegix/appimages.json"
+TRASH_DIR="$HOME/.local/share/Trash/files"
+DESKTOP_DIR="$HOME/.local/share/applications"
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# Ensure required tools
+check_dependencies() {
+    local missing=()
+
+    for cmd in jq stat fuzzel; do
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo -e "${RED}Missing required tools: ${missing[*]}${NC}" >&2
+        echo "Install with: sudo pacman -S ${missing[*]}" >&2
+        exit 1
+    fi
+}
+
+# Get file size in human readable format
+get_file_size() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        stat --format="%s" "$file" | numfmt --to=iec
+    else
+        echo "N/A"
+    fi
+}
+
+# Get file modification date
+get_file_date() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        stat --format="%y" "$file" | cut -d' ' -f1
+    else
+        echo "N/A"
+    fi
+}
+
+# Extract version from filename
+extract_version() {
+    local filename="$1"
+    echo "$filename" | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "unknown"
+}
+
+# Get AppImage details
+get_appimage_details() {
+    local path="$1"
+    local name="$2"
+
+    local size=$(get_file_size "$path")
+    local modified=$(get_file_date "$path")
+    local version=$(extract_version "$(basename "$path")")
+    local exists="Yes"
+
+    if [[ ! -f "$path" ]]; then
+        exists="No (Missing)"
+        size="N/A"
+        modified="N/A"
+    fi
+
+    cat <<EOF
+${BOLD}${CYAN}$name${NC}
+${BOLD}Path:${NC} $path
+${BOLD}Version:${NC} $version
+${BOLD}Size:${NC} $size
+${BOLD}Modified:${NC} $modified
+${BOLD}Exists:${NC} $exists
+EOF
+}
+
+# Group AppImages by application
+group_appimages() {
+    if [[ ! -f "$REGISTRY_FILE" ]]; then
+        echo "No AppImages registered. Run 'aegix-appimage scan' first." >&2
+        return 1
+    fi
+
+    # Create temporary file for grouped data
+    local temp_file=$(mktemp)
+
+    # Group by base application name
+    jq -r '.appimages[] | @json' "$REGISTRY_FILE" | while IFS= read -r json; do
+        local obj=$(echo "$json" | jq -r '.')
+        local name=$(echo "$obj" | jq -r '.name')
+        local path=$(echo "$obj" | jq -r '.path')
+
+        # Extract base name (remove version info)
+        local base_name=$(echo "$name" | sed 's/[[:space:]]*[0-9].*//')
+
+        echo "$base_name|$json" >> "$temp_file"
+    done
+
+    # Sort and display grouped
+    sort "$temp_file" | cut -d'|' -f2
+    rm -f "$temp_file"
+}
+
+# Interactive menu for managing AppImages
+interactive_menu() {
+    echo -e "${BOLD}${GREEN}Aegix AppImage Manager${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    local options=()
+    local paths=()
+    local names=()
+    local app_groups=()
+
+    # Build menu options with version info
+    while IFS= read -r json; do
+        local name=$(echo "$json" | jq -r '.name')
+        local path=$(echo "$json" | jq -r '.path')
+        local version=$(extract_version "$(basename "$path")")
+        local size=$(get_file_size "$path")
+        local exists=""
+
+        if [[ ! -f "$path" ]]; then
+            exists=" [MISSING]"
+        fi
+
+        # Format: "AppName v1.2.3 (50M)"
+        local display="$name v$version ($size)$exists"
+
+        options+=("$display")
+        paths+=("$path")
+        names+=("$name")
+
+        # Track app groups for duplicate detection
+        local base_name=$(echo "$name" | sed 's/[[:space:]]*[0-9].*//')
+        app_groups+=("$base_name")
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null)
+
+    if [ ${#options[@]} -eq 0 ]; then
+        echo "No AppImages found. Run 'aegix-appimage scan' first."
+        return 1
+    fi
+
+    # Add management options at the end
+    options+=("───────────────────────")
+    options+=("📋 List All Details")
+    options+=("🔍 Find Duplicates")
+    options+=("🧹 Clean Missing")
+    options+=("🔄 Rescan AppImages")
+    options+=("❌ Exit")
+
+    # Show menu using fuzzel
+    local selected=$(printf '%s\n' "${options[@]}" | fuzzel --dmenu --prompt="Select AppImage > " --lines=20 --width=60)
+
+    # Handle selection
+    if [[ -z "$selected" ]] || [[ "$selected" == "❌ Exit" ]]; then
+        return 0
+    elif [[ "$selected" == "📋 List All Details" ]]; then
+        list_all_details
+        read -p "Press Enter to continue..."
+        interactive_menu
+    elif [[ "$selected" == "🔍 Find Duplicates" ]]; then
+        find_duplicates
+        read -p "Press Enter to continue..."
+        interactive_menu
+    elif [[ "$selected" == "🧹 Clean Missing" ]]; then
+        clean_missing
+        read -p "Press Enter to continue..."
+        interactive_menu
+    elif [[ "$selected" == "🔄 Rescan AppImages" ]]; then
+        echo "Rescanning AppImages..."
+        aegix-appimage scan
+        read -p "Press Enter to continue..."
+        interactive_menu
+    elif [[ "$selected" == "───────────────────────" ]]; then
+        interactive_menu
+    else
+        # Find the selected AppImage
+        for i in "${!options[@]}"; do
+            if [[ "${options[$i]}" == "$selected" ]]; then
+                manage_single_appimage "${paths[$i]}" "${names[$i]}"
+                break
+            fi
+        done
+        interactive_menu
+    fi
+}
+
+# Manage single AppImage
+manage_single_appimage() {
+    local path="$1"
+    local name="$2"
+
+    clear
+    echo -e "${BOLD}${GREEN}AppImage Details${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    get_appimage_details "$path" "$name"
+    echo ""
+
+    # Get associated desktop and icon files
+    local desktop_file=$(jq -r --arg path "$path" '.appimages[] | select(.path == $path) | .desktop_file' "$REGISTRY_FILE")
+    local icon_file=$(jq -r --arg path "$path" '.appimages[] | select(.path == $path) | .icon' "$REGISTRY_FILE")
+
+    echo -e "${BOLD}Associated Files:${NC}"
+    echo "Desktop: $desktop_file"
+    echo "Icon: $icon_file"
+    echo ""
+
+    # Action menu
+    local actions=("🚀 Launch" "📁 Show in File Manager" "🗑️ Move to Trash" "💀 Delete Permanently" "↩️ Back")
+    local action=$(printf '%s\n' "${actions[@]}" | fuzzel --dmenu --prompt="Action > " --lines=10)
+
+    case "$action" in
+        "🚀 Launch")
+            if [[ -f "$path" ]]; then
+                echo "Launching $name..."
+                "$path" &>/dev/null &
+                disown
+                echo "Launched!"
+                sleep 1
+            else
+                echo -e "${RED}Error: AppImage not found at $path${NC}"
+                sleep 2
+            fi
+            ;;
+        "📁 Show in File Manager")
+            if command -v xdg-open &>/dev/null; then
+                xdg-open "$(dirname "$path")" &
+                disown
+            else
+                echo "Directory: $(dirname "$path")"
+                sleep 2
+            fi
+            ;;
+        "🗑️ Move to Trash")
+            move_to_trash "$path" "$name" "$desktop_file" "$icon_file"
+            ;;
+        "💀 Delete Permanently")
+            delete_permanently "$path" "$name" "$desktop_file" "$icon_file"
+            ;;
+        *)
+            return
+            ;;
+    esac
+}
+
+# Move AppImage to trash
+move_to_trash() {
+    local path="$1"
+    local name="$2"
+    local desktop_file="$3"
+    local icon_file="$4"
+
+    echo -e "${YELLOW}Moving $name to trash...${NC}"
+
+    # Create trash directory if it doesn't exist
+    mkdir -p "$TRASH_DIR"
+
+    # Move AppImage to trash
+    if [[ -f "$path" ]]; then
+        mv "$path" "$TRASH_DIR/" && echo "Moved AppImage to trash"
+    fi
+
+    # Remove desktop file
+    if [[ -f "$desktop_file" ]]; then
+        rm -f "$desktop_file" && echo "Removed desktop entry"
+    fi
+
+    # Remove icon
+    if [[ -f "$icon_file" ]]; then
+        rm -f "$icon_file" && echo "Removed icon"
+    fi
+
+    # Update registry
+    local temp_file=$(mktemp)
+    jq --arg path "$path" '.appimages |= map(select(.path != $path))' "$REGISTRY_FILE" > "$temp_file"
+    mv "$temp_file" "$REGISTRY_FILE"
+
+    echo -e "${GREEN}Successfully moved to trash${NC}"
+    sleep 2
+}
+
+# Delete AppImage permanently
+delete_permanently() {
+    local path="$1"
+    local name="$2"
+    local desktop_file="$3"
+    local icon_file="$4"
+
+    # Confirmation prompt
+    echo -e "${RED}⚠️  WARNING: This will permanently delete $name${NC}"
+    echo "Type 'DELETE' to confirm:"
+    read -r confirmation
+
+    if [[ "$confirmation" != "DELETE" ]]; then
+        echo "Cancelled"
+        sleep 1
+        return
+    fi
+
+    echo -e "${YELLOW}Permanently deleting $name...${NC}"
+
+    # Delete AppImage
+    if [[ -f "$path" ]]; then
+        rm -f "$path" && echo "Deleted AppImage"
+    fi
+
+    # Remove desktop file
+    if [[ -f "$desktop_file" ]]; then
+        rm -f "$desktop_file" && echo "Removed desktop entry"
+    fi
+
+    # Remove icon
+    if [[ -f "$icon_file" ]]; then
+        rm -f "$icon_file" && echo "Removed icon"
+    fi
+
+    # Update registry
+    local temp_file=$(mktemp)
+    jq --arg path "$path" '.appimages |= map(select(.path != $path))' "$REGISTRY_FILE" > "$temp_file"
+    mv "$temp_file" "$REGISTRY_FILE"
+
+    echo -e "${GREEN}Successfully deleted${NC}"
+    sleep 2
+}
+
+# Find duplicate AppImages
+find_duplicates() {
+    clear
+    echo -e "${BOLD}${YELLOW}Duplicate AppImages${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Group by application name
+    declare -A app_versions
+
+    while IFS= read -r json; do
+        local name=$(echo "$json" | jq -r '.name')
+        local path=$(echo "$json" | jq -r '.path')
+
+        # Extract base name
+        local base_name=$(echo "$name" | sed 's/[[:space:]]*[0-9].*//')
+
+        if [[ -z "${app_versions[$base_name]:-}" ]]; then
+            app_versions[$base_name]="$path"
+        else
+            app_versions[$base_name]="${app_versions[$base_name]}|$path"
+        fi
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null)
+
+    # Display duplicates
+    local found_duplicates=false
+    for app in "${!app_versions[@]}"; do
+        IFS='|' read -ra versions <<< "${app_versions[$app]}"
+
+        if [ ${#versions[@]} -gt 1 ]; then
+            found_duplicates=true
+            echo -e "${BOLD}${CYAN}$app${NC} (${#versions[@]} versions)"
+
+            # Sort versions by modification time
+            for path in "${versions[@]}"; do
+                local version=$(extract_version "$(basename "$path")")
+                local size=$(get_file_size "$path")
+                local date=$(get_file_date "$path")
+                local current=""
+
+                # Check if this is the one used by alias
+                if grep -q "$path" "$HOME/.config/zsh/appimage-aliases" 2>/dev/null; then
+                    current=" ${GREEN}[CURRENT]${NC}"
+                fi
+
+                echo -e "  • v$version - $size - $date$current"
+                echo "    $path"
+            done
+            echo ""
+        fi
+    done
+
+    if [[ "$found_duplicates" == "false" ]]; then
+        echo "No duplicate AppImages found."
+    else
+        echo -e "${YELLOW}Tip: Keep the newest version and remove older ones${NC}"
+    fi
+}
+
+# List all AppImages with details
+list_all_details() {
+    clear
+    echo -e "${BOLD}${GREEN}All Registered AppImages${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    local total_size=0
+    local count=0
+
+    while IFS= read -r json; do
+        local name=$(echo "$json" | jq -r '.name')
+        local path=$(echo "$json" | jq -r '.path')
+
+        count=$((count + 1))
+
+        echo ""
+        get_appimage_details "$path" "$name"
+
+        # Add to total size if file exists
+        if [[ -f "$path" ]]; then
+            local size_bytes=$(stat --format="%s" "$path" 2>/dev/null || echo 0)
+            total_size=$((total_size + size_bytes))
+        fi
+
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null)
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${BOLD}Total:${NC} $count AppImages"
+    echo -e "${BOLD}Total Size:${NC} $(echo $total_size | numfmt --to=iec)"
+}
+
+# Clean missing AppImages
+clean_missing() {
+    echo -e "${YELLOW}Cleaning missing AppImages...${NC}"
+
+    local cleaned_count=0
+    local temp_file=$(mktemp)
+    cp "$REGISTRY_FILE" "$temp_file"
+
+    while IFS= read -r json; do
+        local path=$(echo "$json" | jq -r '.path')
+        local name=$(echo "$json" | jq -r '.name')
+
+        if [[ ! -f "$path" ]]; then
+            echo "Removing missing: $name"
+
+            # Remove from registry
+            jq --arg path "$path" '.appimages |= map(select(.path != $path))' "$temp_file" > "$temp_file.new"
+            mv "$temp_file.new" "$temp_file"
+
+            # Remove desktop and icon files
+            local desktop_file=$(echo "$json" | jq -r '.desktop_file')
+            local icon_file=$(echo "$json" | jq -r '.icon')
+
+            [[ -f "$desktop_file" ]] && rm -f "$desktop_file"
+            [[ -f "$icon_file" ]] && rm -f "$icon_file"
+
+            cleaned_count=$((cleaned_count + 1))
+        fi
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null)
+
+    mv "$temp_file" "$REGISTRY_FILE"
+
+    echo -e "${GREEN}Cleaned $cleaned_count missing entries${NC}"
+}
+
+# Quick launch mode - for fuzzel integration
+quick_launch() {
+    # Generate options with version info for fuzzel
+    while IFS= read -r json; do
+        local name=$(echo "$json" | jq -r '.name')
+        local path=$(echo "$json" | jq -r '.path')
+        local version=$(extract_version "$(basename "$path")")
+
+        echo "$name v$version|$path"
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null) | \
+    fuzzel --dmenu --prompt="Launch AppImage > " | \
+    cut -d'|' -f2 | \
+    xargs -r -I {} sh -c '{} &>/dev/null &'
+}
+
+# Main
+main() {
+    check_dependencies
+
+    case "${1:-menu}" in
+        menu|--menu|-m)
+            interactive_menu
+            ;;
+        launch|--launch|-l)
+            quick_launch
+            ;;
+        duplicates|--duplicates|-d)
+            find_duplicates
+            ;;
+        list|--list)
+            list_all_details
+            ;;
+        clean|--clean)
+            clean_missing
+            ;;
+        help|--help|-h)
+            cat <<EOF
+Aegix AppImage Manager - Interactive Management Utility
+
+Usage: $(basename "$0") [COMMAND]
+
+Commands:
+    menu        Interactive menu for managing AppImages (default)
+    launch      Quick launch mode for fuzzel integration
+    duplicates  Find and display duplicate AppImages
+    list        List all AppImages with detailed information
+    clean       Remove missing AppImages from registry
+    help        Show this help message
+
+Examples:
+    $(basename "$0")              # Open interactive menu
+    $(basename "$0") launch       # Quick launch via fuzzel
+    $(basename "$0") duplicates   # Find duplicate versions
+
+Features:
+    • View detailed information (size, version, path)
+    • Identify and manage duplicate versions
+    • Move AppImages to trash or delete permanently
+    • Clean missing entries from registry
+    • Quick launch integration with fuzzel
+
+Registry: $REGISTRY_FILE
+EOF
+            ;;
+        *)
+            echo "Unknown command: $1"
+            echo "Use '$(basename "$0") help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

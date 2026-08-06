@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# aegix-sync — one deliberate command: make the ISO profile follow this machine.
+# Spec: docs/superpowers/specs/2026-07-28-aegix-live-to-iso-sync-design.md
+#
+# Phases: preflight -> capture -> sanitize -> triage -> generate -> verify
+#         -> review -> commit -> deploy
+set -euo pipefail
+source "$(cd "$(dirname "$0")" && pwd)/aegix-sync-lib.sh"
+
+DRY_RUN=0 NO_DEPLOY=0 YES=0 ANSWERS="--" STATUS=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run) DRY_RUN=1 ;;
+    --no-deploy) NO_DEPLOY=1 ;;
+    --yes) YES=1 ;;
+    --answers) ANSWERS="$2"; shift ;;
+    --status) STATUS=1 ;;
+    *) echo "usage: aegix-sync [--dry-run] [--no-deploy] [--status] [--answers FILE] [--yes]" >&2
+       exit 2 ;;
+  esac
+  shift
+done
+
+if [[ "$ANSWERS" != "--" && ! -f "$ANSWERS" ]]; then
+  echo "aegix-sync: answers file not found: $ANSWERS" >&2
+  exit 2
+fi
+
+fm_load "$AEGIX_SYNC_DIR/files.manifest"
+pm_load "$AEGIX_SYNC_DIR/packages.manifest"
+rules_load "$AEGIX_SYNC_DIR/sanitize.rules"
+
+if [[ "$STATUS" -eq 1 ]]; then
+  drift_status
+  exit 0
+fi
+
+# --- 1. preflight — repo must have nothing staged repo-wide (a sync run
+# stages iso-profile/sync itself; unrelated staged work would get swept into
+# the sync commit, or unstaged by the dry-run/decline `git reset` paths).
+if ! git -C "$AEGIX_SYNC_REPO" diff --cached --quiet; then
+  echo "aegix-sync: repo has staged changes outside this run — commit or unstage them first:" >&2
+  git -C "$AEGIX_SYNC_REPO" diff --cached --name-status >&2
+  exit 1
+fi
+
+# iso-profile/ and sync/ must already be clean in git.
+dirty="$(git -C "$AEGIX_SYNC_REPO" status --porcelain -- iso-profile sync)"
+if [[ -n "$dirty" ]]; then
+  echo "aegix-sync: working tree not clean under iso-profile/ or sync/:" >&2
+  echo "$dirty" >&2
+  echo "resolve (commit, or: git checkout -- iso-profile sync) and re-run" >&2
+  exit 1
+fi
+
+restore_tree() {
+  git -C "$AEGIX_SYNC_REPO" checkout -q -- iso-profile sync 2>/dev/null || true
+  # -x: also remove git-ignored files. A captured .gitignore under
+  # iso-profile/ would otherwise shield leftover cruft from this cleanup.
+  git -C "$AEGIX_SYNC_REPO" clean -qfdx iso-profile sync 2>/dev/null || true
+}
+
+_TMPFILES=()
+_cleanup_tmp() { local f; for f in "${_TMPFILES[@]+"${_TMPFILES[@]}"}"; do rm -f "$f"; done; }
+trap _cleanup_tmp EXIT
+
+# --- 2-5. capture, sanitize, triage, generate
+capture_run
+sanitize_tree "$AEGIX_SYNC_PROFILE"
+
+# Installed-packages snapshot for package triage. Run via eval (not bare
+# expansion) so an AEGIX_SYNC_PKGLIST_CMD containing embedded shell quoting
+# (e.g. a test double like: printf 'nsxiv\n') is interpreted correctly rather
+# than word-split with the quote characters left in as literal text.
+installed_pkgs="$(mktemp)"; _TMPFILES+=("$installed_pkgs")
+eval "$AEGIX_SYNC_PKGLIST_CMD" > "$installed_pkgs" 2>/dev/null || true
+
+# Capture ran before triage, so anything newly answered "ship" has no content
+# in the profile yet (and anything newly answered "never" may still have stale
+# content there). When triage changes the files manifest, capture and sanitize
+# again so a single run converges instead of needing a second one.
+_fm_before="$(cksum < "$AEGIX_SYNC_DIR/files.manifest")"
+triage_run "$ANSWERS" "$installed_pkgs"
+if [[ "$(cksum < "$AEGIX_SYNC_DIR/files.manifest")" != "$_fm_before" ]]; then
+  echo "aegix-sync: triage changed decisions — re-capturing newly shipped paths"
+  capture_run
+  sanitize_tree "$AEGIX_SYNC_PROFILE"
+fi
+
+_gen_or_abort() {
+  local reason="$1"; shift
+  if ! "$@"; then
+    echo "aegix-sync: $reason — nothing committed." >&2
+    restore_tree
+    exit 1
+  fi
+}
+_gen_or_abort "profile.yaml generation failed" \
+  gen_profile_yaml "$AEGIX_SYNC_PROFILE/profile.yaml.tmpl" "$AEGIX_SYNC_PROFILE/profile.yaml"
+_gen_or_abort "aegix-programs.csv generation failed" \
+  gen_barbs_csv "$AEGIX_SYNC_PROFILE/live-overlay/root/aegix-programs.csv"
+
+# --- 6. verify — hard gate, no bypass.
+if ! verify_tree "$AEGIX_SYNC_PROFILE"; then
+  echo "aegix-sync: VERIFY FAILED — nothing committed. Fix via fence, rule, or 'never'." >&2
+  restore_tree
+  exit 1
+fi
+
+# --- 7. review
+git -C "$AEGIX_SYNC_REPO" add -A iso-profile sync
+counts_file="$(mktemp)"; _TMPFILES+=("$counts_file")
+git -C "$AEGIX_SYNC_REPO" status --porcelain -- iso-profile sync | awk '
+  /^\?\?|^A/ {a++} /^ ?M/ {m++} /^ ?D/ {d++}
+  END {printf "+%d added, %d modified, %d deleted\n", a, m, d}' \
+  | tee "$counts_file"
+git -C "$AEGIX_SYNC_REPO" diff --cached --stat -- iso-profile sync
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  git -C "$AEGIX_SYNC_REPO" reset -q
+  echo "aegix-sync: dry run — tree left dirty for inspection"
+  exit 0
+fi
+
+if [[ "$YES" -ne 1 ]]; then
+  git -C "$AEGIX_SYNC_REPO" diff --cached -- iso-profile sync | ${PAGER:-less}
+  read -r -p "Commit and deploy? [y/N] " ok < /dev/tty
+  if [[ "$ok" != y* ]]; then
+    git -C "$AEGIX_SYNC_REPO" reset -q
+    restore_tree
+    echo "aborted"
+    exit 1
+  fi
+fi
+
+# --- 8. commit
+git -C "$AEGIX_SYNC_REPO" commit -qm "sync: $(date +%F) ($(cat "$counts_file"))"
+echo "committed: $(git -C "$AEGIX_SYNC_REPO" log -1 --oneline)"
+
+# --- 9. deploy
+if [[ "$NO_DEPLOY" -eq 0 ]]; then
+  "$AEGIX_SYNC_REPO/tools/iso-profile-deploy.sh" --prod
+fi

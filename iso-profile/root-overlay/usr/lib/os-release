@@ -1,0 +1,8 @@
+NAME="Aegix Linux"
+PRETTY_NAME="Aegix Linux"
+ID=aegix
+ID_LIKE=artix arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;23;147;209"
+HOME_URL="https://github.com/AegixLinux"
+LOGO=aegix

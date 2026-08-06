@@ -1,0 +1,37 @@
+#!/bin/sh
+# Start audio stack for Wayland/Hyprland
+# Part of Aegix distro
+
+# Kill any existing instances
+pkill pipewire 2>/dev/null
+pkill wireplumber 2>/dev/null
+
+# Clean up stale sockets and wireplumber state
+rm -rf /run/user/"$(id -u)"/pulse /run/user/"$(id -u)"/pipewire* 2>/dev/null
+rm -rf ~/.local/state/wireplumber 2>/dev/null
+
+# Wait a moment for cleanup
+sleep 0.5
+
+# Start pipewire (will auto-start pipewire-pulse AND wireplumber via pipewire.conf)
+pipewire >/dev/null 2>&1 &
+
+# Wait for everything to initialize
+# Pipewire will auto-start wireplumber from its config
+sleep 2
+
+# Verify
+if pgrep -u "$USER" pipewire >/dev/null && pgrep -u "$USER" wireplumber >/dev/null; then
+    # Check that we have only ONE wireplumber instance
+    WIREPLUMBER_COUNT=$(pgrep -u "$USER" wireplumber | wc -l)
+    if [ "$WIREPLUMBER_COUNT" -eq 1 ]; then
+        echo "Audio stack started successfully (pipewire + wireplumber)"
+        exit 0
+    else
+        echo "Warning: Multiple wireplumber instances detected ($WIREPLUMBER_COUNT)"
+        exit 1
+    fi
+else
+    echo "Warning: Audio stack may not have started correctly"
+    exit 1
+fi

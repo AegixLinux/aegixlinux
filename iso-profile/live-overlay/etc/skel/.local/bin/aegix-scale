@@ -1,0 +1,202 @@
+#!/bin/bash
+# Aegix Dynamic Scaling Utility
+# Allows adjusting GDK/Qt scaling on-the-fly for Hyprland
+
+show_usage() {
+    cat << EOF
+Aegix Dynamic Scaling Utility
+
+Usage:
+  aegix-scale [OPTIONS]
+
+Options:
+  -s, --set SCALE       Set scaling factor (1.0, 1.25, 1.5, 2.0, etc.)
+  -a, --auto            Auto-detect and apply optimal scaling
+  -g, --gui             Show interactive GUI menu
+  -i, --info            Show current scaling information
+  -h, --help            Show this help message
+
+Examples:
+  aegix-scale -s 1.5    # Set 1.5x scaling
+  aegix-scale --auto    # Auto-detect optimal scaling
+  aegix-scale --gui     # Show interactive menu
+
+Notes:
+  - Changes apply to new applications only
+  - Restart existing apps to see changes
+  - Hyprland per-monitor scaling is separate (see hyprctl)
+EOF
+}
+
+get_current_scaling() {
+    echo "Current scaling configuration:"
+    echo "  GDK_SCALE: ${GDK_SCALE:-not set}"
+    echo "  QT_SCALE_FACTOR: ${QT_SCALE_FACTOR:-not set}"
+    echo ""
+    echo "Hyprland monitor scaling:"
+    if command -v jq &> /dev/null; then
+        hyprctl monitors -j | jq -r '.[] | "  \(.name): \(.scale)x (\(.width)x\(.height))"'
+    else
+        hyprctl monitors | grep -E "^Monitor|scale:" | sed 's/^/  /'
+    fi
+}
+
+calculate_optimal_scaling() {
+    # Get primary/focused monitor resolution
+    if command -v jq &> /dev/null; then
+        local resolution=$(hyprctl monitors -j | jq -r '[.[] | select(.focused == true)][0].width // .[0].width')
+    else
+        # Fallback: parse text output
+        local resolution=$(hyprctl monitors | grep "focused: yes" -B 20 | grep -oP '^\s*\K[0-9]+(?=x[0-9]+@)' | head -1)
+    fi
+
+    if [ -z "$resolution" ] || [ "$resolution" = "null" ]; then
+        resolution=1920
+    fi
+
+    # Calculate optimal scale
+    if [ "$resolution" -le 1366 ]; then
+        echo "1.0"
+    elif [ "$resolution" -le 1920 ]; then
+        echo "1.0"
+    elif [ "$resolution" -le 2560 ]; then
+        echo "1.25"
+    else
+        echo "2.0"
+    fi
+}
+
+apply_scaling() {
+    local scale=$1
+
+    # Convert to integer for GDK_SCALE (it only accepts whole numbers)
+    local gdk_scale=$(printf "%.0f" "$scale")
+
+    # Ensure it's at least 1
+    if [ "$gdk_scale" -lt 1 ]; then
+        gdk_scale=1
+    fi
+
+    echo "Applying scaling: Qt=${scale}x, GDK=${gdk_scale}x"
+
+    # Update environment for current session
+    export GDK_SCALE=$gdk_scale
+    export QT_SCALE_FACTOR=$scale
+
+    # Update shell config files
+    for rcfile in ~/.config/zsh/.zshrc ~/.zshrc ~/.bashrc; do
+        if [ -f "$rcfile" ]; then
+            # Remove old entries
+            sed -i '/^export GDK_SCALE=/d' "$rcfile"
+            sed -i '/^export QT_SCALE_FACTOR=/d' "$rcfile"
+
+            # Add new entries
+            echo "export GDK_SCALE=$gdk_scale" >> "$rcfile"
+            echo "export QT_SCALE_FACTOR=$scale" >> "$rcfile"
+            echo "Updated $rcfile"
+        fi
+    done
+
+    # Update Hyprland config
+    local hypr_conf="$HOME/.config/hypr/hyprland.conf"
+    if [ -f "$hypr_conf" ]; then
+        sed -i "s/^env = GDK_SCALE,.*/env = GDK_SCALE,$gdk_scale/" "$hypr_conf"
+        sed -i "s/^env = QT_SCALE_FACTOR,.*/env = QT_SCALE_FACTOR,$scale/" "$hypr_conf"
+        echo "Updated $hypr_conf"
+    fi
+
+    echo ""
+    echo "Scaling applied! Changes will affect:"
+    echo "  - New applications launched after this change"
+    echo "  - Next login/restart for full effect"
+    echo ""
+    echo "To apply immediately to existing apps, restart them."
+}
+
+show_gui_menu() {
+    # Check if we have wofi, rofi, or wmenu
+    if command -v wofi &> /dev/null; then
+        MENU="wofi --dmenu"
+    elif command -v rofi &> /dev/null; then
+        MENU="rofi -dmenu"
+    elif command -v wmenu &> /dev/null; then
+        MENU="wmenu"
+    else
+        echo "Error: No menu program found (wofi, rofi, or wmenu required)"
+        exit 1
+    fi
+
+    # Get current optimal scale
+    local optimal=$(calculate_optimal_scaling)
+
+    # Create menu options
+    local choice=$(cat << EOF | $MENU -p "Select scaling factor:"
+1.0x (No scaling - good for 1080p and below)
+1.25x (Light scaling - good for 1440p)
+1.5x (Medium scaling - good for high-DPI)
+2.0x (High scaling - good for 4K)
+Auto-detect (Currently suggests: ${optimal}x)
+Cancel
+EOF
+)
+
+    case "$choice" in
+        "1.0x"*)
+            apply_scaling 1.0
+            ;;
+        "1.25x"*)
+            apply_scaling 1.25
+            ;;
+        "1.5x"*)
+            apply_scaling 1.5
+            ;;
+        "2.0x"*)
+            apply_scaling 2.0
+            ;;
+        "Auto-detect"*)
+            apply_scaling "$optimal"
+            ;;
+        *)
+            echo "Cancelled"
+            exit 0
+            ;;
+    esac
+}
+
+# Main logic
+case "${1:-}" in
+    -s|--set)
+        if [ -z "${2:-}" ]; then
+            echo "Error: Scale factor required"
+            exit 1
+        fi
+        apply_scaling "$2"
+        ;;
+    -a|--auto)
+        optimal=$(calculate_optimal_scaling)
+        echo "Auto-detected optimal scaling: ${optimal}x"
+        apply_scaling "$optimal"
+        ;;
+    -g|--gui)
+        show_gui_menu
+        ;;
+    -i|--info)
+        get_current_scaling
+        ;;
+    -h|--help)
+        show_usage
+        ;;
+    "")
+        # No arguments - show GUI if available, otherwise show info
+        if command -v wofi &> /dev/null || command -v rofi &> /dev/null || command -v wmenu &> /dev/null; then
+            show_gui_menu
+        else
+            get_current_scaling
+        fi
+        ;;
+    *)
+        echo "Error: Unknown option: $1"
+        show_usage
+        exit 1
+        ;;
+esac

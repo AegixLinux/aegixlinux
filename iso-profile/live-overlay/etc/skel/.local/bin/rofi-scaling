@@ -1,0 +1,109 @@
+#!/bin/sh
+# Aegix HiDPI Scaling Manager
+# Easily configure display scaling for high-resolution laptop screens
+
+ZSHRC="$HOME/.config/zsh/.zshrc"
+BASHRC="$HOME/.bashrc"
+
+# Detect which shell config to use
+if [ -f "$ZSHRC" ]; then
+    SHELL_RC="$ZSHRC"
+elif [ -f "$BASHRC" ]; then
+    SHELL_RC="$BASHRC"
+else
+    SHELL_RC="$HOME/.profile"
+fi
+
+# Get current scaling values
+get_current_scale() {
+    if grep -q "GDK_SCALE=" "$SHELL_RC" 2>/dev/null; then
+        grep "GDK_SCALE=" "$SHELL_RC" | tail -1 | grep -oP 'GDK_SCALE=\K[0-9.]+'
+    else
+        echo "1"
+    fi
+}
+
+# Set scaling in shell config
+set_scaling() {
+    local scale="$1"
+
+    # Remove old scaling lines
+    sed -i '/^export GDK_SCALE=/d' "$SHELL_RC"
+    sed -i '/^export GDK_DPI_SCALE=/d' "$SHELL_RC"
+    sed -i '/^export QT_SCALE_FACTOR=/d' "$SHELL_RC"
+    sed -i '/^export QT_AUTO_SCREEN_SCALE_FACTOR=/d' "$SHELL_RC"
+
+    # Add new scaling (only if not 1x)
+    if [ "$scale" != "1" ]; then
+        echo "" >> "$SHELL_RC"
+        echo "# HiDPI Scaling (set by rofi-scaling)" >> "$SHELL_RC"
+        echo "export GDK_SCALE=$scale" >> "$SHELL_RC"
+        echo "export GDK_DPI_SCALE=1" >> "$SHELL_RC"
+        echo "export QT_SCALE_FACTOR=$scale" >> "$SHELL_RC"
+        echo "export QT_AUTO_SCREEN_SCALE_FACTOR=0" >> "$SHELL_RC"
+    fi
+
+    # Clean up any double blank lines
+    sed -i '/^$/N;/^\n$/d' "$SHELL_RC"
+
+    notify-send "📺 Display Scaling" "Set to ${scale}x\nLog out and back in to apply."
+}
+
+# Main menu
+main_menu() {
+    current=$(get_current_scale)
+
+    choice=$(printf "📊 Current: ${current}x
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1x - No scaling (1080p/standard)
+1.5x - Medium (some 1440p/2K)
+2x - Double (4K/Retina laptops)
+2.5x - High (very high DPI)
+3x - Maximum (extreme DPI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ℹ️ What is this?" | rofi -dmenu -i -p "📺 HiDPI Scaling" \
+        -theme-str 'window {width: 380px; location: center; border: 2px; border-color: #444;}' \
+        -theme-str 'listview {lines: 9; scrollbar: false;}' \
+        -theme-str 'element {padding: 8px;}')
+
+    case "$choice" in
+        *"1x"*)
+            set_scaling "1"
+            ;;
+        *"1.5x"*)
+            set_scaling "1.5"
+            ;;
+        *"2x"*)
+            set_scaling "2"
+            ;;
+        *"2.5x"*)
+            set_scaling "2.5"
+            ;;
+        *"3x"*)
+            set_scaling "3"
+            ;;
+        *"What is this"*)
+            show_help
+            ;;
+    esac
+}
+
+show_help() {
+    rofi -e "HiDPI Scaling Help
+
+If text and icons look tiny on your laptop's
+high-resolution screen, increase the scale.
+
+Common settings:
+• 1080p displays: 1x (no scaling)
+• 1440p/2K displays: 1.5x
+• 4K/Retina displays: 2x
+
+This sets GDK_SCALE and QT_SCALE_FACTOR
+in your shell config ($SHELL_RC).
+
+You must log out and back in for changes
+to take effect on all applications."
+}
+
+main_menu

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# Emoji picker with rofi (fast!) and recent favorites
+
+CACHE="$HOME/.cache/emoji-list"
+RECENT="$HOME/.cache/emoji-recent"
+
+# Build cache if missing or older than source files
+if [ ! -f "$CACHE" ] || [ ~/.local/share/barbs/chars/symbols/emoji -nt "$CACHE" ]; then
+    cut -d ';' -f1 ~/.local/share/barbs/chars/symbols/* > "$CACHE"
+fi
+
+# Show recent emojis first, then the rest
+if [ -f "$RECENT" ]; then
+    chosen=$(cat "$RECENT" "$CACHE" | awk '!seen[$0]++' | rofi -dmenu -i -p "Emoji" | sed "s/ .*//")
+else
+    chosen=$(cat "$CACHE" | rofi -dmenu -i -p "Emoji" | sed "s/ .*//")
+fi
+
+[ -z "$chosen" ] && exit
+
+# Add to recent (keep last 20)
+{ echo "$chosen"; head -19 "$RECENT" 2>/dev/null; } | awk '!seen[$0]++' > "$RECENT.tmp"
+mv "$RECENT.tmp" "$RECENT"
+
+# Copy or type
+if [ -n "$1" ]; then
+    xdotool type "$chosen"
+else
+    printf "%s" "$chosen" | xclip -selection clipboard
+    notify-send "'$chosen' copied to clipboard."
+fi

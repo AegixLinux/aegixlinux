@@ -1,0 +1,48 @@
+#!/bin/sh
+
+# UTC clock for dwmblocks with astronomical info on click
+
+case $BLOCK_BUTTON in
+    1)
+        # Show astronomical times
+        utc=$(date -u '+%Y-%m-%d %H:%M:%S')
+        unix=$(date +%s)
+        jd=$(echo "scale=5; $(date +%s) / 86400 + 2440587.5" | bc)
+        mjd=$(echo "scale=5; $jd - 2400000.5" | bc)
+        holocene=$(($(date +%Y) + 10000))
+        notify-send "🌐 Universal Times" "UTC: $utc
+Unix: $unix
+
+Julian Day: $jd
+Modified JD: $mjd
+Holocene: $holocene-$(date +%m-%d)"
+        ;;
+    2)
+        # Middle click - world clock
+        notify-send "🌍 World Clock" "$(printf \
+"🌊 Pacific: %s
+🗽 Eastern: %s
+🌆 Central: %s
+🌍 UTC:     %s
+🇮🇳 India:   %s
+🇲🇦 Morocco: %s
+🇹🇭 Thailand:%s
+🇬🇧 London:  %s
+🇯🇵 Tokyo:   %s" \
+"$(TZ='America/Los_Angeles' date '+%H:%M %Z')" \
+"$(TZ='America/New_York' date '+%H:%M %Z')" \
+"$(TZ='America/Chicago' date '+%H:%M %Z')" \
+"$(date -u '+%H:%M UTC')" \
+"$(TZ='Asia/Kolkata' date '+%H:%M %Z')" \
+"$(TZ='Africa/Casablanca' date '+%H:%M %Z')" \
+"$(TZ='Asia/Bangkok' date '+%H:%M %Z')" \
+"$(TZ='Europe/London' date '+%H:%M %Z')" \
+"$(TZ='Asia/Tokyo' date '+%H:%M %Z')")"
+        ;;
+    3)
+        # Right click - timezone switcher
+        setsid -f dmenu-tz-switcher
+        ;;
+esac
+
+date -u "+UTC %H:%M"

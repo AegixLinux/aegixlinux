@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# Disable Ctrl+C display and set up trap
+stty -echoctl
+trap 'echo; exit 0' INT
+
+if [ $# -eq 0 ]; then
+    echo "aegix timer"
+    echo "usage: timer <minutes>"
+    exit 1
+fi
+
+minutes=$1
+
+# Validate input is a number
+if ! [[ "$minutes" =~ ^([0-9]+([.][0-9]+)?|[.][0-9]+)$ ]]; then
+    echo "error: please enter a valid number"
+    exit 1
+fi
+
+total_seconds=$(echo "$minutes * 60" | bc | cut -d. -f1)
+start_time=$(date +%s)
+end_time=$((start_time + total_seconds))
+
+# Sound file to play at the end
+SOUND_FILE="$HOME/.local/share/taiko.mp3"
+
+echo "aegix timer 🐧"
+echo "timer set for $minutes minutes. 'p' to pause, 's' to stop music, ctrl+c to stop."
+echo
+
+paused=false
+pause_duration=0
+music_pid=0
+
+while true; do
+    current_time=$(date +%s)
+    
+    # Check for key input
+    if read -t 0.1 -n 1 key 2>/dev/null; then
+        if [[ "$key" == "p" ]]; then
+            if [ "$paused" = false ]; then
+                paused=true
+                pause_start=$current_time
+                # Calculate and store the remaining time when paused
+                remaining_at_pause=$((end_time - current_time))
+
+                minutes_paused=$((remaining_at_pause / 60))
+                seconds_paused=$((remaining_at_pause % 60))
+            else
+                paused=false
+                pause_end=$current_time
+                pause_duration=$((pause_duration + pause_end - pause_start))
+                end_time=$((end_time + pause_end - pause_start))
+            fi
+        elif [[ "$key" == "s" ]]; then
+            # Stop music if playing
+            if [ $music_pid -ne 0 ]; then
+                kill $music_pid 2>/dev/null
+                music_pid=0
+                echo
+                echo "music stopped"
+                sleep 1
+            fi
+        fi
+    fi
+    
+    if [ "$paused" = true ]; then
+        printf "\r⏸  PAUSED %02d:%02d - press 'p' to resume" $minutes_paused $seconds_paused
+        continue
+    fi
+    
+    # Clear the pause message when resuming
+    printf "\r                                                \r"
+    
+    # Check if time is up
+    if [ $current_time -ge $end_time ]; then
+        echo -e "\r00:00"
+        echo "time's up!"
+
+        # Play the sound file at the end of the countdown
+        if [ -f "$SOUND_FILE" ]; then
+            mpg123 -o pulse "$SOUND_FILE" 2>/dev/null &
+            music_pid=$!
+            echo "press 's' to stop music or ctrl+c to exit"
+
+            # Wait for user input to stop music or exit
+            while true; do
+                if read -t 0.1 -n 1 key 2>/dev/null; then
+                    if [[ "$key" == "s" ]]; then
+                        kill $music_pid 2>/dev/null
+                        echo "music stopped"
+                        exit 0
+                    fi
+                fi
+                # Check if music process is still running
+                if ! kill -0 $music_pid 2>/dev/null; then
+                    exit 0
+                fi
+            done
+        fi
+
+        exit 0
+    fi
+    
+    remaining=$((end_time - current_time))
+
+    minutes_left=$((remaining / 60))
+    seconds_left=$((remaining % 60))
+
+    printf "\r%02d:%02d" $minutes_left $seconds_left
+done

@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Aegix Screenshot Menu - X11 version
+# Uses maim, xdotool, and xclip
+
+set -euo pipefail
+
+# Configuration
+readonly SCREENSHOT_DIR="${SCREENSHOT_DIR:-$HOME/Pictures/Screenshots}"
+readonly TEMP_FILE="/tmp/screenshot_$$.png"
+
+# Ensure screenshot directory exists
+mkdir -p "$SCREENSHOT_DIR"
+
+# Notification helper
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    notify-send "$title" "$message" --urgency="$urgency" -t 2000
+}
+
+# Check requirements
+for cmd in maim xdotool xclip; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        notify critical "Error" "$cmd not found!"
+        exit 1
+    fi
+done
+
+# Define screenshot options
+options=(
+    "1. Select Area -> Clipboard"
+    "2. Select Area -> File"
+    "3. Current Window -> Clipboard"
+    "4. Current Window -> File"
+    "5. Full Screen -> Clipboard"
+    "6. Full Screen -> File"
+    "7. Full Screen (3s delay)"
+    "q. Cancel"
+)
+
+# Show centered dmenu
+choice=$(printf '%s\n' "${options[@]}" | dmenu -c -i -l 8 -p "Screenshot:")
+
+# Exit if nothing selected
+[[ -n "$choice" ]] || exit 0
+
+# Generate filename
+filename="screenshot_$(date +%F_%T).png"
+filepath="$SCREENSHOT_DIR/$filename"
+
+# Copy to clipboard helper
+copy_to_clipboard() {
+    xclip -selection clipboard -t image/png < "$1"
+    notify normal "Screenshot" "Copied to clipboard"
+}
+
+# Handle selection
+case "$choice" in
+    "1. Select Area -> Clipboard")
+        maim -s "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
+        rm -f "$TEMP_FILE"
+        ;;
+
+    "2. Select Area -> File")
+        maim -s "$filepath" && notify normal "Screenshot Saved" "$filename"
+        ;;
+
+    "3. Current Window -> Clipboard")
+        maim -i "$(xdotool getactivewindow)" "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
+        rm -f "$TEMP_FILE"
+        ;;
+
+    "4. Current Window -> File")
+        maim -i "$(xdotool getactivewindow)" "$filepath" && notify normal "Screenshot Saved" "$filename"
+        ;;
+
+    "5. Full Screen -> Clipboard")
+        maim "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
+        rm -f "$TEMP_FILE"
+        ;;
+
+    "6. Full Screen -> File")
+        maim "$filepath" && notify normal "Screenshot Saved" "$filename"
+        ;;
+
+    "7. Full Screen (3s delay)")
+        notify normal "Screenshot" "Taking screenshot in 3 seconds..."
+        sleep 3
+        maim "$filepath" && notify normal "Screenshot Saved" "$filename"
+        ;;
+
+    "q. Cancel"|"")
+        exit 0
+        ;;
+esac

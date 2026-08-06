@@ -1,0 +1,41 @@
+# aegix-sync sanitize.rules
+# Format: TAB-separated. First field selects the rule type:
+#   sub          <pattern> <replacement> [scope-path]
+#   strip-line   <pattern> [scope-path]
+#   strip-block  <start-pattern> <end-pattern>
+#   forbid       <pattern> [message]
+#   allow        <pattern>
+# Comments are FULL-LINE ONLY (must match ^\s*#) — never inline. Rules
+# legitimately contain a literal '#' character (e.g. matching a comment
+# line in a target file), so a trailing "# ..." on a rule line is part of
+# the rule, not a comment.
+# ==== rewrites (sanitizer) ====
+sub	"/home/[^"]*/\.local/bin/brave"	"brave"	live-overlay/etc/skel/.local/src/dwm/config.h
+sub	ping_thing_1="[0-9.]+"	ping_thing_1="192.168.1.1"	live-overlay/etc/skel/.local/bin/ploop
+sub	/home/${LIVE_USER}	$HOME
+strip-block	^# ===== PERSONAL: DO NOT SYNC TO AEGIX =====	^# ===== END PERSONAL =====
+strip-block	^# ===== FOOT TERMINAL SSH FIX =====	^# ===== END FOOT TERMINAL SSH FIX =====
+strip-block	^export NVM_DIR	nvm bash_completion"$
+strip-line	pubkey=
+strip-line	# added by Snowflake	live-overlay/etc/skel/.config/shell/profile
+strip-line	\.local/share/\.\./bin/env	live-overlay/etc/skel/.config/zsh/.zshrc
+strip-line	^export PATH="\$HOME/\.npm-global	live-overlay/etc/skel/.config/zsh/.zshrc
+strip-line	^export PATH="\$HOME/go/bin	live-overlay/etc/skel/.config/zsh/.zshrc
+# ==== leak gate (verifier) ====
+forbid	${LIVE_USER}	username must not ship
+forbid	${LIVE_EMAIL}	personal email must not ship
+forbid	id_rsa_stride|\.ssh/id_.*${LIVE_USER}	personal ssh keys
+forbid	pass pg[- ]	pass-store references (postgres)
+forbid	pass otp (k12|aws)	pass-store references (work otp accounts)
+forbid	PGPASSWORD	db credentials
+forbid	rds\.amazonaws\.com|arcadia-cluster	work infrastructure
+forbid	10\.21[46]\.	work VPN IPs
+forbid	192\.168\.[0-9]+\.[0-9]+	private IPs (allowlist placeholders)
+allow	192\.168\.1\.1
+forbid	cursor-agent|code-insiders|/home/[^/[:space:]$]+/Applications	non-Aegix editor hooks
+forbid	cat > ~/\.config/sxiv/exec/key-handler	config-clobber heredoc (vidgrid bug class)
+# An ssh remote of the form host:/home/someone/ is personal infrastructure:
+# it names a machine and account that only the maintainer has. Shipping one
+# also points a new user's sync scripts at a stranger's server.
+forbid	[a-zA-Z0-9_-]+:/home/[a-zA-Z0-9_-]+/	personal ssh remote path
+

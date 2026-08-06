@@ -1,0 +1,137 @@
+#!/bin/bash
+# Aegix AppImage Launcher with Dynamic Scaling
+# Universal wrapper for Electron-based AppImages with proper scaling
+
+show_usage() {
+    cat << EOF
+Aegix AppImage Wrapper with Dynamic Scaling
+
+Usage:
+  aegix-appimage-wrapper [OPTIONS] APPIMAGE [ARGS...]
+
+Options:
+  -s, --scale FACTOR    Force specific scale factor (0.5 - 3.0)
+  -a, --auto            Auto-detect scale (default)
+  -n, --native          Use native Wayland (adds --ozone-platform=wayland)
+  -x, --xwayland        Force XWayland (no ozone flags)
+  -h, --help            Show this help message
+
+Examples:
+  aegix-appimage-wrapper ~/Applications/app.AppImage
+  aegix-appimage-wrapper -s 1.0 ~/Applications/obsidian/Obsidian.AppImage
+  aegix-appimage-wrapper --native ~/Applications/cursor/Cursor.AppImage
+
+Notes:
+  - Works best with Electron-based AppImages
+  - Auto-detects monitor resolution for optimal scaling
+  - Overrides system GDK_SCALE and QT_SCALE_FACTOR
+  - Use for apps that appear too large despite Ctrl+-
+
+Electron Apps:
+  - Obsidian, VSCode, Cursor, Signal, Discord, etc.
+  - Uses --force-device-scale-factor flag
+EOF
+}
+
+# Default settings
+AUTO_SCALE=true
+SCALE_FACTOR=""
+USE_WAYLAND=true
+APPIMAGE=""
+APPIMAGE_ARGS=()
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -s|--scale)
+            SCALE_FACTOR="$2"
+            AUTO_SCALE=false
+            shift 2
+            ;;
+        -a|--auto)
+            AUTO_SCALE=true
+            shift
+            ;;
+        -n|--native)
+            USE_WAYLAND=true
+            shift
+            ;;
+        -x|--xwayland)
+            USE_WAYLAND=false
+            shift
+            ;;
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        *)
+            if [ -z "$APPIMAGE" ]; then
+                APPIMAGE="$1"
+            else
+                APPIMAGE_ARGS+=("$1")
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Validate AppImage path
+if [ -z "$APPIMAGE" ]; then
+    echo "Error: No AppImage specified"
+    show_usage
+    exit 1
+fi
+
+if [ ! -f "$APPIMAGE" ]; then
+    echo "Error: AppImage not found: $APPIMAGE"
+    exit 1
+fi
+
+if [ ! -x "$APPIMAGE" ]; then
+    echo "Error: AppImage not executable: $APPIMAGE"
+    echo "Fix with: chmod +x $APPIMAGE"
+    exit 1
+fi
+
+# Auto-detect scale if needed
+if [ "$AUTO_SCALE" = true ]; then
+    if command -v hyprctl &> /dev/null; then
+        # Get focused monitor's resolution
+        MONITOR_WIDTH=$(hyprctl monitors | grep "focused: yes" -B 20 | grep -oP '^\s*\K[0-9]+(?=x[0-9]+@)' | head -1)
+    else
+        MONITOR_WIDTH=1920
+    fi
+
+    # Calculate scale factor based on resolution
+    if [ "$MONITOR_WIDTH" -le 1366 ]; then
+        SCALE_FACTOR=1.0
+    elif [ "$MONITOR_WIDTH" -le 1920 ]; then
+        SCALE_FACTOR=1.0
+    elif [ "$MONITOR_WIDTH" -le 2560 ]; then
+        SCALE_FACTOR=1.0  # 1440p
+    else
+        SCALE_FACTOR=1.5  # 4K and above
+    fi
+
+    echo "Auto-detected: ${MONITOR_WIDTH}px → scale=${SCALE_FACTOR}x"
+fi
+
+# Override system-wide scaling
+export GDK_SCALE=1
+export QT_SCALE_FACTOR=1
+
+# Build command
+CMD=("$APPIMAGE")
+CMD+=("--force-device-scale-factor=$SCALE_FACTOR")
+
+if [ "$USE_WAYLAND" = true ]; then
+    CMD+=("--enable-features=UseOzonePlatform")
+    CMD+=("--ozone-platform=wayland")
+fi
+
+# Add any additional arguments
+CMD+=("${APPIMAGE_ARGS[@]}")
+
+# Execute
+echo "Launching: $(basename "$APPIMAGE") with scale=${SCALE_FACTOR}x"
+exec "${CMD[@]}"

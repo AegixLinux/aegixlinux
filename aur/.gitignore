@@ -1,0 +1,10 @@
+# AUR-side git state (each package has its own git dir under here, held out of
+# the work trees so the parent AEGIX_AGENTIC repo can track the PKGBUILDs as
+# regular files).
+.aur-git/
+
+# makepkg build artifacts
+*/src/
+*/pkg/
+*/*.pkg.tar*
+*/*.src.tar*

@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# aegix-display-cleanup - Remove redundant/broken display tools
+# Run this AFTER confirming wizard and reset work perfectly
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+echo
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BOLD}  🧹 Aegix Display Tools Cleanup${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo
+echo -e "${YELLOW}This will remove redundant/broken display management tools.${NC}"
+echo
+echo -e "${BOLD}KEEP (Working):${NC}"
+echo -e "  ✅ aegix-display-wizard    (main setup tool)"
+echo -e "  ✅ aegix-display-reset     (fix everything button)"
+echo -e "  ✅ displaymenu-aegix       (menu interface)"
+echo
+echo -e "${BOLD}REMOVE (Broken/Redundant):${NC}"
+echo -e "  ❌ aegix-display-setup.OLD_DEPRECATED  (already broken)"
+echo -e "  ❌ displayselect                        (X11 only, not Wayland)"
+echo -e "  ❌ nwg-displays-aegix                   (unused wrapper)"
+echo
+echo -e "${BOLD}ARCHIVE (Test first, then decide):${NC}"
+echo -e "  📦 aegix-display-control"
+echo -e "  📦 aegix-display-manager"
+echo -e "  📦 aegix-monitor-config"
+echo -e "  📦 aegix-monitors"
+echo -e "  📦 wdisplays-aegix"
+echo
+read -p "Press ENTER to continue, or Ctrl+C to cancel..."
+
+# Create archive directory
+ARCHIVE="$HOME/.local/bin/ARCHIVE_OLD_DISPLAY_TOOLS"
+mkdir -p "$ARCHIVE"
+echo
+echo -e "${BLUE}📦 Created archive directory: $ARCHIVE${NC}"
+
+# Delete definitely broken tools
+echo
+echo -e "${BLUE}🗑️  Step 1: Removing definitely broken tools...${NC}"
+
+if [ -f "$HOME/.local/bin/aegix-display-setup.OLD_DEPRECATED" ]; then
+    rm "$HOME/.local/bin/aegix-display-setup.OLD_DEPRECATED"
+    echo -e "${GREEN}  ✅ Deleted: aegix-display-setup.OLD_DEPRECATED${NC}"
+fi
+
+if [ -f "$HOME/.local/bin/displayselect" ]; then
+    rm "$HOME/.local/bin/displayselect"
+    echo -e "${GREEN}  ✅ Deleted: displayselect (X11 only)${NC}"
+fi
+
+if [ -f "$HOME/.local/bin/nwg-displays-aegix" ]; then
+    rm "$HOME/.local/bin/nwg-displays-aegix"
+    echo -e "${GREEN}  ✅ Deleted: nwg-displays-aegix (unused)${NC}"
+fi
+
+# Archive questionable tools
+echo
+echo -e "${BLUE}📦 Step 2: Archiving old tools (can restore if needed)...${NC}"
+
+for tool in aegix-display-control aegix-display-manager aegix-monitor-config aegix-monitors wdisplays-aegix; do
+    if [ -f "$HOME/.local/bin/$tool" ]; then
+        mv "$HOME/.local/bin/$tool" "$ARCHIVE/"
+        echo -e "${GREEN}  ✅ Archived: $tool${NC}"
+    fi
+done
+
+# Summary
+echo
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BOLD}${GREEN}  ✅ Cleanup complete!${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo
+echo -e "  ${BOLD}Your working display tools:${NC}"
+echo -e "    • aegix-display-wizard"
+echo -e "    • aegix-display-reset"
+echo -e "    • displaymenu-aegix"
+echo
+echo -e "  ${BOLD}Archived tools in:${NC} $ARCHIVE"
+echo -e "  (Can restore if needed: mv $ARCHIVE/<tool> ~/.local/bin/)"
+echo
+echo -e "  ${BOLD}Next:${NC} Reboot and test everything!"
+echo
+
+

@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# Select a snippet using dmenu with a prompt
+chosen=$(grep -v '^#' "$SNIPPETS_FILE" | dmenu -i -l 50 -p "Select a snippet to remove:" | awk -F'#' '{print $1}' | sed 's/[[:blank:]]*$//')
+
+# Exit if none chosen
+[ -z "$chosen" ] && exit
+
+# Remove the selected snippet (along with its comment)
+sed -i "\|$chosen #|d" "$SNIPPETS_FILE"
+
+# Notify the user
+notify-send "Snippet removed" "'$chosen' has been removed from snippets."

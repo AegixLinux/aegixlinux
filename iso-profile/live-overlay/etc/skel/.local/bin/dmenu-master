@@ -1,0 +1,59 @@
+#!/bin/sh
+# Aegix Master Menu - rofi launcher (clickable)
+
+ROFI_OPTS="-dmenu -i -theme-str 'window {width: 300px; location: center;}' -theme-str 'listview {lines: 8;}'"
+
+choice=$(printf "📺 Display
+🚀 Applications
+😀 Emoji Picker
+🔤 Font Size
+📏 HiDPI Scaling
+⏰ Timezone Switcher
+📶 Network
+🔊 Audio
+⚙️  System Info
+🔒 Lock Screen
+⏻  Power Menu" | rofi -dmenu -i -p "≡ Menu" \
+    -theme-str 'window {width: 280px; location: center; border: 2px; border-color: #444;}' \
+    -theme-str 'listview {lines: 11; scrollbar: false;}' \
+    -theme-str 'element {padding: 8px;}')
+
+case "$choice" in
+    *"Applications"*)
+        rofi -show drun -show-icons ;;
+    *"Emoji"*)
+        dmenuunicode ;;
+    *"Font Size"*)
+        rofi-fonts ;;
+    *"HiDPI Scaling"*)
+        rofi-scaling ;;
+    *"Timezone"*)
+        dmenu-tz-switcher ;;
+    *"Network"*)
+        setsid -f st -e nmtui ;;
+    *"Audio"*)
+        setsid -f st -e pulsemixer ;;
+    *"Display"*)
+        displaymenu ;;
+    *"System Info"*)
+        notify-send "⚙️ System Info" "$(uname -srm)
+Uptime: $(uptime -p | sed 's/up //')
+Memory: $(free -h | awk '/Mem:/ {print $3 "/" $2}')
+Disk: $(df -h / | awk 'NR==2 {print $3 "/" $2}')" ;;
+    *"Lock"*)
+        slock ;;
+    *"Power"*)
+        choice2=$(printf "⏻  Shutdown
+🔄 Reboot
+💤 Suspend
+🚪 Logout" | rofi -dmenu -i -p "Power" \
+            -theme-str 'window {width: 200px; location: center;}' \
+            -theme-str 'listview {lines: 4;}')
+        case "$choice2" in
+            *"Shutdown"*) sudo poweroff ;;
+            *"Reboot"*) sudo reboot ;;
+            *"Suspend"*) sudo zzz ;;
+            *"Logout"*) pkill -KILL -u "$USER" ;;
+        esac
+        ;;
+esac

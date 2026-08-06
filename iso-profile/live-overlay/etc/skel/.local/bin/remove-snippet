@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# ##### This script allows the user to remove a snippet from the list of snippets in the terminal. #####
+
+# Path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# Display the list of snippets with numbers
+echo "Select a snippet to remove by entering its number:"
+snippets=$(grep -v '^#' "$SNIPPETS_FILE" | awk -F'#' '{print $1}' | sed 's/[[:blank:]]*$//')
+echo "$snippets" | nl -w2 -s'. '  # Numbered list of snippets
+
+# Prompt the user to enter the number of the snippet to remove
+echo "Enter the number of the snippet to remove:"
+read chosen_number
+
+# Validate the input is a number
+if ! [[ "$chosen_number" =~ ^[0-9]+$ ]]; then
+    echo "Invalid input. Please enter a valid number."
+    exit 1
+fi
+
+# Get the corresponding snippet based on the chosen number and trim trailing spaces
+chosen=$(echo "$snippets" | sed -n "${chosen_number}p" | sed 's/[[:blank:]]*$//')
+
+# Exit if no snippet is found
+[ -z "$chosen" ] && echo "No snippet found for the selected number." && exit 1
+
+# Escape special characters in the chosen snippet to make it compatible with sed
+escaped_snippet=$(echo "$chosen" | sed 's/[\/&]/\\&/g')
+
+# Remove the selected snippet (along with its comment)
+sed -i "\|$escaped_snippet #|d" "$SNIPPETS_FILE"
+
+# Notify the user
+echo "Snippet removed: '$chosen'"

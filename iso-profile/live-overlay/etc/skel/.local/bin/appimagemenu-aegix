@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Aegix AppImage Menu - Combined launcher and manager for fuzzel
+# Provides quick access to launch or manage AppImages
+
+set -euo pipefail
+
+# Debug mode (set APPIMAGE_DEBUG=1 to enable)
+if [[ "${APPIMAGE_DEBUG:-0}" == "1" ]]; then
+    exec 2>/tmp/appimagemenu-debug.log
+    set -x
+fi
+
+# Terminal wrapper function
+run_in_terminal() {
+    local cmd="$*"
+
+    if command -v foot &>/dev/null; then
+        nohup foot bash -c "$cmd" >/dev/null 2>&1 &
+        disown
+    elif command -v st &>/dev/null; then
+        nohup st -e bash -c "$cmd" >/dev/null 2>&1 &
+        disown
+    elif command -v alacritty &>/dev/null; then
+        nohup alacritty -e bash -c "$cmd" >/dev/null 2>&1 &
+        disown
+    elif command -v kitty &>/dev/null; then
+        nohup kitty bash -c "$cmd" >/dev/null 2>&1 &
+        disown
+    elif command -v xterm &>/dev/null; then
+        nohup xterm -e bash -c "$cmd" >/dev/null 2>&1 &
+        disown
+    else
+        notify-send "Error" "No terminal emulator found" -u critical
+        return 1
+    fi
+}
+
+REGISTRY_FILE="$HOME/.config/aegix/appimages.json"
+
+# Check if registry exists
+if [[ ! -f "$REGISTRY_FILE" ]]; then
+    notify-send "AppImage Menu" "No AppImages registered. Running scan..." -u normal
+    aegix-appimage scan
+fi
+
+# Build menu options
+build_menu() {
+    # Add launch options first
+    echo "=== LAUNCH ==="
+
+    while IFS= read -r json; do
+        local name=$(echo "$json" | jq -r '.name')
+        local path=$(echo "$json" | jq -r '.path')
+        local version=$(basename "$path" | grep -oP '\d+\.\d+\.\d+' | head -1 || echo "")
+
+        if [[ -n "$version" ]]; then
+            echo "🚀 $name v$version"
+        else
+            echo "🚀 $name"
+        fi
+    done < <(jq -r '.appimages[] | @json' "$REGISTRY_FILE" 2>/dev/null | sort)
+
+    # Add management options
+    echo "=== MANAGE ==="
+    echo "📊 View All Details"
+    echo "🔍 Find Duplicates"
+    echo "🗂️ Manage AppImages"
+    echo "🔄 Rescan AppImages"
+    echo "🧹 Clean Missing"
+}
+
+# Handle selection
+handle_selection() {
+    local selected="$1"
+
+    case "$selected" in
+        "=== LAUNCH ==="|"=== MANAGE ===")
+            # Section headers - do nothing
+            exec "$0"
+            ;;
+        "🚀 "*)
+            # Launch AppImage
+            local app_name="${selected#🚀 }"
+            # Remove version if present
+            app_name=$(echo "$app_name" | sed 's/ v[0-9].*//')
+
+            # Find and launch the AppImage
+            local path=$(jq -r --arg name "$app_name" \
+                '.appimages[] | select(.name == $name) | .path' \
+                "$REGISTRY_FILE" | head -1)
+
+            if [[ -n "$path" ]] && [[ -f "$path" ]]; then
+                "$path" &>/dev/null &
+                disown
+            else
+                notify-send "AppImage Launch" "Failed to launch $app_name" -u critical
+            fi
+            ;;
+        "📊 View All Details")
+            # Removed - was broken
+            notify-send "AppImage Manager" "Use 'aegix-appimage-manager list' in terminal" -u normal
+            ;;
+        "🔍 Find Duplicates")
+            # Removed - was broken
+            notify-send "AppImage Manager" "Use 'aegix-appimage-manager duplicates' in terminal" -u normal
+            ;;
+        "🗂️ Manage AppImages")
+            # Removed - was broken, needs proper fix
+            notify-send "AppImage Manager" "Use 'aegix-appimage-manager menu' in terminal" -u normal
+            ;;
+        "🔄 Rescan AppImages")
+            notify-send "AppImage Scanner" "Scanning for AppImages..." -u normal
+            aegix-appimage scan
+            notify-send "AppImage Scanner" "Scan complete!" -u normal
+            exec "$0"
+            ;;
+        "🧹 Clean Missing")
+            aegix-appimage-manager clean
+            notify-send "AppImage Cleaner" "Cleaned missing entries" -u normal
+            exec "$0"
+            ;;
+    esac
+}
+
+# Main
+main() {
+    local selected=$(build_menu | fuzzel --dmenu --prompt="AppImage > " --lines=25 --width=40)
+
+    if [[ -n "$selected" ]]; then
+        handle_selection "$selected"
+    fi
+}
+
+main "$@"

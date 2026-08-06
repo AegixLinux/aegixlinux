@@ -1,0 +1,6 @@
+#!/bin/sh
+mount -t tmpfs -o size=10M,mode=0755 tmpfs /etc/pacman.d/gnupg
+pacman-key --init 1>&2
+pacman-key --populate artix 1>&2
+pacman-key --populate archlinux 1>&2
+exec chpst -b pacman-init pause

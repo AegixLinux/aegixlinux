@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Simple launcher script for AppImage manager
+# This is called by the menu to ensure proper terminal launching
+
+set -euo pipefail
+
+action="${1:-menu}"
+
+case "$action" in
+    menu)
+        exec aegix-appimage-manager menu
+        ;;
+    list)
+        aegix-appimage-manager list
+        read -p "Press Enter to close..."
+        ;;
+    duplicates)
+        aegix-appimage-manager duplicates
+        read -p "Press Enter to close..."
+        ;;
+    *)
+        echo "Unknown action: $action"
+        exit 1
+        ;;
+esac

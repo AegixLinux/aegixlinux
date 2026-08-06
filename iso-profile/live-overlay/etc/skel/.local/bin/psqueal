@@ -1,0 +1,6 @@
+#!/bin/bash
+# Create and cd into a directory named YYYY-MM-DD_Dow
+# Usage: . psqueal  (note the dot - this sources the script)
+
+dir_name=$(date +%Y-%m-%d_%a)
+mkdir -p "$dir_name" && cd "$dir_name" || return 1

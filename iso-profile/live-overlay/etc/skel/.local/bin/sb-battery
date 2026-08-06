@@ -1,0 +1,149 @@
+#!/bin/sh
+
+# Prints all batteries, their percentage remaining and an emoji corresponding
+# to charge status (🔌 for plugged up, 🔋 for discharging on battery, etc.).
+#
+# At LOW_THRESHOLD% or below while discharging, fires an unmissable alarm:
+# a persistent critical notification, an alarm sound, and a red screen flash
+# (sound+flash repeat every ALARM_INTERVAL seconds). Everything clears as
+# soon as the charger is plugged back in.
+#
+# Run a drill without unplugging anything:
+#   sb-battery test       # simulate discharging at 4%
+#   sb-battery test 3     # simulate a specific capacity
+#   sb-battery test off   # end the drill
+
+LOW_THRESHOLD=5      # percent at/below which the alarm fires while discharging
+ALARM_INTERVAL=30    # seconds between sound + screen-flash repeats
+NOTIFY_ID=9999       # fixed dunst replace-id so refreshes update one popup
+TESTFILE="${SB_BATTERY_TESTFILE:-/tmp/sb-battery-test}"
+STAMP="${SB_BATTERY_STAMP:-/tmp/sb-battery-alarm.stamp}"
+ALARM_SOUND="/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
+
+play_alarm() {
+	[ -f "$ALARM_SOUND" ] || return 0
+	if command -v pw-play >/dev/null 2>&1; then pw-play "$ALARM_SOUND"
+	elif command -v paplay >/dev/null 2>&1; then paplay "$ALARM_SOUND"
+	elif command -v ffplay >/dev/null 2>&1; then ffplay -nodisp -autoexit -loglevel quiet "$ALARM_SOUND"
+	elif command -v mpv >/dev/null 2>&1; then mpv --no-video --really-quiet "$ALARM_SOUND"
+	fi
+}
+
+flash_screens() {
+	command -v xrandr >/dev/null 2>&1 || return 0
+	[ -n "$DISPLAY" ] || return 0
+	outputs=$(xrandr --query | awk '/ connected/{print $1}')
+	[ -n "$outputs" ] || return 0
+	restore_gamma() {
+		for out in $outputs; do xrandr --output "$out" --gamma 1:1:1; done
+	}
+	# Never leave the screen tinted, even if killed mid-pulse.
+	trap restore_gamma EXIT INT TERM
+	pulses=0
+	while [ "$pulses" -lt 3 ]; do
+		for out in $outputs; do xrandr --output "$out" --gamma 1:0.25:0.25; done
+		sleep 0.3
+		restore_gamma
+		sleep 0.3
+		pulses=$((pulses + 1))
+	done
+}
+
+fire_alarm() {
+	if command -v dunstify >/dev/null 2>&1; then
+		dunstify -u critical -r "$NOTIFY_ID" "⚠️ BATTERY ${1}%" "PLUG IN NOW"
+	fi
+	now=$(date +%s)
+	last=$(stat -c %Y "$STAMP" 2>/dev/null || echo 0)
+	[ $((now - last)) -ge "$ALARM_INTERVAL" ] || return 0
+	touch "$STAMP"
+	# Without dunstify there is no replace-id, so only notify on the
+	# throttled cadence to avoid stacking a popup every 5 seconds.
+	if ! command -v dunstify >/dev/null 2>&1 && command -v notify-send >/dev/null 2>&1; then
+		notify-send -u critical "⚠️ BATTERY ${1}%" "PLUG IN NOW"
+	fi
+	( play_alarm & flash_screens ) </dev/null >/dev/null 2>&1 &
+}
+
+clear_alarm() {
+	[ -f "$STAMP" ] || return 0
+	rm -f "$STAMP"
+	command -v dunstify >/dev/null 2>&1 && dunstify -C "$NOTIFY_ID"
+}
+
+case "$1" in
+	test)
+		if [ "$2" = "off" ]; then
+			rm -f "$TESTFILE"
+			clear_alarm
+			echo "Drill ended."
+		else
+			echo "Discharging ${2:-4}" > "$TESTFILE"
+			echo "Drill started: simulating Discharging ${2:-4}%."
+			echo "The alarm fires within 5 seconds. End it with: sb-battery test off"
+		fi
+		exit 0
+		;;
+esac
+
+case $BLOCK_BUTTON in
+	3) notify-send "🔋 Battery module" "🔋: discharging
+🙏: not charging
+♻: stagnant charge
+🔌: charging
+⚡: charged
+❗: battery very low!
+At ${LOW_THRESHOLD}% an unmissable alarm fires (drill: sb-battery test).
+- Scroll to change adjust xbacklight." ;;
+	#4) xbacklight -inc 10 ;;
+	4) brightnessctl s 10%+ ;;
+	#5) xbacklight -dec 10 ;;
+	5) brightnessctl s 10%- ;;
+	6) "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+# A drill file substitutes for real hardware so the alarm path can be
+# exercised on any machine, battery or not.
+if [ -f "$TESTFILE" ]; then
+	set -- "$TESTFILE"
+else
+	set -- /sys/class/power_supply/BAT?*
+fi
+
+# Loop through all attached batteries and format the info
+for battery in "$@"; do
+	# If non-first battery, print a space separator.
+	[ -n "${capacity+x}" ] && printf " "
+	if [ "$battery" = "$TESTFILE" ]; then
+		read -r bat_status capacity < "$TESTFILE"
+	else
+		bat_status="$(cat "$battery/status" 2>&1)"
+		capacity="$(cat "$battery/capacity" 2>&1)"
+	fi
+	# Some firmwares (ThinkPads especially) report capacity against design
+	# capacity, so a healthy or recalibrated battery reads above 100. Clamp it:
+	# a bar that says 101% just looks broken.
+	[ "$capacity" -gt 100 ] 2>/dev/null && capacity=100
+	# Sets up the status and capacity
+	case "$bat_status" in
+		"Full") status="⚡" ;;
+		"Discharging") status="🔋" ;;
+		"Charging") status="🔌" ;;
+		"Not charging") status="🙏" ;;
+		"Unknown") status="♻️" ;;
+		*) exit 1 ;;
+	esac
+	# Will make a warn variable if discharging and low
+	[ "$status" = "🔋" ] && [ "$capacity" -le 25 ] && warn="❗"
+	[ "$status" = "🔋" ] && [ "$capacity" -le "$LOW_THRESHOLD" ] && alarm_capacity="$capacity"
+	# Prints the info
+	printf "%s%s%d%%" "$status" "$warn" "$capacity"; unset warn
+done
+
+if [ -n "$alarm_capacity" ]; then
+	fire_alarm "$alarm_capacity"
+else
+	clear_alarm
+fi
+
+printf "\\n"

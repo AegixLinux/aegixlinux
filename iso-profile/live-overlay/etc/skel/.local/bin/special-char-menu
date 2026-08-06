@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Path to the special-chars & font-awesome files in barbs
+chosen=$(cut -d ';' -f1 ~/.local/share/barbs/chars/special-characters/* | dmenu -i -l 30 -p "Select special character:" | sed "s/ .*//")
+
+# Exit if none chosen.
+[ -z "$chosen" ] && exit
+
+# If you run this command with an argument, it will automatically insert the
+# symbol. Otherwise, show a message that the symbol has been copied.
+if [ -n "$1" ]; then
+        xdotool type "$chosen"
+else
+        printf "$chosen" | xclip -selection clipboard
+        notify-send "'$chosen' copied to clipboard." &
+fi

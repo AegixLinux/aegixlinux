@@ -1,0 +1,30 @@
+#!/bin/sh
+# mdcopy — copy a file's contents to the system clipboard.
+# Works on both X11 (xclip) and Wayland (wl-copy); auto-detects.
+# Usage: mdcopy <file>   (defaults to circleback.md in the current dir)
+
+set -eu
+
+file="${1:-circleback.md}"
+
+if [ ! -f "$file" ]; then
+	echo "mdcopy: no such file: $file" >&2
+	exit 1
+fi
+
+if [ -n "${WAYLAND_DISPLAY:-}" ] && command -v wl-copy >/dev/null 2>&1; then
+	wl-copy < "$file"
+	copier="wl-copy"
+elif command -v xclip >/dev/null 2>&1; then
+	xclip -selection clipboard < "$file"
+	copier="xclip"
+elif command -v wl-copy >/dev/null 2>&1; then
+	wl-copy < "$file"
+	copier="wl-copy"
+else
+	echo "mdcopy: need xclip (X11) or wl-copy (Wayland) on PATH" >&2
+	exit 1
+fi
+
+bytes=$(wc -c < "$file" | tr -d ' ')
+echo "Copied $bytes bytes from $file to clipboard ($copier)."

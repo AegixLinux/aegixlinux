@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# this file is symlinked from ~/.xinitrc
+
+if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
+	. "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile"
+else
+	. "$HOME/.xprofile"
+fi
+
+xset s off
+xset -dpms
+xset s noblank
+
+ssh-agent dwm

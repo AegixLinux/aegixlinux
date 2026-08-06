@@ -1,0 +1,315 @@
+# aegix-sync packages.manifest — TAGS\tNAME[\tURL][\t"desc"]
+barbs,rootfs	xorg-server	"is the graphical server, at least until suckless runs on wayland"
+barbs,rootfs	xorg-xinit	"starts X"
+barbs,rootfs	xorg-xrandr	"is required for multi-monitor management and autorandr"
+barbs,rootfs	xorg-xsetroot	"is used by dwm for setting the root window name (status bar)"
+barbs,rootfs	xorg-xprop	"is a tool for detecting window properties"
+barbs,rootfs	xorg-xwininfo	"allows querying information about windows"
+barbs,rootfs	xorg-xbacklight	"enables changing screen brightness levels"
+barbs,rootfs	xorg-setxkbmap	"sets keyboard layout in X11"
+barbs,rootfs	xorg-xrdb	"loads X resources from xresources file"
+barbs,rootfs	xorg-xset	"sets key repeat rate and other X user preferences (used by remaps)"
+barbs,rootfs	xclip	"allows for copying and pasting from the command line"
+barbs,rootfs	xdotool	"provides window action utilities on the command line"
+barbs,rootfs	xwallpaper	"sets the wallpaper"
+barbs,rootfs	xcompmgr	"is for transparency and removing screen-tearing"
+barbs,rootfs	arandr	"deals with multiple monitor setups nicely"
+barbs,rootfs	autorandr	"auto-detects and applies monitor configurations"
+barbs	capitaine-cursors	"is the cursor theme used by Aegix"
+barbs,rootfs	zsh	"is the default interactive shell"
+barbs,rootfs	zsh-completions	"provides additional completion definitions for zsh"
+barbs,rootfs	neovim	"neo vim"
+barbs,rootfs	vim	"is the classic text editor"
+rootfs	nnn
+barbs,rootfs	pcmanfm	"alternative gui file manager"
+barbs,rootfs	ueberzug	"enables previews in the lf file manager"
+barbs,rootfs	pipewire	"is the modern audio/video server"
+barbs,rootfs	wireplumber	"is a nice audio system"
+barbs,rootfs	pipewire-pulse	"gives pipewire compatibility with PulseAudio programs"
+barbs,rootfs	pulsemixer	"is an audio controller"
+barbs,rootfs	alsa-utils	"provides amixer and alsamixer for audio control"
+barbs,rootfs	pipewire-alsa	"bridges pipewire to ALSA audio devices"
+barbs,rootfs	rtkit	"provides realtime scheduling for pipewire audio"
+barbs,rootfs	mpd	"is music daemon"
+barbs,rootfs	mpc	"is a terminal interface for mpd"
+barbs,rootfs	mpv	"is a choice video player"
+barbs,rootfs	sxiv	"is a minimalist image viewer"
+barbs,rootfs	ffmpeg	"does wonders with audio and video"
+barbs,rootfs	ffmpegthumbnailer	"creates video file thumbnail previews"
+barbs,rootfs	yt-dlp	"can download any YouTube video (or playlist or channel) when given the link"
+barbs,rootfs	zathura	"is a pdf viewer with vim-like bindings"
+barbs,rootfs	zathura-pdf-mupdf	"allows mupdf pdf compatibility in zathura"
+barbs,rootfs	poppler	"manipulates .pdfs and gives .pdf previews and other .pdf functions"
+barbs,rootfs	dunst	"suckless system notifications"
+barbs,rootfs	libnotify	"allows desktop notifications"
+barbs,rootfs	rofi	"is an application launcher used by dmenu-master and other Aegix scripts"
+barbs,rootfs	unclutter	"hides an inactive mouse"
+barbs,rootfs	slock	"allows you to lock your computer, and quickly unlock with your password"
+barbs	ttf-linux-libertine	"provides the sans and serif fonts for BARBS"
+barbs,rootfs	ttf-font-awesome	"provides extended glyph support"
+barbs,rootfs	ttf-dejavu	"properly displays emojis."
+barbs,rootfs	noto-fonts	"is an expansive font package"
+barbs,rootfs	noto-fonts-emoji	"is an emoji font"
+barbs,rootfs	gnome-keyring	"is the system keyring"
+barbs,rootfs	git	"is the version control system, required by barbs for suckless builds"
+barbs,rootfs	rsync	"is a nice way to move files around"
+barbs,rootfs	wget	"is a network downloader used by many scripts"
+barbs,rootfs	bc	"is a gnu calculator"
+barbs,rootfs	fzf	"is a fuzzy finder tool"
+barbs,rootfs	bat	"can highlight code output and display files"
+barbs,rootfs	htop	"is an interactive process viewer"
+barbs,rootfs	man-db	"read manual pages"
+rootfs	man-pages
+barbs,rootfs	atool	"manages and gives information about archives"
+barbs,rootfs	unzip	"unzips zips"
+barbs,rootfs	mediainfo	"shows audio and video information"
+barbs,rootfs	socat	"is a utility which establishes two byte streams and transfers data between them"
+barbs,rootfs	moreutils	"is a collection of useful unix tools"
+barbs,rootfs	brightnessctl	"works when xbacklight fails"
+barbs,rootfs	dosfstools	"allows your computer to access dos-like filesystems"
+barbs,rootfs	ntfs-3g	"allows accessing NTFS partitions"
+rootfs	openresolv
+barbs,rootfs	maim	"can take quick screenshots at your request"
+barbs	xcape	"gives the special escape/super mappings of BARBS"
+barbs,rootfs	polkit	"manages user policies"
+barbs,rootfs	espeak-ng	"is a text-to-speech synthesizer used by fitter-happier for vintage robotic voice"
+barbs,rootfs	gocryptfs	"so CypherText Alcove works by default"
+barbs,rootfs	lynx	"is a terminal browser"
+barbs,rootfs	newsboat	"is a terminal RSS client"
+barbs,rootfs	artix-archlinux-support	"enables access to Arch Linux repositories"
+barbs,rootfs	vulkan-radeon	"provides Vulkan driver for AMD GPUs"
+barbs,rootfs	mesa-utils	"provides glxinfo and other GL diagnostic tools"
+barbs,rootfs-init	networkmanager-runit	"is the runit service for NetworkManager"
+barbs,rootfs-init	openssh-runit	"is the runit service for sshd"
+barbs,rootfs-init	elogind-runit	"is the runit service for elogind"
+rootfs-init	dbus-runit
+barbs,rootfs-init	cronie-runit	"is the runit service for cronie"
+livefs	amd-ucode
+livefs	intel-ucode
+livefs	artix-grub-live
+livefs	mkinitcpio-nfs-utils
+livefs	squashfs-tools
+livefs	gparted
+livefs-init	artix-live-runit
+aur	gtk-theme-arc-gruvbox-git	"gives the dark GTK theme used in BARBS"
+aur	lf-git	"is the default file manager running in the shell"
+barbs	exfatprogs	"allows management of exFAT drives"
+barbs	python-qdarkstyle	"provides a dark Qt theme"
+barbs	ncmpcpp	"a ncurses interface for music with multiple formats and a powerful tag editor"
+aur	brave-bin	"is the browser we like best if we are being honest"
+aur	abook	"is an offline addressbook usable by neomutt"
+aur	zsh-fast-syntax-highlighting-git	"provides syntax highlighting in the shell"
+aur	task-spooler	"queues commands or files for download"
+aur	simple-mtpfs	"enables the mounting of cell phones"
+git	dwmblocks	https://github.com/aegixlinux/dwmblocks.git	"serves as the modular status bar"
+git	dmenu	https://github.com/aegixlinux/dmenu.git	"runs commands and provides a UI for selection"
+git	st	https://github.com/aegixlinux/st.git	"is a custom aegixlinux build of suckless's terminal emulator"
+git	dwm	https://github.com/aegixlinux/dwm.git	"is the window manager"
+aur	mutt-wizard-git	"is a light-weight terminal-based email system"
+aur	python-pywal16	"matches background image colors to system colors"
+barbs	networkmanager	"provides network connectivity management"
+barbs	openssh	"provides SSH client and server"
+barbs	elogind	"provides session and login management for X11"
+barbs	openntpd	"provides network time synchronization"
+barbs	openntpd-runit	"is the runit service for openntpd"
+barbs	cronie	"provides cron job scheduling"
+barbs	dbus	"is the system message bus, required by elogind and many services"
+# triage 2026-08-04
+never	alacritty
+never	artools-base
+never	artools-iso
+barbs	asciiquarium	""
+barbs	astroterm	""
+never	audacity
+never	audio-recorder
+never	aws-cli
+never	aws-session-manager-plugin
+never	awww
+never	base
+never	base-devel
+never	bfg
+never	bind
+barbs	bluez	""
+barbs	bluez-runit	""
+barbs	bluez-utils	""
+never	brother-hl2240-cups-bin
+never	brother-hl2240-lpr-bin
+barbs	btop	""
+never	btrfs-progs
+never	busybox
+aur	cbonsai	"grows a bonsai tree in your terminal"
+barbs	chafa	""
+never	chirp-next
+barbs	cmatrix	""
+never	composer
+never	cryptsetup
+barbs	cups	""
+barbs	cups-filters	""
+barbs	cups-runit	""
+never	dnslookup-bin
+aur	durdraw	"ASCII/ANSI art editor for the terminal"
+never	dwmblocks-aegix-git
+never	efibootmgr
+never	electrum
+never	ex-vi-compat
+never	farbfeld
+barbs	figlet	""
+never	foot
+never	freebasic
+never	fuzzel
+never	git-filter-repo
+never	github-cli
+barbs	glow	""
+never	go
+never	google-chrome
+never	greetd
+never	greetd-runit
+never	greetd-tuigreet
+never	grub
+never	guvcview
+barbs	highlight	""
+never	hping
+never	hugo
+never	hypridle
+never	hyprland
+never	hyprlock
+never	hyprpanel-bin
+never	irssi
+never	jdk-openjdk
+barbs	jq	""
+never	jre21-openjdk
+never	kanshi
+never	kitty
+never	lib32-glibc
+never	lib32-nvidia-580xx-utils
+never	libxcrypt-compat
+never	linux
+never	linux-firmware
+never	linux-headers
+barbs	lolcat	""
+never	lshw
+barbs	lsof	""
+never	lvm2
+never	lvm2-runit
+never	mako
+never	namcap
+never	neofetch
+never	networkmanager-openconnect
+never	nodejs
+never	npm
+never	numlockx
+never	nvidia-580xx-dkms
+never	nvidia-580xx-settings
+never	nvidia-580xx-utils
+never	nvme-cli
+never	nwg-displays
+never	obs-studio
+never	openconnect
+never	openconnect-sso
+never	opera
+never	pacman-contrib
+never	pandoc-bin
+never	pass-otp
+never	perl-image-exiftool
+never	pgbouncer
+never	php-legacy
+never	php-legacy-gd
+never	php-legacy-pgsql
+never	php-legacy-redis
+never	php-legacy-sqlite
+never	pigz
+never	pngquant
+never	polybar
+never	postgresql
+never	postgresql-libs
+never	postgresql-old-upgrade
+never	postgresql-runit
+never	postman-bin
+never	prismlauncher
+never	python-bleak
+never	python-boto3
+never	python-numpy
+never	python-openai-whisper
+never	python-pip
+never	python-pipx
+never	python-psycopg
+never	python-psycopg2
+never	python-pyqt6
+never	python-pyqt6-webengine
+never	qemu-base
+never	qemu-ui-gtk
+never	reflector
+never	restic
+never	runit
+never	samba
+never	samba-runit
+never	screenfetch
+never	seatd
+never	shellcheck
+never	signal-desktop
+never	smartmontools
+never	speedtest-cli
+never	spotify
+never	sshping
+never	steam
+never	strace
+never	surf
+never	tmux
+never	toilet
+never	usbutils
+never	v4l2loopback-dkms
+never	valkey
+never	ventoy
+never	visualvm
+never	walker-bin
+never	wallust
+never	waybar
+never	wdisplays-persistent
+never	webcamize
+never	webkit2gtk-4.1
+never	whois
+never	wireguard-tools
+never	wl-clipboard
+never	wlr-randr
+never	wlroots0.18
+never	wmenu
+never	woff2-font-awesome
+never	wtype
+never	xcursor-breeze
+never	xcursor-comix
+never	xdg-desktop-portal
+never	xdg-desktop-portal-gtk
+never	xdg-desktop-portal-hyprland
+never	xdg-desktop-portal-wlr
+never	xf86-video-vesa
+never	xfsprogs
+never	xorg-bdftopcf
+never	xorg-font-util
+never	xorg-fonts-100dpi
+never	xorg-fonts-75dpi
+never	xorg-fonts-encodings
+never	xorg-iceauth
+never	xorg-mkfontscale
+never	xorg-server-common
+never	xorg-server-devel
+never	xorg-server-xephyr
+never	xorg-server-xnest
+never	xorg-server-xvfb
+never	xorg-sessreg
+never	xorg-xauth
+never	xorg-xcursorgen
+never	xorg-xdpyinfo
+never	xorg-xev
+never	xorg-xhost
+never	xorg-xinput
+never	xorg-xkbcomp
+never	xorg-xkill
+never	xorg-xmodmap
+never	xorg-xrefresh
+never	xorg-xwayland
+never	yad
+never	yay
+never	zbar
+never	zip
+# triage 2026-08-05
+never	sshpass

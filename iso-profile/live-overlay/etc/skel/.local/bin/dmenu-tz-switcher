@@ -1,0 +1,43 @@
+#!/bin/sh
+# dmenu-based timezone switcher for dwm/Aegix
+
+# Get current timezone
+current_tz=$(readlink /etc/localtime 2>/dev/null | sed 's|/usr/share/zoneinfo/||' || echo "Unknown")
+
+# Show dmenu with options
+choice=$(printf "🌊 Pacific (Los Angeles)\n🗽 Eastern (New York)\n🌆 Central (Chicago)\n⛰️  Mountain (Denver)\n🌍 UTC\n━━━━━━━━━━━━━━\n📍 Current: $current_tz" | \
+    dmenu -i -c -l 8 -p "⏰ Timezone:")
+
+# Handle selection
+case "$choice" in
+    *"Pacific"*)
+        notify-send "⏰ Switching to Pacific Time..."
+        sudo ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime && \
+        notify-send "⏰ Timezone Changed" "Now using Pacific Time" && \
+        pkill -RTMIN+1 dwmblocks
+        ;;
+    *"Eastern"*)
+        notify-send "⏰ Switching to Eastern Time..."
+        sudo ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime && \
+        notify-send "⏰ Timezone Changed" "Now using Eastern Time" && \
+        pkill -RTMIN+1 dwmblocks
+        ;;
+    *"Central"*)
+        notify-send "⏰ Switching to Central Time..."
+        sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime && \
+        notify-send "⏰ Timezone Changed" "Now using Central Time" && \
+        pkill -RTMIN+1 dwmblocks
+        ;;
+    *"Mountain"*)
+        notify-send "⏰ Switching to Mountain Time..."
+        sudo ln -sf /usr/share/zoneinfo/America/Denver /etc/localtime && \
+        notify-send "⏰ Timezone Changed" "Now using Mountain Time" && \
+        pkill -RTMIN+1 dwmblocks
+        ;;
+    *"UTC"*)
+        notify-send "⏰ Switching to UTC..."
+        sudo ln -sf /usr/share/zoneinfo/UTC /etc/localtime && \
+        notify-send "⏰ Timezone Changed" "Now using UTC" && \
+        pkill -RTMIN+1 dwmblocks
+        ;;
+esac

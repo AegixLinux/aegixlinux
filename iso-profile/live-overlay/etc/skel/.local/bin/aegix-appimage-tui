@@ -1,0 +1,96 @@
+#!/bin/bash
+# Terminal-based AppImage manager
+# Works without fuzzel
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+BOLD='\033[1m'
+
+REGISTRY_FILE="$HOME/.config/aegix/appimages.json"
+
+# Check registry
+if [[ ! -f "$REGISTRY_FILE" ]]; then
+    echo -e "${RED}No AppImage registry found!${NC}"
+    echo "Run 'aegix-appimage scan' first"
+    exit 1
+fi
+
+# Main menu
+show_menu() {
+    clear
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+    echo -e "${BOLD}${CYAN}    AppImage Manager (TUI)${NC}"
+    echo -e "${BOLD}${CYAN}═══════════════════════════════════════${NC}"
+    echo ""
+
+    # Count AppImages
+    local count=$(jq '.appimages | length' "$REGISTRY_FILE")
+    echo -e "${YELLOW}Found $count AppImages${NC}"
+    echo ""
+
+    # List AppImages
+    echo -e "${CYAN}AppImages:${NC}"
+    jq -r '.appimages[] | "\(.name) v\(.version // "unknown")"' "$REGISTRY_FILE" 2>/dev/null | head -10
+
+    if [[ "$count" -gt 10 ]]; then
+        echo "  ... and $((count - 10)) more"
+    fi
+
+    echo ""
+    echo -e "${YELLOW}Options:${NC}"
+    echo -e "  ${BOLD}1.${NC} List all with details"
+    echo -e "  ${BOLD}2.${NC} Find duplicates"
+    echo -e "  ${BOLD}3.${NC} Launch an AppImage"
+    echo -e "  ${BOLD}4.${NC} Clean missing entries"
+    echo -e "  ${BOLD}5.${NC} Rescan AppImages"
+    echo -e "  ${BOLD}0.${NC} Exit"
+    echo ""
+
+    read -p "Enter choice: " choice
+
+    case "$choice" in
+        1)
+            aegix-appimage-manager list
+            read -p "Press Enter to continue..."
+            show_menu
+            ;;
+        2)
+            aegix-appimage-manager duplicates
+            read -p "Press Enter to continue..."
+            show_menu
+            ;;
+        3)
+            echo "Launching fuzzel menu..."
+            aegix-appimage-manager launch
+            show_menu
+            ;;
+        4)
+            aegix-appimage-manager clean
+            read -p "Press Enter to continue..."
+            show_menu
+            ;;
+        5)
+            aegix-appimage scan
+            read -p "Press Enter to continue..."
+            show_menu
+            ;;
+        0)
+            echo -e "${GREEN}Goodbye!${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid choice${NC}"
+            sleep 1
+            show_menu
+            ;;
+    esac
+}
+
+show_menu

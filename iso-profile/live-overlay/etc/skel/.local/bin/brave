@@ -1,0 +1,8 @@
+#!/bin/sh
+# Faster Brave startup for X11
+exec /opt/brave-bin/brave \
+    --ozone-platform=x11 \
+    --disable-gpu-compositing \
+    --disable-smooth-scrolling \
+    --disable-features=TranslateUI \
+    "$@"

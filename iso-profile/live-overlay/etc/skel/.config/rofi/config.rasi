@@ -1,0 +1,25 @@
+configuration {
+    modi: "drun,run,window,emoji";
+    font: "monospace 12";
+    show-icons: false;
+    terminal: "st";
+    location: 0;
+    yoffset: 0;
+    xoffset: 0;
+    /* Disable mouse - keyboard only */
+    me-select-entry: "";
+    me-accept-entry: "";
+}
+
+@import "~/.cache/wal/colors-rofi-dark.rasi"
+
+window {
+    width: 35%;
+    location: center;
+    border-radius: 0px;
+}
+
+listview {
+    lines: 15;
+    scrollbar: false;
+}

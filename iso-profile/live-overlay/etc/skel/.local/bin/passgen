@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Default settings
+DEFAULT_LENGTH=20
+LENGTH=$DEFAULT_LENGTH
+CHARSET='A-Za-z0-9_!@#$%^&*'
+
+# Process command-line options
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --length|-l)
+      LENGTH="$2"
+      shift 2
+      ;;
+    --special|-s)
+      CHARSET='A-Za-z0-9_!@#$%^&*\|/~`'
+      shift
+      ;;
+    --nospecial|-n)
+      CHARSET='A-Za-z0-9'
+      shift
+      ;;
+    *)
+      echo "Usage: $0 [--length|-l length] [--special|-s] [--nospecial|-n]"
+      exit 1
+      ;;
+  esac
+done
+
+# Generate a random string with the specified length and character set
+tr -dc "$CHARSET" < /dev/urandom | fold -w "$LENGTH" | head -n 1

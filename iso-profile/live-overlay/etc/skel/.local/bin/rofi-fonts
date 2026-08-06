@@ -1,0 +1,127 @@
+#!/bin/sh
+# Aegix Font Size Manager
+# Change dwm and dwmblocks font sizes via rofi
+
+DWM_CONFIG="$HOME/.local/src/dwm/config.h"
+DWMBLOCKS_CONFIG="$HOME/.local/src/dwmblocks/config.h"
+NVIM_INIT="$HOME/.config/nvim/init.vim"
+
+# Ensure nvim autocmds exist for auto-recompile
+ensure_autocmds() {
+    # Check for dwmblocks autocmd
+    if ! grep -q "BufWritePost.*dwmblocks/config.h" "$NVIM_INIT" 2>/dev/null; then
+        echo "" >> "$NVIM_INIT"
+        echo '" Auto-recompile dwmblocks on config change' >> "$NVIM_INIT"
+        echo "autocmd BufWritePost ~/.local/src/dwmblocks/config.h !cd ~/.local/src/dwmblocks/; sudo make install && { killall -q dwmblocks;setsid dwmblocks & }" >> "$NVIM_INIT"
+        notify-send "⚙️ Font Menu" "Added dwmblocks auto-recompile to nvim config"
+    fi
+
+    # Check for dwm autocmd
+    if ! grep -q "BufWritePost.*dwm/config.h" "$NVIM_INIT" 2>/dev/null; then
+        echo "" >> "$NVIM_INIT"
+        echo '" Auto-recompile dwm on config change' >> "$NVIM_INIT"
+        echo "autocmd BufWritePost ~/.local/src/dwm/config.h !cd ~/.local/src/dwm/; sudo make install" >> "$NVIM_INIT"
+        notify-send "⚙️ Font Menu" "Added dwm auto-recompile to nvim config"
+    fi
+}
+
+# Get current font sizes
+get_dwm_font_size() {
+    grep -oP 'monospace:size=\K[0-9]+' "$DWM_CONFIG" | head -1
+}
+
+get_dwmblocks_font_size() {
+    # dwmblocks uses dwm's font, but we could have a separate one
+    # For now, return dwm's font size
+    get_dwm_font_size
+}
+
+# Change font size using nvim (triggers autocmd)
+change_font_size() {
+    local config_file="$1"
+    local new_size="$2"
+    local component="$3"
+
+    # Use nvim in headless mode to edit and save (triggers autocmd)
+    nvim --headless -c "%s/monospace:size=[0-9]\\+/monospace:size=$new_size/g" -c "wq" "$config_file" 2>/dev/null
+
+    # Ask user if they want to renew dwm (HUP = renew, TERM = full restart)
+    choice=$(printf "✅ Yes, renew now\n❌ No, later" | rofi -dmenu -i -p "🔤 Font set to ${new_size}pt. Renew dwm?" \
+        -theme-str 'window {width: 420px; location: center; border: 2px; border-color: #444;}' \
+        -theme-str 'listview {lines: 2;}' \
+        -theme-str 'element {padding: 10px;}')
+
+    case "$choice" in
+        *"Yes"*)
+            pkill -HUP dwm
+            ;;
+        *)
+            notify-send "🔤 Font Size: ${new_size}pt" "Renew dwm (Mod+Shift+Q → renew) when ready."
+            ;;
+    esac
+}
+
+# Main menu
+main_menu() {
+    ensure_autocmds
+
+    current_size=$(get_dwm_font_size)
+
+    choice=$(printf "📊 Current Size: ${current_size}pt
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⬆️  Increase (+1)
+⬇️  Decrease (-1)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔢 Choose Size..." | rofi -dmenu -i -p "🔤 System Font" \
+        -theme-str 'window {width: 400px; location: center; border: 2px; border-color: #444;}' \
+        -theme-str 'listview {lines: 6; scrollbar: false;}' \
+        -theme-str 'element {padding: 10px;}')
+
+    case "$choice" in
+        *"Increase"*)
+            new_size=$((current_size + 1))
+            [ "$new_size" -gt 24 ] && new_size=24
+            change_font_size "$DWM_CONFIG" "$new_size" "System"
+            ;;
+        *"Decrease"*)
+            new_size=$((current_size - 1))
+            [ "$new_size" -lt 6 ] && new_size=6
+            change_font_size "$DWM_CONFIG" "$new_size" "System"
+            ;;
+        *"Choose Size"*)
+            size_menu "System" "$DWM_CONFIG" "$current_size"
+            ;;
+    esac
+}
+
+# Size submenu for individual component
+size_menu() {
+    local component="$1"
+    local config="$2"
+    local current="$3"
+
+    choice=$(printf "📏 Current: ${current}pt
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+8pt  - Small
+10pt - Compact
+12pt - Default
+14pt - Medium
+16pt - Large
+18pt - Extra Large
+20pt - Maximum" | rofi -dmenu -i -p "🔤 Choose Size" \
+        -theme-str 'window {width: 350px; location: center; border: 2px; border-color: #444;}' \
+        -theme-str 'listview {lines: 8;}' \
+        -theme-str 'element {padding: 8px;}')
+
+    case "$choice" in
+        *"8pt"*) change_font_size "$config" 8 "$component" ;;
+        *"10pt"*) change_font_size "$config" 10 "$component" ;;
+        *"12pt"*) change_font_size "$config" 12 "$component" ;;
+        *"14pt"*) change_font_size "$config" 14 "$component" ;;
+        *"16pt"*) change_font_size "$config" 16 "$component" ;;
+        *"18pt"*) change_font_size "$config" 18 "$component" ;;
+        *"20pt"*) change_font_size "$config" 20 "$component" ;;
+    esac
+}
+
+main_menu

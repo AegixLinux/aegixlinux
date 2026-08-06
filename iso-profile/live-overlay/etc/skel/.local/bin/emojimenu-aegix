@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Aegix Emoji Picker - Fuzzel-based emoji selector
+# Invoked with Super+` (grave accent)
+#
+# Features:
+# - Browse 1000+ emojis with descriptions
+# - Type emoji directly into focused window (default)
+# - Copy to clipboard (with Shift modifier)
+# - Custom emoji support
+# - Fast fuzzy search
+
+set -euo pipefail
+
+# Emoji data directory
+readonly EMOJI_DIR="$HOME/.local/share/aegix/emojis"
+readonly DEFAULT_EMOJIS="$EMOJI_DIR/default-emojis.txt"
+readonly CUSTOM_EMOJIS="$EMOJI_DIR/custom-emojis.txt"
+readonly FREQUENTLY_USED="$EMOJI_DIR/frequently-used.txt"
+
+# Action mode: type (default) or copy
+ACTION="${1:-type}"
+
+# Check dependencies
+for cmd in fuzzel wtype wl-copy; do
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        notify-send "Emoji Picker Error" \
+            "$cmd not found. Install: sudo pacman -S ${cmd/fuzzel/fuzzel} ${cmd/wtype/wtype} ${cmd/wl-copy/wl-clipboard}" \
+            --urgency=critical \
+            -t 5000
+        exit 1
+    fi
+done
+
+# Check if emoji files exist
+if [[ ! -f "$DEFAULT_EMOJIS" ]]; then
+    notify-send "Emoji Picker Error" \
+        "Default emoji list not found: $DEFAULT_EMOJIS" \
+        --urgency=critical \
+        -t 5000
+    exit 1
+fi
+
+# Create files if they don't exist
+[[ ! -f "$CUSTOM_EMOJIS" ]] && touch "$CUSTOM_EMOJIS"
+[[ ! -f "$FREQUENTLY_USED" ]] && touch "$FREQUENTLY_USED"
+
+# Build emoji list (frequently used first, then custom, then default)
+build_emoji_list() {
+    {
+        # Frequently used emojis (top priority)
+        if [[ -s "$FREQUENTLY_USED" ]]; then
+            grep -v '^#' "$FREQUENTLY_USED" | grep -v '^$' || true
+        fi
+        
+        # Custom emojis (skip comments and empty lines)
+        if [[ -s "$CUSTOM_EMOJIS" ]]; then
+            grep -v '^#' "$CUSTOM_EMOJIS" | grep -v '^$' || true
+        fi
+        
+        # Default emojis (skip comments and empty lines)
+        grep -v '^#' "$DEFAULT_EMOJIS" | grep -v '^$' || true
+    } | awk '!seen[$1]++'  # Remove duplicates, keep first occurrence
+}
+
+# Show emoji picker
+selected=$(build_emoji_list | fuzzel --dmenu \
+    --prompt='😀 Emoji: ' \
+    --lines=15 \
+    --width=50 \
+    --line-height=25 \
+    --font='monospace:size=12' \
+    --no-exit-on-keyboard-focus-loss)
+
+# Exit if nothing selected
+[[ -n "$selected" ]] || exit 0
+
+# Extract just the emoji (first character/word before the space)
+emoji=$(echo "$selected" | awk '{print $1}')
+
+# Track usage (add to frequently used if not already there)
+track_usage() {
+    local emoji_line="$selected"
+    
+    # Only track if not already in frequently-used
+    if ! grep -q "^$emoji_line$" "$FREQUENTLY_USED" 2>/dev/null; then
+        echo "$emoji_line" >> "$FREQUENTLY_USED"
+    fi
+}
+
+# Perform action
+case "$ACTION" in
+    type)
+        # Track usage
+        track_usage
+        # Give time for fuzzel to close and focus to return
+        sleep 0.2
+        # Type the emoji into the focused window
+        wtype -s 0 "$emoji"
+        ;;
+    copy)
+        # Track usage
+        track_usage
+        # Copy to clipboard
+        # Use setsid to detach wl-copy from parent script
+        # This ensures wl-copy survives after script exits (Wayland requirement)
+        setsid sh -c "printf '%s' \"$emoji\" | wl-copy" >/dev/null 2>&1 &
+        # Give wl-copy time to start
+        sleep 0.2
+        # Show notification
+        notify-send "📋 Emoji Copied" \
+            "$emoji copied to clipboard (Ctrl+V to paste)" \
+            --urgency=low \
+            -t 2000 \
+            --app-name="emojimenu"
+        ;;
+    *)
+        echo "Unknown action: $ACTION" >&2
+        exit 1
+        ;;
+esac
+

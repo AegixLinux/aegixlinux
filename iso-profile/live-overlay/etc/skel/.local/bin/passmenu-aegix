@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# Aegix Password Menu - Unified password fetcher for Wayland
+# Inspired by dmenu's simple, reliable popup pattern
+#
+# Features:
+# - Single, consistent implementation for all Wayland compositors
+# - Clear visual feedback with notifications
+# - Robust error handling
+# - Simple menu selection (fuzzel > tofi > wmenu > dmenu-wl)
+# - Clipboard and typing modes
+
+set -euo pipefail
+
+# Configuration
+readonly PASSWORD_STORE="${PASSWORD_STORE_DIR:-$HOME/.local/share/password-store}"
+readonly CLIPBOARD_TIMEOUT=45
+readonly NOTIFICATION_TIMEOUT=2000
+
+# Parse arguments
+typeit=0
+show_help=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --type|-t)
+            typeit=1
+            shift
+            ;;
+        --help|-h)
+            show_help=1
+            shift
+            ;;
+        *)
+            # Pass remaining args to menu
+            break
+            ;;
+    esac
+done
+
+if [[ $show_help -eq 1 ]]; then
+    cat <<EOF
+Aegix Password Menu - Unified password fetcher
+
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+    -t, --type    Type the password instead of copying to clipboard
+    -h, --help    Show this help message
+
+The password will be cleared from clipboard after $CLIPBOARD_TIMEOUT seconds.
+
+Menu programs tried in order:
+    1. fuzzel (best fuzzy matching)
+    2. tofi (lightweight)
+    3. wmenu (simple)
+    4. dmenu-wl (fallback)
+
+Password store location: $PASSWORD_STORE
+EOF
+    exit 0
+fi
+
+# Function to find best available menu program
+find_menu_program() {
+    if command -v fuzzel >/dev/null 2>&1; then
+        echo "fuzzel --dmenu --prompt='🔐 Password: ' --lines=15 --width=40"
+    elif command -v tofi >/dev/null 2>&1; then
+        echo "tofi --prompt-text='🔐 Password: ' --height=40% --width=40%"
+    elif command -v wmenu >/dev/null 2>&1; then
+        echo "wmenu -i -l 15 -p '🔐 Password:'"
+    elif command -v dmenu-wl >/dev/null 2>&1; then
+        echo "dmenu-wl -i -l 15 -p '🔐 Password:'"
+    else
+        return 1
+    fi
+}
+
+# Function to send notifications
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    local timeout="${4:-$NOTIFICATION_TIMEOUT}"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message" \
+            --urgency="$urgency" \
+            -t "$timeout" \
+            --app-name="passmenu" \
+            --icon="dialog-password"
+    fi
+}
+
+# Check if password store exists
+if [[ ! -d "$PASSWORD_STORE" ]]; then
+    notify critical "Password Store Error" \
+        "Password store not found at: $PASSWORD_STORE" 5000
+    exit 1
+fi
+
+# Find menu program
+MENU_CMD=$(find_menu_program)
+if [[ -z "$MENU_CMD" ]]; then
+    notify critical "Menu Error" \
+        "No compatible menu program found (fuzzel/tofi/wmenu/dmenu-wl)" 5000
+    exit 1
+fi
+
+# Build password list
+shopt -s nullglob globstar
+password_files=()
+
+# Find all .gpg files in password store
+while IFS= read -r -d '' passfile; do
+    # Remove prefix and .gpg extension
+    passfile="${passfile#"$PASSWORD_STORE"/}"
+    passfile="${passfile%.gpg}"
+    password_files+=("$passfile")
+done < <(find "$PASSWORD_STORE" \
+    -type f \
+    -name '*.gpg' \
+    -print0 2>/dev/null | sort -z)
+
+# Check if any passwords found
+if [[ ${#password_files[@]} -eq 0 ]]; then
+    notify critical "No Passwords" \
+        "No password files found in store" 5000
+    exit 1
+fi
+
+# Show menu and get selection
+password=$(printf '%s\n' "${password_files[@]}" | eval $MENU_CMD "$@")
+
+# Exit if nothing selected
+[[ -n "$password" ]] || exit 0
+
+# Retrieve password
+# Ensure PASSWORD_STORE_DIR is set for the pass command
+export PASSWORD_STORE_DIR="$PASSWORD_STORE"
+pass_output=$(pass show "$password" 2>&1) || {
+    notify critical "Password Error" \
+        "Failed to retrieve: $password" 5000
+    exit 1
+}
+
+# Extract password intelligently
+# Format 1: Password on first line (standard)
+# Format 2: "user: xxx\npw: yyy" format
+first_line=$(echo "$pass_output" | head -n1)
+
+if [[ "$first_line" =~ ^(user|username|login|email):\ * ]]; then
+    # Multi-line format detected, look for "pw:" or "password:" line
+    pass_value=$(echo "$pass_output" | grep -E "^(pw|password|pass):" | head -n1 | sed 's/^[^:]*:[[:space:]]*//')
+
+    # If no labeled password found, try second line as fallback
+    if [[ -z "$pass_value" ]]; then
+        pass_value=$(echo "$pass_output" | sed -n '2p')
+    fi
+else
+    # Standard format - password is on first line
+    pass_value="$first_line"
+fi
+
+if [[ -z "$pass_value" ]]; then
+    notify critical "Password Error" \
+        "Password is empty for: $password" 5000
+    exit 1
+fi
+
+# Handle password based on mode
+if [[ $typeit -eq 0 ]]; then
+    # Copy mode - use wl-copy for Wayland with paste-once for security
+    if command -v wl-copy >/dev/null 2>&1; then
+        # Copy to clipboard with paste-once flag for automatic clearing after first paste
+        # Must run in background since --paste-once waits for paste event
+        echo -n "$pass_value" | wl-copy --paste-once &
+
+        notify normal "Password Copied (Paste-Once)" \
+            "$password → clipboard (auto-clears after ONE paste)" \
+            $NOTIFICATION_TIMEOUT
+    else
+        # Fallback to pass's built-in clipboard handling
+        pass show -c "$password" 2>/dev/null
+        notify normal "Password Copied" \
+            "$password → clipboard" \
+            $NOTIFICATION_TIMEOUT
+    fi
+else
+    # Type mode - use ydotool for Wayland
+    if command -v ydotool >/dev/null 2>&1; then
+        # Small delay to allow menu to close
+        sleep 0.2
+
+        # Type the password
+        echo -n "$pass_value" | ydotool type --file -
+
+        notify normal "Password Typed" \
+            "Typed password for: $password" \
+            1000
+    else
+        notify critical "Type Error" \
+            "ydotool not found - cannot type password" 5000
+        exit 1
+    fi
+fi

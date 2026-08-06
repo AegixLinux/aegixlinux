@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# ##### This script allows the user to add a snippet to the list of snippets in the terminal. #####
+
+# path to the snippets file
+SNIPPETS_FILE="$HOME/.local/share/barbs/snippets"
+
+# prompt the user for the snippet and the comment
+echo "Enter the snippet:"
+read snippet
+[ -z "$snippet" ] && echo "Snippet cannot be empty." && exit 1
+
+echo "Enter the searchable comment:"
+read comment
+
+# ensure file does not end with a newline
+sed -i '${/^$/d;}' "$SNIPPETS_FILE"
+
+# append the new snippet and comment to the snippets file with a newline
+echo "$snippet # $comment" >> "$SNIPPETS_FILE"
+
+# notify the user that the snippet has been added
+echo "Snippet added: '$snippet' with comment '$comment'"

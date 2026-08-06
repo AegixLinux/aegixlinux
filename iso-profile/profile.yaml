@@ -1,0 +1,108 @@
+---
+
+live-session:
+  user: aegix
+  password: root
+  autologin: true
+  use-xlibre: false
+  services:
+    - acpid
+    - cronie
+    - NetworkManager
+rootfs:
+  packages:
+    - xorg-server
+    - xorg-xinit
+    - xorg-xrandr
+    - xorg-xsetroot
+    - xorg-xprop
+    - xorg-xwininfo
+    - xorg-xbacklight
+    - xorg-setxkbmap
+    - xorg-xrdb
+    - xorg-xset
+    - xclip
+    - xdotool
+    - xwallpaper
+    - xcompmgr
+    - arandr
+    - autorandr
+    - zsh
+    - zsh-completions
+    - neovim
+    - vim
+    - nnn
+    - pcmanfm
+    - ueberzug
+    - pipewire
+    - wireplumber
+    - pipewire-pulse
+    - pulsemixer
+    - alsa-utils
+    - pipewire-alsa
+    - rtkit
+    - mpd
+    - mpc
+    - mpv
+    - sxiv
+    - ffmpeg
+    - ffmpegthumbnailer
+    - yt-dlp
+    - zathura
+    - zathura-pdf-mupdf
+    - poppler
+    - dunst
+    - libnotify
+    - rofi
+    - unclutter
+    - slock
+    - ttf-font-awesome
+    - ttf-dejavu
+    - noto-fonts
+    - noto-fonts-emoji
+    - gnome-keyring
+    - git
+    - rsync
+    - wget
+    - bc
+    - fzf
+    - bat
+    - htop
+    - man-db
+    - man-pages
+    - atool
+    - unzip
+    - mediainfo
+    - socat
+    - moreutils
+    - brightnessctl
+    - dosfstools
+    - ntfs-3g
+    - openresolv
+    - maim
+    - polkit
+    - espeak-ng
+    - gocryptfs
+    - lynx
+    - newsboat
+    - artix-archlinux-support
+    - vulkan-radeon
+    - mesa-utils
+  packages-init:
+    runit:
+    - networkmanager-runit
+    - openssh-runit
+    - elogind-runit
+    - dbus-runit
+    - cronie-runit
+livefs:
+  packages:
+    - amd-ucode
+    - intel-ucode
+    - artix-grub-live
+    - mkinitcpio-nfs-utils
+    - squashfs-tools
+    - gparted
+  packages-init:
+    runit:
+    - artix-live-runit

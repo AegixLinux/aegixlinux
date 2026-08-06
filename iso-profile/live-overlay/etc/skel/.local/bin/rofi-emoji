@@ -1,0 +1,64 @@
+#!/bin/sh
+# Rofi Emoji Picker for X11/dwm
+# Copies selected emoji to clipboard and types it
+
+EMOJI_FILE="$HOME/.local/share/aegix/emojis/default-emojis.txt"
+
+# Fallback if no emoji file exists
+if [ ! -f "$EMOJI_FILE" ]; then
+    # Use a basic emoji list
+    EMOJI_FILE="/tmp/basic-emojis.txt"
+    cat > "$EMOJI_FILE" << 'EOF'
+😀 grinning face
+😂 face with tears of joy
+🥰 smiling face with hearts
+😎 smiling face with sunglasses
+🤔 thinking face
+👍 thumbs up
+👎 thumbs down
+❤️ red heart
+🔥 fire
+⭐ star
+✨ sparkles
+🎉 party popper
+🚀 rocket
+💻 laptop
+🐧 penguin
+☕ coffee
+🍕 pizza
+🎵 musical note
+📝 memo
+✅ check mark
+❌ cross mark
+⚠️ warning
+💡 light bulb
+🔧 wrench
+⚙️ gear
+📁 folder
+📂 open folder
+🏠 house
+🌙 moon
+☀️ sun
+🌈 rainbow
+EOF
+fi
+
+# Show emoji picker
+selected=$(cat "$EMOJI_FILE" | rofi -dmenu -i -p "😀 Emoji" \
+    -theme-str 'window {width: 400px; location: center;}' \
+    -theme-str 'listview {lines: 15; scrollbar: true;}' \
+    -theme-str 'element {padding: 6px;}')
+
+[ -z "$selected" ] && exit 0
+
+# Extract just the emoji (first character/grapheme)
+emoji=$(echo "$selected" | cut -d' ' -f1)
+
+# Copy to clipboard
+echo -n "$emoji" | xclip -selection clipboard
+
+# Type it using xdotool
+sleep 0.1
+xdotool type --clearmodifiers "$emoji"
+
+notify-send "😀 Emoji Copied" "$emoji copied to clipboard"

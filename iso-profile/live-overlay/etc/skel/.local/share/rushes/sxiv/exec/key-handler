@@ -1,0 +1,207 @@
+#!/bin/sh
+#
+# rushes' sxiv key-handler — actions bound to Ctrl+b then <key> in the gallery.
+#
+# sxiv finds this file via $XDG_CONFIG_HOME, which rushes points at its own tree
+# before exec'ing sxiv. That is why installing rushes cannot disturb a user's
+# personal ~/.config/sxiv/exec/key-handler: sxiv never looks there.
+#
+# stdin  : absolute paths of the selected (or all marked) thumbnails, one per line
+# $1     : X keysym name of the key pressed after the prefix
+# env    : RUSHES_MANIFEST, RUSHES_CACHE, RUSHES_SELF (exported by rushes)
+
+notify() {
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$1" "${2:-}"
+    else
+        printf '%s: %s\n' "$1" "${2:-}" >&2
+    fi
+}
+
+menu() { # menu <prompt> [lines]  — reads options on stdin, prints the choice
+    dmenu -i -l "${2:-10}" -p "$1"
+}
+
+confirm() { # confirm <prompt> — true only on an explicit Yes
+    [ "$(printf 'No\nYes\n' | dmenu -i -p "$1")" = "Yes" ]
+}
+
+# --- manifest lookups: thumbnail -> the video it came from --------------------
+# The manifest is rebuilt by rushes on every launch, in display order, so it can
+# never describe a gallery other than the one on screen. Columns:
+#   thumbname <TAB> video <TAB> mtime <TAB> size <TAB> duration
+field() { # field <thumbpath> <column-number>
+    awk -F'\t' -v t="${1##*/}" -v c="$2" '$1 == t { print $c; exit }' "$RUSHES_MANIFEST"
+}
+video_for()    { field "$1" 2; }
+size_for()     { field "$1" 4; }
+duration_for() { field "$1" 5; }
+
+fmt_dur() {
+    awk -v d="$1" 'BEGIN {
+        s = int(d)
+        if (s >= 3600) printf "%dh%02dm", s/3600, (s%3600)/60
+        else if (s >= 60) printf "%dm%02ds", s/60, s%60
+        else printf "%ds", s
+    }'
+}
+
+thumb_of_video() { "$RUSHES_SELF" --_thumb-for "$1"; }
+
+# Removing a clip means removing its cached artefacts too, or the next run shows
+# a thumbnail for a video that no longer exists.
+forget() { # forget <video>
+    t=$(thumb_of_video "$1")
+    rm -f -- "$t" "$t.meta"
+}
+
+# --- palette -----------------------------------------------------------------
+# Ordered least- to most-destructive: dmenu highlights the first entry by
+# default, so the deletes sit as far from an accidental Return as possible.
+palette_menu() {
+    cat <<'EOF'
+p      Play clip in mpv
+P      Play clip from 30% in
+i      Show clip information
+y      Copy clip path to clipboard
+o      Open containing directory
+c      Copy clip(s) to a bookmarked directory
+m      Move clip(s) to a bookmarked directory
+n      Rename clip (or batch-rename marked clips)
+d      DELETE clip(s) from disk (asks first)
+EOF
+}
+
+# --- actions -----------------------------------------------------------------
+play() { # play <thumb> <start-seconds>
+    v=$(video_for "$1")
+    [ -n "$v" ] || { notify "rushes" "No video mapped to $(basename "$1")"; return; }
+    notify "Playing" "$(basename "$v")"
+    if [ -n "${2:-}" ] && [ "$2" != 0 ]; then
+        setsid -f mpv --start="$2" -- "$v" >/dev/null 2>&1
+    else
+        setsid -f mpv -- "$v" >/dev/null 2>&1
+    fi
+}
+
+# Batch delete: ONE confirmation for the whole selection, quoting how much disk
+# it reclaims. This replaces the old tag-then-delete list in /tmp, which could
+# outlive the gallery that created it and delete files chosen in a past session.
+do_delete() { # do_delete <thumb>...
+    total=0 count=0
+    for t in "$@"; do
+        s=$(size_for "$t"); [ -n "$s" ] || s=0
+        total=$(( total + s )); count=$(( count + 1 ))
+    done
+    human=$(numfmt --to=iec --format='%.1f' -- "$total" 2>/dev/null || printf '%sB' "$total")
+
+    if [ "$count" = 1 ]; then
+        prompt="Delete $(basename "$(video_for "$1")") ($human)?"
+    else
+        prompt="Delete $count clips, freeing $human?"
+    fi
+    confirm "$prompt" || { notify "rushes" "Cancelled."; return; }
+
+    for t in "$@"; do
+        v=$(video_for "$t")
+        [ -n "$v" ] && rm -f -- "$v" && forget "$v"
+    done
+    notify "rushes" "Deleted $count clip(s), freed $human."
+}
+
+# One clip prompts for a name; several prompt for a stem and get numbered
+# suffixes, applied in the order they appear in the gallery.
+do_rename() { # do_rename <thumb>...
+    if [ $# = 1 ]; then
+        v=$(video_for "$1")
+        [ -n "$v" ] || { notify "rushes" "No video mapped to $(basename "$1")"; return; }
+        ext=${v##*.}; cur=$(basename "$v"); cur=${cur%.*}
+        new=$(printf '%s\n' "$cur" | dmenu -p "Rename to:")
+        [ -n "$new" ] && [ "$new" != "$cur" ] || return
+        mv -n -- "$v" "$(dirname "$v")/$new.$ext" && forget "$v" &&
+            notify "Renamed" "$new.$ext"
+        return
+    fi
+
+    stem=$(printf '' | dmenu -p "Rename $# clips to (stem):")
+    [ -n "$stem" ] || return
+    n=0
+    for t in "$@"; do
+        v=$(video_for "$t"); [ -n "$v" ] || continue
+        n=$(( n + 1 ))
+        ext=${v##*.}
+        mv -n -- "$v" "$(dirname "$v")/$(printf '%s-%03d.%s' "$stem" "$n" "$ext")" && forget "$v"
+    done
+    notify "Renamed" "$n clips to $stem-NNN"
+}
+
+do_info() { # do_info <thumb>
+    v=$(video_for "$1")
+    [ -n "$v" ] || { notify "rushes" "No video mapped to $(basename "$1")"; return; }
+    size=$(size_for "$1"); dur=$(duration_for "$1")
+    human=$(numfmt --to=iec --format='%.1f' -- "${size:-0}" 2>/dev/null || printf '%sB' "${size:-0}")
+    res=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+                  -of csv=s=x:p=0 -- "$v" 2>/dev/null)
+    notify "$(basename "$v")" \
+        "Duration: $(fmt_dur "${dur:-0}")
+Size: $human
+Resolution: ${res:-unknown}
+Path: $v"
+}
+
+copy_or_move() { # copy_or_move <cp|mv> <thumb>...
+    op=$1; shift
+    bm=${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs
+    [ -r "$bm" ] || { notify "rushes" "No bookmarks at $bm"; return; }
+    dest=$(sed 's/#.*$//;/^[[:space:]]*$/d' "$bm" | awk '{print $2}' |
+           menu "${op} clip(s) to where?" 20 | sed "s|~|$HOME|")
+    [ -n "$dest" ] && [ -d "$dest" ] || { notify "rushes" "Not a directory, cancelled."; return; }
+    n=0
+    for t in "$@"; do
+        v=$(video_for "$t"); [ -n "$v" ] || continue
+        "$op" -- "$v" "$dest/" && n=$(( n + 1 ))
+        [ "$op" = mv ] && forget "$v"
+    done
+    notify "rushes" "$n clip(s) -> $dest"
+}
+
+# --- dispatch ----------------------------------------------------------------
+# Read the whole selection before opening any menu: sxiv blocks writing this
+# list, so draining it first means backing out of a prompt can never leave sxiv
+# writing into a closed pipe. It also means one prompt per batch, not per file.
+selection=$(cat)
+[ -n "$selection" ] || exit 0
+
+action=$1
+case $action in
+    question|'?')
+        choice=$(palette_menu | menu "rushes:" 12)
+        [ -n "$choice" ] || exit 0
+        action=${choice%% *}
+        ;;
+esac
+
+# Rebuild the selection as positional parameters so batch actions get them all.
+IFS='
+'
+set -f
+# shellcheck disable=SC2086
+set -- $selection
+set +f
+unset IFS
+
+case $action in
+    p) for t in "$@"; do play "$t"; done ;;
+    P) for t in "$@"; do
+           d=$(duration_for "$t")
+           play "$t" "$(awk -v d="${d:-0}" 'BEGIN { printf "%.0f", d * 0.3 }')"
+       done ;;
+    i) do_info "$1" ;;
+    y) for t in "$@"; do video_for "$t"; done | tr -d '\n' |
+           xclip -selection clipboard && notify "rushes" "Path copied." ;;
+    o) v=$(video_for "$1"); [ -n "$v" ] && setsid -f xdg-open "$(dirname "$v")" >/dev/null 2>&1 ;;
+    c) copy_or_move cp "$@" ;;
+    m) copy_or_move mv "$@" ;;
+    n) do_rename "$@" ;;
+    d) do_delete "$@" ;;
+esac

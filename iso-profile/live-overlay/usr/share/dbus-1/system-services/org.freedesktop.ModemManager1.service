@@ -1,0 +1,8 @@
+# Aegix live ISO: stub out ModemManager auto-activation so its console
+# logging doesn't interrupt the welcome banner. NetworkManager works
+# fine without MM (just no cellular-modem support). Restore via package
+# upgrade if you want MM back.
+[D-BUS Service]
+Name=org.freedesktop.ModemManager1
+Exec=/bin/false
+User=root

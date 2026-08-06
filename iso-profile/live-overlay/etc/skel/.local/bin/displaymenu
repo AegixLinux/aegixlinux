@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+
+# Aegix Display Menu - X11 version
+# User-friendly monitor management via rofi
+# Uses autorandr for persistent configurations
+
+ROFI_CMD="rofi -dmenu -i -p '📺 Display'"
+ROFI_THEME="-theme-str 'window {width: 320px; location: center; border: 2px; border-color: #444;}' -theme-str 'listview {lines: 14; scrollbar: false;}' -theme-str 'element {padding: 8px;}'"
+
+# Aegix autodetect config
+AUTODETECT_CONFIG="$HOME/.config/aegix/display-autodetect.conf"
+
+# Notification helper
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    notify-send "$title" "$message" --urgency="$urgency" -t 3000
+}
+
+# Get current monitor status
+get_monitor_status() {
+    xrandr --query | grep " connected" | while read line; do
+        name=$(echo "$line" | awk '{print $1}')
+        res=$(echo "$line" | grep -oP '\d+x\d+\+\d+\+\d+' | head -1)
+        if [ -n "$res" ]; then
+            echo "$name: $res"
+        else
+            echo "$name: disconnected/disabled"
+        fi
+    done
+}
+
+# List autorandr profiles
+list_profiles() {
+    autorandr --list 2>/dev/null
+}
+
+# Show menu
+selected=$(printf "📂 Load Profile
+📊 Show Monitor Info
+📏 HiDPI Scaling
+💾 Save Current as Profile
+🗑️  Delete Profile
+⚙️  Set Fallback Profile
+🔄 Auto-detect (autorandr)
+🖥️  GUI Display Manager (arandr)
+🪞 Mirror Displays
+➡️  Extend Right
+⬅️  Extend Left
+💻 Laptop Only
+🖥️  External Only
+❌ Cancel" | eval "$ROFI_CMD $ROFI_THEME")
+
+case "$selected" in
+    *"Show Monitor Info"*)
+        info=$(get_monitor_status)
+        notify normal "Monitor Info" "$info"
+        ;;
+
+    *"HiDPI Scaling"*)
+        rofi-scaling
+        ;;
+
+    *"Load Profile"*)
+        profiles=$(list_profiles)
+        if [ -z "$profiles" ]; then
+            notify critical "No Profiles" "No saved profiles found. Save one first."
+            exit 1
+        fi
+        profile=$(echo "$profiles" | rofi -dmenu -i -p "Load profile:" \
+            -theme-str 'window {width: 280px; location: center;}' \
+            -theme-str 'listview {lines: 8;}')
+        if [ -n "$profile" ]; then
+            notify normal "Loading" "Applying profile: $profile"
+            autorandr --load "$profile" && notify normal "Success" "Profile '$profile' applied"
+        fi
+        ;;
+
+    *"Save Current as Profile"*)
+        name=$(echo "" | rofi -dmenu -p "Profile name:" \
+            -theme-str 'window {width: 280px; location: center;}')
+        if [ -n "$name" ]; then
+            autorandr --save "$name" --force
+            notify normal "Saved" "Profile '$name' saved"
+        fi
+        ;;
+
+    *"Delete Profile"*)
+        profiles=$(list_profiles)
+        if [ -z "$profiles" ]; then
+            notify critical "No Profiles" "No saved profiles found."
+            exit 1
+        fi
+        profile=$(echo "$profiles" | rofi -dmenu -i -p "Delete profile:" \
+            -theme-str 'window {width: 280px; location: center;}' \
+            -theme-str 'listview {lines: 8;}')
+        if [ -n "$profile" ]; then
+            # Confirm deletion
+            confirm=$(printf "Yes, delete\nNo, cancel" | rofi -dmenu -i -p "Delete '$profile'?" \
+                -theme-str 'window {width: 280px; location: center;}')
+            if [ "$confirm" = "Yes, delete" ]; then
+                rm -rf "$HOME/.config/autorandr/$profile"
+                notify normal "Deleted" "Profile '$profile' deleted"
+            fi
+        fi
+        ;;
+
+    *"Set Fallback Profile"*)
+        profiles=$(list_profiles)
+        if [ -z "$profiles" ]; then
+            notify critical "No Profiles" "No saved profiles found. Save one first."
+            exit 1
+        fi
+        # Get current fallback
+        current_fallback=""
+        if [ -f "$AUTODETECT_CONFIG" ]; then
+            current_fallback=$(grep "^FALLBACK_PROFILE=" "$AUTODETECT_CONFIG" | cut -d'"' -f2)
+        fi
+        profile=$(echo "$profiles" | rofi -dmenu -i -p "Fallback profile (current: ${current_fallback:-none}):" \
+            -theme-str 'window {width: 380px; location: center;}' \
+            -theme-str 'listview {lines: 8;}')
+        if [ -n "$profile" ]; then
+            if [ -f "$AUTODETECT_CONFIG" ]; then
+                sed -i "s/^FALLBACK_PROFILE=.*/FALLBACK_PROFILE=\"$profile\"/" "$AUTODETECT_CONFIG"
+            else
+                mkdir -p "$(dirname "$AUTODETECT_CONFIG")"
+                echo "FALLBACK_PROFILE=\"$profile\"" > "$AUTODETECT_CONFIG"
+            fi
+            notify normal "Updated" "Fallback profile set to '$profile'"
+        fi
+        ;;
+
+    *"Auto-detect"*)
+        notify normal "Detecting" "Running autorandr..."
+        autorandr --change && notify normal "Success" "Display configuration applied"
+        ;;
+
+    *"GUI Display Manager"*)
+        if command -v arandr >/dev/null 2>&1; then
+            arandr &
+        else
+            notify critical "Error" "arandr not installed. Install with: sudo pacman -S arandr"
+        fi
+        ;;
+
+    *"Mirror"*)
+        # Get connected displays
+        displays=($(xrandr --query | grep " connected" | awk '{print $1}'))
+        if [ ${#displays[@]} -lt 2 ]; then
+            notify critical "Error" "Need at least 2 displays for mirroring"
+            exit 1
+        fi
+        primary="${displays[0]}"
+        secondary="${displays[1]}"
+        xrandr --output "$secondary" --same-as "$primary" --auto
+        notify normal "Mirrored" "$secondary mirrored to $primary"
+        ;;
+
+    *"Extend Right"*)
+        displays=($(xrandr --query | grep " connected" | awk '{print $1}'))
+        if [ ${#displays[@]} -lt 2 ]; then
+            notify critical "Error" "Need at least 2 displays"
+            exit 1
+        fi
+        primary="${displays[0]}"
+        secondary="${displays[1]}"
+        xrandr --output "$secondary" --auto --right-of "$primary"
+        notify normal "Extended" "$secondary extended right of $primary"
+        ;;
+
+    *"Extend Left"*)
+        displays=($(xrandr --query | grep " connected" | awk '{print $1}'))
+        if [ ${#displays[@]} -lt 2 ]; then
+            notify critical "Error" "Need at least 2 displays"
+            exit 1
+        fi
+        primary="${displays[0]}"
+        secondary="${displays[1]}"
+        xrandr --output "$secondary" --auto --left-of "$primary"
+        notify normal "Extended" "$secondary extended left of $primary"
+        ;;
+
+    *"Laptop Only"*)
+        # Disable all except first connected (assumed laptop)
+        primary=$(xrandr --query | grep " connected" | head -1 | awk '{print $1}')
+        xrandr --query | grep " connected" | awk '{print $1}' | while read disp; do
+            if [ "$disp" != "$primary" ]; then
+                xrandr --output "$disp" --off
+            fi
+        done
+        xrandr --output "$primary" --auto --primary
+        notify normal "Laptop Only" "Using $primary only"
+        ;;
+
+    *"External Only"*)
+        # Use second connected display only
+        displays=($(xrandr --query | grep " connected" | awk '{print $1}'))
+        if [ ${#displays[@]} -lt 2 ]; then
+            notify critical "Error" "No external display found"
+            exit 1
+        fi
+        laptop="${displays[0]}"
+        external="${displays[1]}"
+        xrandr --output "$laptop" --off --output "$external" --auto --primary
+        notify normal "External Only" "Using $external only"
+        ;;
+
+    *"Cancel"*|"")
+        exit 0
+        ;;
+esac

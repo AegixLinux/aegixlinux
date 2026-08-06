@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Simple toggle wrapper for Waybar clicks
+# Just launch the switcher directly - let the lockfile handle multiple instances
+
+exec "$HOME/.local/bin/aegix-timezone-switcher"

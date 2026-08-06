@@ -1,0 +1,67 @@
+#!/bin/sh
+
+# Function to print usage instructions
+print_usage() {
+  echo "Usage: pomodoro [countdown time in minutes]"
+  echo ""
+  echo "This script starts a countdown timer for the specified number of minutes."
+  echo "If no time is provided, the default countdown time is 25 minutes."
+  echo ""
+  echo "Examples:"
+  echo "  pomodoro        # Starts a 25-minute countdown timer"
+  echo "  pomodoro 15     # Starts a 15-minute countdown timer"
+}
+
+# Default countdown time in minutes
+DEFAULT_COUNTDOWN=25
+
+# Check if an argument is provided
+if [ $# -eq 0 ]; then
+  COUNTDOWN=$DEFAULT_COUNTDOWN
+else
+  # Check if the argument is an integer
+  if ! [ "$1" -eq "$1" ] 2> /dev/null; then
+    echo "Error: The argument must be an integer."
+    print_usage
+    exit 1
+  fi
+  COUNTDOWN=$1
+fi
+
+# Convert minutes to seconds
+let "time=COUNTDOWN * 60"
+
+# Sound file to play at the end
+SOUND_FILE="$HOME/.local/share/taiko.mp3"
+
+# Countdown loop
+while [ $time -gt 0 ]; do
+  # Clear the screen
+  clear
+
+  # Calculate minutes and seconds from remaining time
+  let "mins=time / 60"
+  let "secs=time % 60"
+
+  # Format and display the timer
+  printf "Time remaining: %02d:%02d\n" $mins $secs
+
+  # Decrease time by one second and wait for a second
+  let "time=time - 1"
+  sleep 1
+done
+
+echo "DING.. the pomodoro timer has expired."
+echo "╔══════════════════════════════════╗"
+echo "║                                  ║"
+echo "║    🍅  Time's up! 🍅             ║"
+echo "║                                  ║"
+echo "╚══════════════════════════════════╝"
+sleep 3
+
+# Play the sound file at the end of the countdown
+# mpg123 "$SOUND_FILE"  # Use mpg123, afplay, or aplay depending on your system
+mpg123 -o pulse "$SOUND_FILE"
+
+# Optional: Display a message when the timer ends
+# echo "Time's up!"

@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+# Aegix OTP Menu - One-time password fetcher for Wayland
+# Companion to passmenu-aegix for TOTP/OTP codes
+
+set -euo pipefail
+
+# Configuration
+readonly PASSWORD_STORE="${PASSWORD_STORE_DIR:-$HOME/.local/share/password-store}"
+readonly NOTIFICATION_TIMEOUT=2000
+
+# Parse arguments
+typeit=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --type|-t)
+            typeit=1
+            shift
+            ;;
+        --help|-h)
+            cat <<EOF
+Aegix OTP Menu - One-time password fetcher
+
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+    -t, --type    Type the OTP code instead of copying to clipboard
+    -h, --help    Show this help message
+
+Requires 'pass-otp' extension for pass.
+EOF
+            exit 0
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Function to find best available menu program
+find_menu_program() {
+    if command -v fuzzel >/dev/null 2>&1; then
+        echo "fuzzel --dmenu --prompt='🔑 OTP: ' --lines=15 --width=40"
+    elif command -v tofi >/dev/null 2>&1; then
+        echo "tofi --prompt-text='🔑 OTP: ' --height=40% --width=40%"
+    elif command -v wmenu >/dev/null 2>&1; then
+        echo "wmenu -i -l 15 -p '🔑 OTP:'"
+    elif command -v dmenu-wl >/dev/null 2>&1; then
+        echo "dmenu-wl -i -l 15 -p '🔑 OTP:'"
+    else
+        return 1
+    fi
+}
+
+# Function to send notifications
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    local timeout="${4:-$NOTIFICATION_TIMEOUT}"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message" \
+            --urgency="$urgency" \
+            -t "$timeout" \
+            --app-name="otpmenu" \
+            --icon="dialog-password"
+    fi
+}
+
+# Check dependencies
+if ! command -v pass >/dev/null 2>&1; then
+    notify critical "Missing Dependency" "pass command not found" 5000
+    exit 1
+fi
+
+# Check if password store exists
+if [[ ! -d "$PASSWORD_STORE" ]]; then
+    notify critical "Password Store Error" \
+        "Password store not found at: $PASSWORD_STORE" 5000
+    exit 1
+fi
+
+# Find menu program
+MENU_CMD=$(find_menu_program)
+if [[ -z "$MENU_CMD" ]]; then
+    notify critical "Menu Error" \
+        "No compatible menu program found" 5000
+    exit 1
+fi
+
+# Build OTP list (find files with otpauth:// URIs)
+shopt -s nullglob globstar
+otp_files=()
+
+while IFS= read -r -d '' passfile; do
+    # Check if file contains OTP data
+    if pass show "${passfile#"$PASSWORD_STORE"/}" 2>/dev/null | grep -q "^otpauth://"; then
+        passfile="${passfile#"$PASSWORD_STORE"/}"
+        passfile="${passfile%.gpg}"
+        otp_files+=("$passfile")
+    fi
+done < <(find "$PASSWORD_STORE" \
+    -type f \
+    -name '*.gpg' \
+    -print0 2>/dev/null | sort -z)
+
+# Check if any OTP entries found
+if [[ ${#otp_files[@]} -eq 0 ]]; then
+    notify normal "No OTP Codes" \
+        "No OTP entries found in password store" 3000
+    exit 1
+fi
+
+# Show menu and get selection
+otp_entry=$(printf '%s\n' "${otp_files[@]}" | eval $MENU_CMD "$@")
+
+# Exit if nothing selected
+[[ -n "$otp_entry" ]] || exit 0
+
+# Generate OTP code
+if pass otp "$otp_entry" >/dev/null 2>&1; then
+    otp_code=$(pass otp "$otp_entry" 2>/dev/null)
+
+    if [[ -z "$otp_code" ]]; then
+        notify critical "OTP Error" \
+            "Failed to generate OTP for: $otp_entry" 5000
+        exit 1
+    fi
+
+    # Handle based on mode
+    if [[ $typeit -eq 0 ]]; then
+        # Copy mode with paste-once for security
+        if command -v wl-copy >/dev/null 2>&1; then
+            # Run in background since --paste-once waits for paste event
+            echo -n "$otp_code" | wl-copy --paste-once &
+            notify normal "OTP Copied (Paste-Once)" \
+                "$otp_entry: $otp_code → clipboard (auto-clears after ONE paste)" \
+                $NOTIFICATION_TIMEOUT
+        else
+            echo -n "$otp_code"
+            notify normal "OTP Code" "$otp_entry: $otp_code" 5000
+        fi
+    else
+        # Type mode
+        if command -v ydotool >/dev/null 2>&1; then
+            sleep 0.2
+            echo -n "$otp_code" | ydotool type --file -
+            notify normal "OTP Typed" \
+                "Typed OTP for: $otp_entry" \
+                1000
+        else
+            notify critical "Type Error" \
+                "ydotool not found" 5000
+            exit 1
+        fi
+    fi
+else
+    notify critical "OTP Error" \
+        "pass-otp extension may not be installed" 5000
+    exit 1
+fi

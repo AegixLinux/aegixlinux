@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# Aegix Enhanced Launcher - AppImage-aware launcher
+# Auto-scans for new AppImages or provides manual scan option
+
+set -euo pipefail
+
+# Configuration
+SCAN_MARKER="$HOME/.cache/aegix/last-appimage-scan"
+SCAN_AGE_LIMIT=86400  # Re-scan if older than 1 day (in seconds)
+QUICK_SCAN=true       # Enable quick scan (only check if dirs changed)
+
+# Ensure cache dir exists
+mkdir -p "$(dirname "$SCAN_MARKER")"
+
+# Function to check if scan is needed
+needs_scan() {
+    # If marker doesn't exist, need scan
+    [[ ! -f "$SCAN_MARKER" ]] && return 0
+
+    # Check age of last scan
+    local last_scan=$(stat -c %Y "$SCAN_MARKER" 2>/dev/null || echo 0)
+    local now=$(date +%s)
+    local age=$((now - last_scan))
+
+    # If too old, need scan
+    [[ $age -gt $SCAN_AGE_LIMIT ]] && return 0
+
+    # Quick check: has Applications dir changed?
+    if [[ "$QUICK_SCAN" == true ]]; then
+        local apps_dir="$HOME/Applications"
+        if [[ -d "$apps_dir" ]]; then
+            local dir_mtime=$(stat -c %Y "$apps_dir" 2>/dev/null || echo 0)
+            [[ $dir_mtime -gt $last_scan ]] && return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Function to perform quick scan
+quick_scan() {
+    # Run scan in background to not block launcher
+    (
+        ~/.local/bin/aegix-appimage scan >/dev/null 2>&1
+        touch "$SCAN_MARKER"
+    ) &
+}
+
+# Check if we should auto-scan
+if needs_scan; then
+    # Show notification about scanning
+    notify-send "AppImage Scanner" "Checking for new AppImages..." \
+        -t 2000 \
+        --app-name="aegix-launcher" \
+        --icon="system-search" 2>/dev/null || true
+
+    quick_scan
+fi
+
+# Detect best launcher and run it
+if command -v fuzzel >/dev/null 2>&1; then
+    exec fuzzel --dmenu-mode=text \
+                --font="monospace:size=11" \
+                --prompt="Launch: " \
+                --lines=20 \
+                --width=45 \
+                --horizontal-pad=20 \
+                --vertical-pad=10 \
+                --inner-pad=5 < <(
+        # Combine regular apps and custom entries
+        {
+            # Get all desktop entries
+            find /usr/share/applications \
+                 ~/.local/share/applications \
+                 -name "*.desktop" 2>/dev/null | \
+            while read -r desktop; do
+                # Extract Name field
+                name=$(grep -m1 "^Name=" "$desktop" 2>/dev/null | cut -d= -f2)
+                [[ -n "$name" ]] && echo "$name:$desktop"
+            done | sort -u | cut -d: -f1
+
+            # Add custom commands
+            echo "🔍 Scan for AppImages Now"
+            echo "⚙️  AppImage Manager"
+            echo "🚀 Walker Launcher"
+        } | sort -u
+    ) | {
+        read -r selection
+        case "$selection" in
+            "🔍 Scan for AppImages Now")
+                notify-send "AppImage Scanner" "Scanning for AppImages..." \
+                    -t 2000 --icon="system-search"
+                ~/.local/bin/aegix-appimage scan
+                touch "$SCAN_MARKER"
+                notify-send "AppImage Scanner" "Scan complete!" \
+                    -t 2000 --icon="dialog-information"
+                ;;
+            "⚙️  AppImage Manager")
+                foot -e bash -c '~/.local/bin/aegix-appimage list; echo ""; read -p "Press Enter to close..."'
+                ;;
+            "🚀 Walker Launcher")
+                exec walker
+                ;;
+            "")
+                # User cancelled
+                exit 0
+                ;;
+            *)
+                # Find and launch the desktop file
+                desktop_file=$(find /usr/share/applications \
+                                   ~/.local/share/applications \
+                                   -name "*.desktop" 2>/dev/null | \
+                              xargs grep -l "^Name=$selection" 2>/dev/null | \
+                              head -1)
+
+                if [[ -n "$desktop_file" ]]; then
+                    # Extract Exec line and run it
+                    exec_cmd=$(grep -m1 "^Exec=" "$desktop_file" | \
+                              cut -d= -f2- | \
+                              sed 's/%[fFuUdDnNickvm]//g')
+                    eval "$exec_cmd" &
+                else
+                    # Try to run as command
+                    command -v "$selection" >/dev/null 2>&1 && exec "$selection"
+                fi
+                ;;
+        esac
+    }
+
+elif command -v tofi >/dev/null 2>&1; then
+    exec tofi-drun
+elif command -v wmenu-run >/dev/null 2>&1; then
+    exec wmenu-run
+else
+    notify-send "Error" "No launcher found. Install fuzzel, tofi, or wmenu" \
+        --urgency=critical
+    exit 1
+fi

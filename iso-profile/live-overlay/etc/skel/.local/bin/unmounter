@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# Unmount USB drives or Android phones. Replaces the older `dmenuumount`.
+# Fewer prompts and also de-decrypts LUKS drives that are unmounted.
+
+set -e
+
+# Get mounted Android devices
+mounted_androids="$(grep simple-mtpfs /etc/mtab | awk '{print "📱" $2}')"
+
+# Get mounted drives, excluding /boot, /home, and swap
+lsblk_output="$(lsblk -nrpo "name,type,size,mountpoint")"
+mounted_drives="$(echo "$lsblk_output" | awk '($2=="part"||$2=="crypt")&&$4!~/\/boot|\/home$|SWAP/&&length($4)>1{printf "💾%s (%s)\n",$4,$3}')"
+
+# Combine lists and filter out empty lines
+all_unmountable="$(echo "$mounted_androids
+$mounted_drives" | sed "/^$/d;s/ *$//")"
+
+# Ensure there are unmountable devices
+test -n "$all_unmountable" || { notify-send "No devices to unmount."; exit 1; }
+
+# Prompt user to choose a device to unmount
+chosen="$(echo "$all_unmountable" | dmenu -i -p "Unmount which drive?")"
+chosen="${chosen%% *}"
+test -n "$chosen" || { notify-send "No device selected."; exit 1; }
+
+# Unmount the chosen device
+sudo -A umount -l "/${chosen#*/}"
+notify-send "Device unmounted." "$chosen has been unmounted."
+
+# Check if the unmounted device is a LUKS-encrypted device and close it
+crypt_id="$(echo "$lsblk_output" | grep "/${chosen#*/}$")"
+crypt_id="${crypt_id%% *}"
+if [ -b /dev/mapper/"${crypt_id##*/}" ]; then
+    sudo -A cryptsetup close "$crypt_id"
+    notify-send "🔒Device decryption closed." "Drive is now securely locked again."
+fi

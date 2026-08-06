@@ -1,0 +1,138 @@
+#!/bin/sh
+# Aegix Display Auto-Detection
+# Automatically switches display profiles on dock/undock events
+# Triggered by udev on display connect/disconnect
+
+set -e
+
+# Configuration paths
+CONFIG_FILE="$HOME/.config/aegix/display-autodetect.conf"
+STATE_FILE="$HOME/.cache/aegix/last-docked-profile"
+
+# Defaults
+FALLBACK_PROFILE="laptop"
+LAST_DOCKED=""
+NOTIFY=true
+DELAY=1
+LOGFILE=""
+
+# Load config if exists
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+# Load last docked profile from state file
+[ -f "$STATE_FILE" ] && LAST_DOCKED_STATE=$(cat "$STATE_FILE" 2>/dev/null)
+[ -n "$LAST_DOCKED_STATE" ] && LAST_DOCKED="$LAST_DOCKED_STATE"
+
+# Logging
+log() {
+    if [ -n "$LOGFILE" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOGFILE"
+    fi
+}
+
+# Notification helper
+notify() {
+    if [ "$NOTIFY" = "true" ] && command -v notify-send >/dev/null 2>&1; then
+        notify-send "Display" "$1" --urgency=normal -t 3000
+    fi
+    log "NOTIFY: $1"
+}
+
+# Save last docked profile
+save_last_docked() {
+    echo "$1" > "$STATE_FILE"
+    log "Saved last docked profile: $1"
+}
+
+# Count connected displays
+count_displays() {
+    xrandr --query 2>/dev/null | grep -c " connected" || echo "0"
+}
+
+# Get current autorandr profile
+get_current_profile() {
+    autorandr --current 2>/dev/null | head -1
+}
+
+# Restart dwmblocks if running
+restart_dwmblocks() {
+    if pgrep -x dwmblocks >/dev/null 2>&1; then
+        pkill -x dwmblocks
+        sleep 0.2
+        dwmblocks &
+        log "Restarted dwmblocks"
+    fi
+}
+
+# Main detection logic
+main() {
+    log "=== Display autodetect triggered ==="
+
+    # Ensure DISPLAY is set (for udev context)
+    if [ -z "$DISPLAY" ]; then
+        export DISPLAY=:0
+    fi
+
+    # Ensure XAUTHORITY is set
+    if [ -z "$XAUTHORITY" ]; then
+        export XAUTHORITY="$HOME/.Xauthority"
+    fi
+
+    # Wait for displays to stabilize
+    log "Waiting ${DELAY}s for displays to stabilize..."
+    sleep "$DELAY"
+
+    # Count displays
+    display_count=$(count_displays)
+    log "Detected $display_count connected display(s)"
+
+    if [ "$display_count" -le 1 ]; then
+        # Undocked - single display mode
+        log "Single display detected, loading fallback profile: $FALLBACK_PROFILE"
+
+        if autorandr --list | grep -q "^${FALLBACK_PROFILE}$"; then
+            autorandr --load "$FALLBACK_PROFILE" 2>/dev/null
+            notify "Undocked: $FALLBACK_PROFILE"
+        else
+            log "Fallback profile '$FALLBACK_PROFILE' not found"
+            notify "Undocked (no profile)"
+        fi
+    else
+        # Docked - multiple displays
+        log "Multiple displays detected, running autorandr --change"
+
+        # Try autorandr auto-detection first
+        if [ -n "$LAST_DOCKED" ]; then
+            autorandr --change --default "$LAST_DOCKED" 2>/dev/null
+        else
+            autorandr --change 2>/dev/null
+        fi
+
+        # Check what profile was applied
+        current=$(get_current_profile)
+
+        if [ -n "$current" ]; then
+            log "Applied profile: $current"
+            save_last_docked "$current"
+            notify "Docked: $current"
+        else
+            # No profile matched
+            if [ -n "$LAST_DOCKED" ] && autorandr --list | grep -q "^${LAST_DOCKED}$"; then
+                log "No match, loading last docked: $LAST_DOCKED"
+                autorandr --load "$LAST_DOCKED" 2>/dev/null
+                notify "Docked: $LAST_DOCKED (fallback)"
+            else
+                log "No matching profile found"
+                notify "Unknown dock - save profile with displaymenu"
+            fi
+        fi
+    fi
+
+    # Restart dwmblocks
+    restart_dwmblocks
+
+    log "=== Detection complete ==="
+}
+
+# Run main
+main "$@"

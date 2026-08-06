@@ -1,0 +1,5 @@
+#!/bin/sh
+# st with tabs (using tabbed)
+# Fast path:  Ctrl+Shift+T new tab | Ctrl+Shift+N/P next/prev | Ctrl+Shift+H/L prev/next | Ctrl+1..0 jump | Ctrl+q close
+# tmux mode:  Ctrl+b then  c=new  n/p=next/prev  x=close  l=last  0-9=jump  Esc=cancel
+exec tabbed -c st -w

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Ultra-simple timezone switcher for Waybar - no fancy features, just works
+
+# Get current timezone
+current_tz=$(readlink /etc/localtime 2>/dev/null | sed 's|/usr/share/zoneinfo/||' || echo "Unknown")
+
+# Show simple menu
+choice=$(printf "🌊 Pacific Time\n🗽 Eastern Time\n🌆 Central Time\n⛰️  Mountain Time\n━━━━━━━━━━━━━━\n📍 Current: $current_tz" | \
+    fuzzel --dmenu --prompt="⏰ Switch Timezone: " --width=40 --lines=7)
+
+# Handle selection
+case "$choice" in
+    *"Pacific"*)
+        notify-send "⏰ Switching..." "Changing to Pacific Time" &
+        if sudo ln -sf /usr/share/zoneinfo/America/Los_Angeles /etc/localtime; then
+            # Update Waybar configs
+            sed -i 's|"timezone": ".*"|"timezone": "America/Los_Angeles"|' ~/.config/waybar/config.hyprland.docked
+            sed -i 's|"timezone": ".*"|"timezone": "America/Los_Angeles"|' ~/.config/waybar/config.hyprland.undocked
+            killall waybar; sleep 0.3; waybar &
+            notify-send "⏰ Timezone Changed" "Now using Pacific Time"
+        fi
+        ;;
+    *"Eastern"*)
+        notify-send "⏰ Switching..." "Changing to Eastern Time" &
+        if sudo ln -sf /usr/share/zoneinfo/America/New_York /etc/localtime; then
+            sed -i 's|"timezone": ".*"|"timezone": "America/New_York"|' ~/.config/waybar/config.hyprland.docked
+            sed -i 's|"timezone": ".*"|"timezone": "America/New_York"|' ~/.config/waybar/config.hyprland.undocked
+            killall waybar; sleep 0.3; waybar &
+            notify-send "⏰ Timezone Changed" "Now using Eastern Time"
+        fi
+        ;;
+    *"Central"*)
+        notify-send "⏰ Switching..." "Changing to Central Time" &
+        if sudo ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime; then
+            sed -i 's|"timezone": ".*"|"timezone": "America/Chicago"|' ~/.config/waybar/config.hyprland.docked
+            sed -i 's|"timezone": ".*"|"timezone": "America/Chicago"|' ~/.config/waybar/config.hyprland.undocked
+            killall waybar; sleep 0.3; waybar &
+            notify-send "⏰ Timezone Changed" "Now using Central Time"
+        fi
+        ;;
+    *"Mountain"*)
+        notify-send "⏰ Switching..." "Changing to Mountain Time" &
+        if sudo ln -sf /usr/share/zoneinfo/America/Denver /etc/localtime; then
+            sed -i 's|"timezone": ".*"|"timezone": "America/Denver"|' ~/.config/waybar/config.hyprland.docked
+            sed -i 's|"timezone": ".*"|"timezone": "America/Denver"|' ~/.config/waybar/config.hyprland.undocked
+            killall waybar; sleep 0.3; waybar &
+            notify-send "⏰ Timezone Changed" "Now using Mountain Time"
+        fi
+        ;;
+esac

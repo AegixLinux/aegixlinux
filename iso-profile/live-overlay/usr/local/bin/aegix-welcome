@@ -1,0 +1,104 @@
+#!/bin/sh
+BOLD='\033[1m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+RED='\033[1;31m'
+CYAN='\033[1;36m'
+RESET='\033[0m'
+
+clear
+
+printf "${CYAN}"
+cat << 'BANNER'
+
+     _    _____ ____ _____  __
+    / \  | ____/ ___|_ _\ \/ /
+   / _ \ |  _|| |  _ | |  \  /
+  / ___ \| |__| |_| || |  /  \
+ /_/   \_\_____\____|___|/_/\_\
+
+          L I N U X
+
+BANNER
+printf "${RESET}"
+
+# Network check. NM reports "connected (local only)" when there is carrier but
+# no usable route, and a bare *connected* glob matches that too, so require the
+# exact full-connectivity state AND a resolvable default route.
+check_network() {
+    nm_state=$(nmcli -t -f STATE general status 2>/dev/null) || return 2
+    case "$nm_state" in
+        connected) ;;
+        *) return 1 ;;
+    esac
+    ip route get 1.1.1.1 >/dev/null 2>&1 || return 1
+    return 0
+}
+
+get_ip() {
+    ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1
+}
+
+get_iface() {
+    nmcli -t -f DEVICE,STATE device status 2>/dev/null | grep ':connected$' | head -1 | cut -d: -f1
+}
+
+printf "  Network .... "
+max_wait=15
+waited=0
+state="unknown"
+
+while [ $waited -lt $max_wait ]; do
+    check_network
+    rc=$?
+    if [ $rc -eq 0 ]; then
+        state="connected"
+        break
+    elif [ $rc -eq 1 ]; then
+        state="disconnected"
+        [ $waited -ge 5 ] && break
+    fi
+    printf "."
+    sleep 1
+    waited=$((waited + 1))
+done
+
+printf "\r\033[K  Network .... "
+case "$state" in
+    connected)
+        iface=$(get_iface)
+        addr=$(get_ip)
+        printf "${GREEN}CONNECTED${RESET} (%s: %s)\n" "${iface:-eth}" "${addr:-...}"
+        ;;
+    disconnected)
+        printf "${RED}NO CONNECTION${RESET}\n"
+        printf "\n  Plug in ethernet, or run ${BOLD}nmtui${RESET} for wifi.\n"
+        ;;
+    *)
+        printf "${YELLOW}WAITING...${RESET}\n"
+        printf "\n  NetworkManager not ready. Try ${BOLD}nmcli${RESET} in a moment.\n"
+        ;;
+esac
+
+# Keyring check
+printf "  Keyring .... "
+if [ -f /etc/pacman.d/gnupg/trustdb.gpg ]; then
+    printf "${GREEN}READY${RESET}\n"
+else
+    printf "${YELLOW}INITIALIZING${RESET} (wait before running sh install.sh)\n"
+fi
+
+printf "\n"
+printf "  ${BOLD}-------------------------------------------${RESET}\n"
+printf "  ${CYAN}%-15s${RESET}│ %s\n" "sh install.sh" "Install Aegix Linux to disk"
+printf "  ${CYAN}%-15s${RESET}│ %s\n" "nmtui"         "Configure wifi"
+printf "  ${CYAN}%-15s${RESET}│ %s\n" "lsblk"         "List disk devices"
+printf "  ${BOLD}-------------------------------------------${RESET}\n"
+# Show which ISO this is, so a bug report can name an exact build.
+if [ -r /etc/aegix-release ]; then
+    . /etc/aegix-release 2>/dev/null || true
+    printf "\n  ${BOLD}aegixlinux.org${RESET}   ISO %s (%s)\n\n" \
+        "${AEGIX_ISO_VERSION:-unknown}" "${AEGIX_PROFILE_COMMIT:-?}"
+else
+    printf "\n  ${BOLD}aegixlinux.org${RESET}\n\n"
+fi

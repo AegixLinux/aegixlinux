@@ -1,0 +1,108 @@
+#!/bin/sh
+
+# Use neovim for vim if present.
+[ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
+
+# Use $XINITRC variable if file exists.
+[ -f "$XINITRC" ] && alias startx="startx $XINITRC"
+
+# sudo not required for some system commands
+for command in mount umount sv pacman updatedb su shutdown poweroff reboot ; do
+	alias $command="sudo $command"
+done; unset command
+
+se() { cd ~/.local/bin; $EDITOR $(fzf) ;}
+
+
+# Posix Party
+alias \
+	ll="ls -lsah" \
+	dock="sh ~/.screenlayout/dock.sh && setbg" \
+	undock="sh ~/.screenlayout/undock.sh" \
+	mir="sh ~/.screenlayout/mirror.sh && setbg" \
+	b="sudo brightnessctl set 100%" \
+	dark="sudo brightnessctl set 5%" \
+	bh="sudo brightnessctl set 50%" \
+	be="sudo brightnessctl set 12%" \
+	bq="sudo brightnessctl set 25%" \
+	black="sudo brightnessctl set 0%" \
+	update="sudo pacman -Syu --noconfirm && yay --noconfirm" \
+	view="sxiv" \
+	help="groff -mom ~/.local/src/dwm/barbs.mom -Tpdf | zathura -" \
+	blowfish="hugo server --minify --theme blowfish" \
+	hss="hugo server --noHTTPCache" \
+	utc="date -u +\"%Y-%m-%d %H:%M:%S\"" \
+	aliasedit='sudo vim ~/.config/shell/aliasrc' \
+	aliasreload='source ~/.config/shell/aliasrc' \
+	dusch="du -sch * |sort -h" \
+
+
+
+# Verbosity and settings that you pretty much just always are going to want.
+alias \
+	entropy="sudo dd if=/dev/sda1 of=/dev/null" \
+	cp="cp -iv" \
+	mv="mv -iv" \
+	rm="rm -vI" \
+	bc="bc -ql" \
+	mkd="mkdir -pv" \
+	yt="yt-dlp --embed-metadata -i" \
+	yta="yt -x -f bestaudio/best" \
+	ffmpeg="ffmpeg -hide_banner"
+
+# kino git aliases. Go into a local repo, make some changes, type "gg"
+# And you will have your changes pushed to remote with today's date as the comment
+alias \
+	commit="git commit -m \"\$(date +\"%D %T\")\"" \
+	sta='git status' \
+	add='git add -A' \
+	push='git push' \
+	pull='git pull' \
+	gg='add && commit && push'
+
+# Colorize commands when possible.
+alias \
+	ls="ls -hN --color=auto --group-directories-first" \
+	grep="grep --color=auto" \
+	diff="diff --color=auto" \
+	ccat="highlight --out-format=ansi" \
+	ip="ip -color=auto"
+
+# These common commands are just too long! Abbreviate them.
+alias \
+	ka="killall" \
+	g="git" \
+	trem="transmission-remote" \
+	YT="youtube-viewer" \
+	sdn="shutdown -h now" \
+	e="$EDITOR" \
+	v="$EDITOR" \
+	p="pacman" \
+	xi="sudo xbps-install" \
+	xr="sudo xbps-remove -R" \
+	xq="xbps-query" \
+	z="zathura" \
+	bravo="brave --disable-gpu --disable-software-rasterizer"
+
+alias \
+	n="ncd" \
+	lf="lfub" \
+	magit="nvim -c MagitOnly" \
+	ref="shortcuts >/dev/null; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc ; source ${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc" \
+	weath="less -S ${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
+# Watchers Check 1 2 3 4 5
+
+# cbonsai trees
+alias \
+	st-ephrem="cbonsai -t 0.25 -li -w 30 -m \"O Lord and Master of my life, a spirit of idleness, despondency, ambition, and idle-talking, give me not, 🙇 but rather a spirit of chastity, humble-mindedness, patience, and love bestow upon me Thy servant. 🙇 Yea of O Lord King, grant me to see MY failings and not to condemn by brother for Blessed art Thou unto ages of ages. Amen. 🙇\"" \
+	st-herman="cbonsai -t 0.25 -li -w 30 -m \"From this day, from this hour, from this minute, let us strive to love God above all, and fulfill His holy will. - ST. HERMAN OF ALASKA\""
+
+# cisco vpn -> cisco is scuffed. using openconnect now from sc dir
+# alias vpn='sudo /opt/cisco/secureclient/bin/vpnagentd && sudo -E env WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_ACCELERATED_2D_CANVAS=1 /opt/cisco/secureclient/bin/vpnui'
+
+###################################################
+
+#
+#
+alias signal-desktop="signal-desktop --ozone-platform=x11"
+alias brother="lp -d HL2240"

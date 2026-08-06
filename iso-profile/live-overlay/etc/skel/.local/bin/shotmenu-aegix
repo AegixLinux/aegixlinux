@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# Aegix Screenshot Menu - Screenshot tools for Wayland
+# Multiple screenshot modes with grim and slurp
+
+set -euo pipefail
+
+# Configuration
+readonly SCREENSHOT_DIR="${SCREENSHOT_DIR:-$HOME/Pictures/Screenshots}"
+readonly TEMP_FILE="/tmp/screenshot_$(date +%s).png"
+
+# Ensure screenshot directory exists
+mkdir -p "$SCREENSHOT_DIR"
+
+# Function to find best available menu program
+find_menu_program() {
+    if command -v fuzzel >/dev/null 2>&1; then
+        echo "fuzzel --dmenu --prompt='📸 Screenshot: ' --lines=8 --width=35"
+    elif command -v tofi >/dev/null 2>&1; then
+        echo "tofi --prompt-text='📸 Screenshot: ' --height=35% --width=35%"
+    elif command -v wmenu >/dev/null 2>&1; then
+        echo "wmenu -i -l 8 -p '📸 Screenshot:'"
+    elif command -v dmenu-wl >/dev/null 2>&1; then
+        echo "dmenu-wl -i -l 8 -p '📸 Screenshot:'"
+    else
+        return 1
+    fi
+}
+
+# Function to send notifications
+notify() {
+    local urgency="$1"
+    local title="$2"
+    local message="$3"
+    local timeout="${4:-2000}"
+    local icon="${5:-camera-photo}"
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send "$title" "$message" \
+            --urgency="$urgency" \
+            -t "$timeout" \
+            --app-name="shotmenu" \
+            --icon="$icon"
+    fi
+}
+
+# Check requirements
+if ! command -v grim >/dev/null 2>&1; then
+    notify critical "Error" "grim not found! Install with: sudo pacman -S grim" 5000
+    exit 1
+fi
+
+if ! command -v slurp >/dev/null 2>&1; then
+    notify critical "Error" "slurp not found! Install with: sudo pacman -S slurp" 5000
+    exit 1
+fi
+
+# Find menu program
+MENU_CMD=$(find_menu_program)
+if [[ -z "$MENU_CMD" ]]; then
+    notify critical "Menu Error" \
+        "No compatible menu program found" 5000
+    exit 1
+fi
+
+# Define screenshot options
+options=(
+    "⬚   Select Area → Clipboard"
+    "⬚   Select Area → File"
+    "🪟  Select Window → Clipboard"
+    "🪟  Select Window → File"
+    "🖼️  Full Screen → Clipboard"
+    "🖼️  Full Screen → File"
+    "⏱️  Full Screen (5s delay)"
+    "❌  Cancel"
+)
+
+# Show menu
+choice=$(printf '%s\n' "${options[@]}" | eval $MENU_CMD)
+
+# Exit if nothing selected
+[[ -n "$choice" ]] || exit 0
+
+# Generate filename with timestamp
+filename="screenshot_$(date +%F_%T).png"
+filepath="$SCREENSHOT_DIR/$filename"
+
+# Function to copy image to clipboard
+copy_to_clipboard() {
+    local file="$1"
+    if command -v wl-copy >/dev/null 2>&1; then
+        wl-copy < "$file"
+        notify normal "Screenshot" "Copied to clipboard" 2000
+    else
+        notify critical "Error" "wl-copy not found! Install wl-clipboard" 3000
+    fi
+}
+
+# Handle selection
+case "$choice" in
+    "🖼️  Full Screen → File")
+        grim "$filepath"
+        notify normal "Screenshot Saved" "$filename" 2000 "$filepath"
+        ;;
+
+    "🖼️  Full Screen → Clipboard")
+        grim "$TEMP_FILE"
+        copy_to_clipboard "$TEMP_FILE"
+        rm -f "$TEMP_FILE"
+        ;;
+
+    "⬚   Select Area → File")
+        # Use slurp to select area
+        if area=$(slurp 2>/dev/null); then
+            grim -g "$area" "$filepath"
+            notify normal "Screenshot Saved" "$filename" 2000 "$filepath"
+        else
+            notify normal "Cancelled" "Screenshot cancelled" 1000
+        fi
+        ;;
+
+    "⬚   Select Area → Clipboard")
+        if area=$(slurp 2>/dev/null); then
+            grim -g "$area" "$TEMP_FILE"
+            copy_to_clipboard "$TEMP_FILE"
+            rm -f "$TEMP_FILE"
+        else
+            notify normal "Cancelled" "Screenshot cancelled" 1000
+        fi
+        ;;
+
+    "🪟  Select Window → File")
+        # Slurp can select windows too
+        if area=$(slurp -o 2>/dev/null); then
+            grim -g "$area" "$filepath"
+            notify normal "Screenshot Saved" "$filename" 2000 "$filepath"
+        else
+            notify normal "Cancelled" "Screenshot cancelled" 1000
+        fi
+        ;;
+
+    "🪟  Select Window → Clipboard")
+        if area=$(slurp -o 2>/dev/null); then
+            grim -g "$area" "$TEMP_FILE"
+            copy_to_clipboard "$TEMP_FILE"
+            rm -f "$TEMP_FILE"
+        else
+            notify normal "Cancelled" "Screenshot cancelled" 1000
+        fi
+        ;;
+
+    "⏱️  Full Screen (5s delay)")
+        notify normal "Screenshot" "Taking screenshot in 5 seconds..." 5000
+        sleep 5
+        grim "$filepath"
+        notify normal "Screenshot Saved" "$filename" 2000 "$filepath"
+        ;;
+
+    "❌  Cancel"|"")
+        exit 0
+        ;;
+
+    *)
+        notify critical "Error" "Unknown option: $choice" 3000
+        exit 1
+        ;;
+esac
+
+# Optionally open file manager or image viewer
+# Uncomment if desired:
+# if [[ -f "$filepath" ]]; then
+#     xdg-open "$SCREENSHOT_DIR" &
+# fi
