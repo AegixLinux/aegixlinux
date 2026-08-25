@@ -1,0 +1,117 @@
+#!/bin/bash
+# OpenConnect VPN wrapper (Aegix Linux)
+#
+# Wraps openconnect-sso for SAML / web authentication against Cisco AnyConnect
+# style SSL-VPNs. Works around the Cisco Secure Client LocalUsersOnly policy
+# issue on Wayland, scales the Qt login window for HiDPI displays, and avoids
+# the Entra ID passkey hang (see BLINK_FLAGS below).
+#
+# Usage:
+#   vpn                       # host from config file or $VPN_HOST
+#   vpn vpn.example.com       # host on the command line
+#   vpn vpn.example.com -v    # extra args are passed to openconnect-sso
+#
+# Config: ${XDG_CONFIG_HOME:-$HOME/.config}/aegix/vpn.conf
+#   VPN_HOST="vpn.example.com"
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/aegix/vpn.conf"
+
+# Host resolution order: first argument, then $VPN_HOST, then the config file.
+if [ -n "$1" ] && [ "${1#-}" = "$1" ]; then
+    VPN_HOST="$1"
+    shift
+fi
+
+if [ -z "$VPN_HOST" ] && [ -r "$CONFIG" ]; then
+    . "$CONFIG"
+fi
+
+if [ -z "$VPN_HOST" ]; then
+    echo "usage: ${0##*/} <vpn-host> [openconnect-sso args...]" >&2
+    echo "" >&2
+    echo "No VPN host given. Set one permanently with:" >&2
+    echo "  mkdir -p \"${CONFIG%/*}\"" >&2
+    echo "  echo 'VPN_HOST=\"vpn.example.com\"' > \"$CONFIG\"" >&2
+    exit 1
+fi
+
+if ! command -v openconnect-sso &> /dev/null; then
+    echo "error: openconnect-sso is not installed." >&2
+    echo "Install it with: pacman -S openconnect-sso" >&2
+    exit 1
+fi
+
+echo "=== Connecting to $VPN_HOST via OpenConnect ==="
+echo "A browser window will open for authentication."
+echo "Complete the login process there, then the VPN will connect."
+echo ""
+
+# Detect screen resolution and calculate appropriate scaling
+# Get the primary display's resolution (or first connected display)
+RESOLUTION=""
+if command -v wlr-randr &> /dev/null; then
+    # Wayland (Hyprland) - get first enabled output's resolution
+    RESOLUTION=$(wlr-randr 2>/dev/null | grep -A 5 "Enabled: yes" | grep "current" | head -1 | awk '{print $1}' | cut -d'x' -f1)
+fi
+
+if [ -z "$RESOLUTION" ] && command -v xrandr &> /dev/null; then
+    # X11 fallback
+    RESOLUTION=$(xrandr 2>/dev/null | grep " connected" | grep -o "[0-9]*x[0-9]*" | head -1 | cut -d'x' -f1)
+fi
+
+# Default to 1920 if detection failed or returned non-numeric
+if ! [[ "$RESOLUTION" =~ ^[0-9]+$ ]]; then
+    RESOLUTION=1920
+fi
+
+# Calculate scale factor based on horizontal resolution
+# Logic:
+# - <= 1366 (old laptops like X220/T420): scale = 1.0
+# - 1920 (1080p): scale = 1.0
+# - 2560 (1440p): scale = 1.3
+# - >= 3840 (4K): scale = 1.5
+if [ "$RESOLUTION" -le 1366 ]; then
+    QT_SCALE=1.0
+    GDK_SCALE=1
+elif [ "$RESOLUTION" -le 1920 ]; then
+    QT_SCALE=1.0
+    GDK_SCALE=1
+elif [ "$RESOLUTION" -le 2560 ]; then
+    QT_SCALE=1.3
+    GDK_SCALE=1
+else
+    QT_SCALE=1.5
+    GDK_SCALE=2
+fi
+
+echo "Detected resolution: ${RESOLUTION}px - Using Qt scale: ${QT_SCALE}, GDK scale: ${GDK_SCALE}"
+
+# Force software rendering to avoid GPU issues
+export QT_QUICK_BACKEND=software
+
+# Hide WebAuthn/passkey support from the login page.
+#
+# QtWebEngine exposes window.PublicKeyCredential, so identity providers such as
+# Entra ID (Microsoft 365) offer "Face, fingerprint, PIN or security key" and
+# may auto-select it. But openconnect-sso never connects
+# QWebEnginePage.webAuthUxRequested, so nothing ever handles the request and the
+# login window hangs forever on "Your device will open a security window."
+#
+# Disabling the "WebAuth" blink runtime feature removes PublicKeyCredential, so
+# the provider's capability check fails and it falls back to the password
+# prompt. Set VPN_ALLOW_PASSKEY=1 to opt back in once openconnect-sso wires up a
+# WebAuth UX handler.
+BLINK_FLAGS=""
+if [ "$VPN_ALLOW_PASSKEY" != "1" ]; then
+    BLINK_FLAGS="--disable-blink-features=WebAuth"
+fi
+
+export QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu --disable-software-rasterizer --no-sandbox $BLINK_FLAGS"
+
+# Set dynamic scaling for the VPN authentication window
+export QT_SCALE_FACTOR=$QT_SCALE
+export GDK_SCALE=$GDK_SCALE
+
+# Run openconnect-sso as regular user (not root)
+# It will automatically invoke sudo for the openconnect part
+openconnect-sso --server "$VPN_HOST" "$@"
