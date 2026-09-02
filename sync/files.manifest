@@ -29,6 +29,7 @@ never	.config/shell/shortcutrc
 never	.config/shell/zshnameddirrc
 never	.config/lf/shortcutrc
 never	.config/shell/CLAUDE.md
+never	.config/shell/.claude/
 never	.config/nvim/plugged/
 never	.config/nvim/shortcuts.vim
 never	.config/autorandr/
