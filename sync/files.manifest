@@ -30,8 +30,10 @@ never	.config/shell/zshnameddirrc
 never	.config/lf/shortcutrc
 never	.config/shell/CLAUDE.md
 never	.config/nvim/plugged/
+never	.config/nvim/shortcuts.vim
 never	.config/autorandr/
 iso	.config/shell/bm-dirs
+iso	.config/gtk-3.0/bookmarks
 iso	.config/shell/bm-files
 iso	.config/hyphenate-downloads/
 iso	live-overlay/root/
@@ -153,6 +155,7 @@ never	.local/src/st/config.h.bk
 never	.config/zsh/.zcompdump
 never	.config/ncmpcpp/error.log
 never	.config/aegix/wizard-debug.log
+never	.config/aegix/vpn.conf
 never	.config/aegix/appimages.json
 never	.config/zsh/appimage-aliases
 # triage 2026-08-04

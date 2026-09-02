@@ -39,3 +39,6 @@ forbid	cat > ~/\.config/sxiv/exec/key-handler	config-clobber heredoc (vidgrid bu
 # also points a new user's sync scripts at a stranger's server.
 forbid	[a-zA-Z0-9_-]+:/home/[a-zA-Z0-9_-]+/	personal ssh remote path
 
+forbid	code/(STRIDE|PROJECTS)	personal workspace paths
+forbid	HOME_BUYING|Northcott	personal life paths
+forbid	k12\.com	work infrastructure domain

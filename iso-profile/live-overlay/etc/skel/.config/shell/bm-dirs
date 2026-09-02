@@ -12,4 +12,3 @@ pp  ${XDG_PICTURES_DIR:-$HOME/Pictures}
 sc  $HOME/.local/bin
 src $HOME/.local/src
 vv  ${XDG_VIDEOS_DIR:-$HOME/Videos}
-#mason	$HOME/code/PROJECTS/mason
