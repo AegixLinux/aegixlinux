@@ -32,6 +32,12 @@ rules_load "$AEGIX_SYNC_DIR/sanitize.rules"
 
 if [[ "$STATUS" -eq 1 ]]; then
   drift_status
+  # Leak gate over the standalone source repos (belt and braces alongside
+  # each repo's pre-push hook; a hook can be bypassed with --no-verify).
+  if [[ -x "$AEGIX_SYNC_REPO/tools/src-gate" ]]; then
+    echo
+    "$AEGIX_SYNC_REPO/tools/src-gate" --all || true
+  fi
   exit 0
 fi
 

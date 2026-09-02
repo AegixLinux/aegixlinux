@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# pre-push hook: run src-gate over this repo's committed tree before any
+# push leaves the machine. Installed as a symlink by install-src-sync.sh.
+#
+# git's own --no-verify can bypass any pre-push hook; this is a guard rail
+# for the human, and aegix-sync --status re-checks the same thing.
+
+set -euo pipefail
+
+TOOLS_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+repo_root="$(git rev-parse --show-toplevel)"
+
+exec "$TOOLS_DIR/src-gate" "$repo_root"

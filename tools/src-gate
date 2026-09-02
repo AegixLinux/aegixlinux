@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# src-gate: run the leak gate (forbid/allow rules) over the COMMITTED tree of
+# standalone source repos (the suckless forks) before they are pushed public.
+#
+# The aegix-sync gate covers only the staged ISO profile; these repos are
+# synced and pushed separately, so without this nothing ever scans them.
+# Proof of the class: a personal home path sat committed in public
+# aegixlinux/dwm for a month (581e677..c20d68c).
+#
+# Usage:
+#   src-gate <repo-path> [<repo-path>...]
+#   src-gate --all       # every live repo in src-sync.conf + #gate-extra lines
+#
+# Checks `git archive HEAD`, not the working tree: what is committed is what
+# a push can leak. Untracked build junk is invisible to the archive and to
+# a push alike. No bypass flag, by design.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+source "$SCRIPT_DIR/aegix-sync-lib.sh"
+
+: "${SRC_SYNC_CONF:=$SCRIPT_DIR/src-sync.conf}"
+RULES_FILE="$AEGIX_SYNC_DIR/sanitize.rules"
+
+[[ -r "$RULES_FILE" ]] || { echo "src-gate: rules file not found: $RULES_FILE" >&2; exit 1; }
+
+repos=()
+if [[ "${1:-}" == "--all" ]]; then
+  [[ -r "$SRC_SYNC_CONF" ]] || { echo "src-gate: conf not found: $SRC_SYNC_CONF" >&2; exit 1; }
+  while IFS= read -r line; do
+    # #gate-extra <path>: repos the gate covers that src-sync does not sync.
+    if [[ "$line" =~ ^#gate-extra[[:space:]]+(.+)$ ]]; then
+      p="${BASH_REMATCH[1]}"
+    else
+      [[ "$line" =~ ^[[:space:]]*# ]] && continue
+      [[ -z "${line//[[:space:]]/}" ]] && continue
+      p="${line%%[[:space:]]*}"
+    fi
+    p="${p/#\~/$HOME}"
+    repos+=("$p")
+  done < "$SRC_SYNC_CONF"
+elif [[ $# -ge 1 ]]; then
+  repos=("$@")
+else
+  echo "usage: src-gate <repo-path>... | --all" >&2
+  exit 2
+fi
+
+rules_load "$RULES_FILE"
+
+overall=0
+for repo in "${repos[@]}"; do
+  if [[ ! -d "$repo/.git" && ! -f "$repo/.git" ]]; then
+    echo "src-gate: not a git repo: $repo" >&2
+    overall=1
+    continue
+  fi
+  if ! git -C "$repo" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    echo "src-gate: no commits in $repo (nothing to verify, refusing to pass silently)" >&2
+    overall=1
+    continue
+  fi
+
+  staging="$(mktemp -d /tmp/src-gate.XXXXXX)"
+  git -C "$repo" archive HEAD | tar -x -C "$staging"
+
+  if verify_tree "$staging"; then
+    echo "src-gate: CLEAN  $repo"
+  else
+    echo "src-gate: LEAK in committed tree of $repo (paths above are relative to a scratch export)" >&2
+    overall=1
+  fi
+  rm -rf "$staging"
+done
+
+exit "$overall"
