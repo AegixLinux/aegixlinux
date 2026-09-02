@@ -27,6 +27,8 @@ rootfs:
     - xcompmgr
     - arandr
     - autorandr
+    - xdg-user-dirs
+    - inotify-tools
     - zsh
     - zsh-completions
     - neovim

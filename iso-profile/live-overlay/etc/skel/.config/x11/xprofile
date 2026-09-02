@@ -6,6 +6,12 @@
 # Source shell profile for environment variables (TERMINAL, EDITOR, etc.)
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile"
 
+# Create the XDG user directories declared in ~/.config/user-dirs.dirs
+# (Downloads, Documents, ...). Idempotent; entries mapped to $HOME itself
+# create nothing. Tools like xdg-open, lf, and the download watcher rely
+# on these existing.
+command -v xdg-user-dirs-update >/dev/null 2>&1 && xdg-user-dirs-update
+
 # Auto-detect and apply monitor configuration (like kanshi for Wayland)
 autorandr --change --force
 

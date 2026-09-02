@@ -12,7 +12,7 @@
 # See: rushes(1), ~/obsidian/KNOWLEDGE_BASE/rushes.md
 
 command -v rushes >/dev/null 2>&1 || {
-	echo "vidgrid: 'rushes' is not installed (see ~/code/PROJECTS/rushes)" >&2
+	echo "vidgrid: 'rushes' is not installed (see https://github.com/aegixlinux/rushes)" >&2
 	exit 1
 }
 

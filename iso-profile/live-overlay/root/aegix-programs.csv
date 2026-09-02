@@ -14,6 +14,8 @@
 ,xcompmgr,"is for transparency and removing screen-tearing"
 ,arandr,"deals with multiple monitor setups nicely"
 ,autorandr,"auto-detects and applies monitor configurations"
+,xdg-user-dirs,"creates the XDG user directories (Downloads, Documents) at login"
+,inotify-tools,"provides inotifywait for the download-rename watcher"
 ,capitaine-cursors,"is the cursor theme used by Aegix"
 ,zsh,"is the default interactive shell"
 ,zsh-completions,"provides additional completion definitions for zsh"

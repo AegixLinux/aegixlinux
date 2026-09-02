@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Watches the directories listed in ~/.config/hyphenate-downloads/dirs and
+# renames anything that arrives with spaces in its name.
+#
+# Covers every save flow a browser extension cannot reach. The big one is
+# Print -> "Save as PDF", which never creates a download item at all, so no
+# extension hook fires and the filename comes from the page title.
+#
+# Origin: Mason Borchard's setup, adopted into Aegix 2026-09-01.
+
+set -u
+
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/hyphenate-downloads/dirs"
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/hyphenate-downloads.lock"
+
+command -v inotifywait >/dev/null 2>&1 || {
+    echo "hyphenate-downloads: inotifywait missing (pacman -S inotify-tools)" >&2
+    exit 1
+}
+
+# One watcher per session, however many browser windows get opened.
+exec 9>"$LOCK" || exit 1
+flock -n 9 || exit 0
+
+[ -r "$CONFIG" ] || exit 0
+
+dirs=()
+while IFS= read -r line; do
+    line="${line%%#*}"
+    line="$(printf '%s' "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    [ -n "$line" ] || continue
+    case "$line" in
+        "~/"*) line="$HOME/${line#\~/}" ;;
+        "\$HOME/"*) line="$HOME/${line#\$HOME/}" ;;
+    esac
+    [ -d "$line" ] && dirs+=("$line")
+done < "$CONFIG"
+
+[ ${#dirs[@]} -gt 0 ] || exit 0
+
+# Same rule the extension uses: runs of spaces and hyphens collapse to one
+# hyphen, ends get trimmed, the extension is left alone.
+hyphenate() {
+    local base="$1" stem ext clean
+    case "$base" in
+        ?*.*) stem="${base%.*}"; ext=".${base##*.}" ;;
+        *)    stem="$base";      ext="" ;;
+    esac
+    clean="$(printf '%s' "$stem" | sed -E 's/[-[:space:]]+/-/g; s/^-+//; s/-+$//')"
+    [ -n "$clean" ] || clean="$stem"
+    printf '%s%s' "$clean" "$ext"
+}
+
+# Keep a handle on inotifywait so it goes down with this script rather than
+# being orphaned when the browser closes.
+# Recursive, because the browser's save directory drifts as you use it --
+# Chromium remembers the last folder you saved into, not a fixed one.
+EXCLUDE='/(\.git|\.svn|node_modules|__pycache__|\.venv|venv|\.cache|\.npm|target|build/intermediates)(/|$)'
+
+exec 3< <(inotifywait -m -q -r --exclude "$EXCLUDE" \
+    -e close_write -e moved_to --format '%w%f' "${dirs[@]}")
+watcher=$!
+trap 'kill "$watcher" 2>/dev/null' EXIT INT TERM
+
+while IFS= read -r path <&3; do
+    dir="$(dirname "$path")"
+    base="$(basename "$path")"
+
+    # Partial downloads get renamed by the browser when they finish.
+    case "$base" in
+        *.crdownload|*.part|*.download|*.tmp) continue ;;
+    esac
+
+    # Only touch names that actually contain a space.
+    case "$base" in
+        *" "*) ;;
+        *) continue ;;
+    esac
+
+    new="$(hyphenate "$base")"
+    [ "$new" = "$base" ] && continue
+
+    target="$dir/$new"
+    if [ -e "$target" ]; then
+        # Never clobber: suffix -1, -2, ... before the extension.
+        case "$new" in
+            ?*.*) stem="${new%.*}"; ext=".${new##*.}" ;;
+            *)    stem="$new";      ext="" ;;
+        esac
+        n=1
+        while [ -e "$dir/$stem-$n$ext" ]; do n=$((n + 1)); done
+        target="$dir/$stem-$n$ext"
+    fi
+
+    mv -- "$path" "$target" 2>/dev/null || continue
+done

@@ -345,3 +345,19 @@ never	.config/chromium/
 never	.config/vivaldi/
 # triage 2026-08-05 (public-repo leak audit)
 never	.local/bin/passsync
+# triage 2026-09-01
+never	.local/bin/newrelic
+never	.local/bin/nr
+never	.local/bin/jira
+never	.local/bin/bb
+never	.local/bin/atl
+never	.local/bin/graphify
+never	.local/bin/graphify-mcp
+never	.local/bin/STATUS-2026-08-24-f1894429.md
+never	.local/bin/STATUS-2026-08-26-f1894429.md
+never	.local/bin/__pycache__/
+never	.local/bin/confl
+never	.config/confl/
+never	.config/atlassian/
+never	.config/opentofu/
+never	.config/draw.io/
