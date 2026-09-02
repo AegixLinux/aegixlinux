@@ -68,6 +68,8 @@ ship	.local/bin/sb-volume
 ship	.local/bin/setbg
 ship	.local/bin/shortcuts
 ship	.local/bin/shotmenu
+ship	.local/bin/wifimenu
+ship	.local/bin/aegix-tray
 ship	.local/bin/snippets-menu
 ship	.local/bin/special-char-menu
 ship	.local/bin/sysact

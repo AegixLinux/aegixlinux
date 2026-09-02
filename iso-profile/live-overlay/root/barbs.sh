@@ -558,6 +558,14 @@ main() {
     # Configure DBUS
     configure_dbus
 
+    # Enable the Bluetooth service now that bluez-runit is installed, so the
+    # blueman tray applet works from first boot. Guarded: skipped silently on
+    # a system without the service directory.
+    if [ -d /etc/runit/sv/bluetoothd ]; then
+        ln -sf /etc/runit/sv/bluetoothd /etc/runit/runsvdir/default/
+        log_message "Enabled bluetoothd runit service" | tee -a "${INSTALL_LOG}"
+    fi
+
     # Configure touchpad
     configure_touchpad
 
