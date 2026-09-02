@@ -1,0 +1,15 @@
+# Directories the download watcher keeps an eye on, searched recursively.
+# One path per line. Blank lines and # comments are ignored.
+# $HOME and a leading ~ are both expanded. Missing directories are skipped.
+#
+# Only files arriving with spaces in the name are touched. Anything already
+# here keeps its name unless something rewrites it.
+#
+# Directories are watched RECURSIVELY, and inotify pays per directory in the
+# tree: a huge tree (a populated ~/Documents can be 100k directories) takes
+# tens of seconds to establish watches and eats the inotify watch budget.
+# Keep this list to trees that stay small. Downloads is where browsers save,
+# including the Print -> "Save as PDF" flow.
+
+~/Downloads
+# ~/Documents   # opt in if your Documents tree is modest

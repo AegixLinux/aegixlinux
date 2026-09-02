@@ -33,6 +33,7 @@ never	.config/nvim/plugged/
 never	.config/autorandr/
 iso	.config/shell/bm-dirs
 iso	.config/shell/bm-files
+iso	.config/hyphenate-downloads/
 iso	live-overlay/root/
 iso	live-overlay/usr/
 iso	live-overlay/boot/
@@ -41,6 +42,7 @@ iso	live-overlay/etc/profile.d/
 iso	root-overlay/
 ship	.local/bin/add-snippet-dmenu
 ship	.local/bin/brave
+ship	.local/bin/hyphenate-downloads-watch
 ship	.local/bin/displaymenu
 ship	.local/bin/dmenu-master
 ship	.local/bin/dmenupass
@@ -112,7 +114,6 @@ ship	.local/bin/otpmenu-aegix
 ship	.local/bin/pacific-time
 ship	.local/bin/passgen
 ship	.local/bin/passmenu-aegix
-ship	.local/bin/passsync
 ship	.local/bin/peertubetorrent
 ship	.local/bin/ploop
 ship	.local/bin/podentr
@@ -255,7 +256,7 @@ never	.config/yay/
 never	.config/pinentry/
 never	.config/pipewire/
 never	.config/pulse/
-never	.config/user-dirs.dirs
+iso	.config/user-dirs.dirs
 never	.config/wget/
 never	.config/abook/
 never	.config/BraveSoftware/
