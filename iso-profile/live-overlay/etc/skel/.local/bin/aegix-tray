@@ -1,0 +1,25 @@
+#!/bin/sh
+# Aegix system tray: dwm has no built-in systray, stalonetray provides one
+# for applets like blueman. Anchored to the bottom-right corner so it never
+# collides with the dwm bar at the top, and grows leftward as icons arrive.
+# Geometry is corner-relative (-0-0), so it lands right on any resolution.
+
+command -v stalonetray >/dev/null 2>&1 || exit 0
+
+# One tray per session
+pgrep -x stalonetray >/dev/null && exit 0
+
+exec stalonetray \
+    --geometry 1x1-0-0 \
+    --max-geometry 10x1-0-0 \
+    --icon-size 20 \
+    --grow-gravity E \
+    --icon-gravity E \
+    --sticky \
+    --skip-taskbar \
+    --window-type dock \
+    --window-strut none \
+    --window-layer top \
+    --no-shrink \
+    --kludges fix_window_pos,force_icons_size \
+    --background "#222222"

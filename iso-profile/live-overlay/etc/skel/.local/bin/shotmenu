@@ -1,33 +1,145 @@
 #!/usr/bin/env bash
 # Aegix Screenshot Menu - X11 version
-# Uses maim, xdotool, and xclip
+# One tool for all screenshots: pick a capture type, then clipboard shots
+# finish instantly and file shots go through a destination picker that
+# remembers where you save (MRU list, most recent first, Enter accepts it).
+# Save-as flow adapted from Mason Borchard's shotmenu-saveas.
+# Uses maim, xdotool, xclip, and dmenu.
 
 set -euo pipefail
 
 # Configuration
-readonly SCREENSHOT_DIR="${SCREENSHOT_DIR:-$HOME/Pictures/Screenshots}"
+readonly DEFAULT_DIR="${SCREENSHOT_DIR:-$HOME/Pictures/Screenshots}"
+readonly MRU_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/aegix/shotmenu-mru"
+readonly MRU_MAX=5
 readonly TEMP_FILE="/tmp/screenshot_$$.png"
-
-# Ensure screenshot directory exists
-mkdir -p "$SCREENSHOT_DIR"
+trap 'rm -f "$TEMP_FILE"' EXIT
 
 # Notification helper
 notify() {
-    local urgency="$1"
-    local title="$2"
-    local message="$3"
-    notify-send "$title" "$message" --urgency="$urgency" -t 2000
+    local urgency="$1" title="$2" message="$3"
+    notify-send "$title" "$message" --urgency="$urgency" -t 2500
 }
 
 # Check requirements
-for cmd in maim xdotool xclip; do
+for cmd in maim xdotool xclip dmenu; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         notify critical "Error" "$cmd not found!"
         exit 1
     fi
 done
 
-# Define screenshot options
+# --- MRU handling -----------------------------------------------------------
+# One directory per line, most recent first. The default screenshot dir is
+# always present so it can never scroll out of reach.
+
+mru_list() {
+    local seen_default=0 line count=0
+    if [[ -r "$MRU_FILE" ]]; then
+        while IFS= read -r line; do
+            [[ -n "$line" && -d "${line/#\~/$HOME}" ]] || continue
+            printf '%s\n' "$line"
+            [[ "$line" == "${DEFAULT_DIR/#$HOME/\~}" ]] && seen_default=1
+            count=$((count + 1))
+            [[ "$count" -ge "$MRU_MAX" ]] && break
+        done < "$MRU_FILE"
+    fi
+    [[ "$seen_default" -eq 1 ]] || printf '%s\n' "${DEFAULT_DIR/#$HOME/\~}"
+}
+
+mru_touch() {
+    local dir="$1" tmp
+    dir="${dir/#$HOME/\~}"
+    mkdir -p "$(dirname "$MRU_FILE")"
+    tmp="$(mktemp "$MRU_FILE.XXXXXX")"
+    printf '%s\n' "$dir" > "$tmp"
+    [[ -r "$MRU_FILE" ]] && grep -Fxv "$dir" "$MRU_FILE" | head -n "$((MRU_MAX - 1))" >> "$tmp" || true
+    mv "$tmp" "$MRU_FILE"
+}
+
+# --- Destination picker -----------------------------------------------------
+
+BROWSE_LABEL="browse..."
+
+# Directory names to skip when enumerating $HOME on browse (noise / huge /
+# irrelevant for screenshot destinations). Pruned by NAME so each match is
+# excluded wherever it appears in the tree.
+PRUNE_NAMES=(
+    .git .svn .hg
+    node_modules __pycache__ site-packages
+    .cache .npm .cargo .rustup .pyenv .nvm .gradle .m2
+    .local Trash
+    venv .venv env .env
+    dist build .next target out
+    BraveSoftware google-chrome
+    .mozilla .thunderbird
+)
+
+browse_dirs() {
+    local prune_expr=() n
+    for n in "${PRUNE_NAMES[@]}"; do
+        prune_expr+=( -name "$n" -o )
+    done
+    unset 'prune_expr[-1]'
+    find "$HOME" -mindepth 1 -maxdepth 4 -type d \
+        \( "${prune_expr[@]}" \) -prune -o -type d -print 2>/dev/null \
+        | sed "s|^$HOME|~|" \
+        | sort
+}
+
+# pick_dest: print the chosen destination directory (absolute), or nothing on
+# cancel. First menu is the MRU (top entry = last used = plain Enter), plus a
+# browse option; any typed path is also accepted.
+pick_dest() {
+    local choice
+    choice=$( { mru_list; printf '%s\n' "$BROWSE_LABEL"; } \
+        | dmenu -c -i -l 8 -p "Save to (Enter = last used, or type a path):") || true
+    [[ -n "$choice" ]] || return 1
+
+    if [[ "$choice" == "$BROWSE_LABEL" ]]; then
+        choice=$(browse_dirs | dmenu -c -i -l 15 -p "Save to dir (type to filter):") || true
+        [[ -n "$choice" ]] || return 1
+    fi
+
+    choice="${choice/#\~/$HOME}"
+
+    if [[ ! -d "$choice" ]]; then
+        local confirm
+        confirm=$(printf 'Yes\nNo' | dmenu -c -i -l 2 -p "Create '$choice'?") || true
+        [[ "$confirm" == "Yes" ]] || return 1
+        mkdir -p "$choice" || { notify critical "Screenshot" "Could not create $choice"; return 1; }
+    fi
+    printf '%s\n' "$choice"
+}
+
+# save_shot: move the temp capture through the destination + filename flow.
+save_shot() {
+    local dest_dir fname dest_path confirm
+    dest_dir="$(pick_dest)" || exit 0
+
+    fname=$(printf '%s\n' "screenshot_$(date +%F_%T).png" \
+        | dmenu -c -i -p "Filename (Enter to accept):") || true
+    [[ -n "$fname" ]] || exit 0
+    [[ "$fname" == *.* ]] || fname="${fname}.png"
+
+    dest_path="$dest_dir/$fname"
+    if [[ -e "$dest_path" ]]; then
+        confirm=$(printf 'Overwrite\nCancel' | dmenu -c -i -l 2 -p "$fname exists. Overwrite?") || true
+        [[ "$confirm" == "Overwrite" ]] || exit 0
+    fi
+
+    mv "$TEMP_FILE" "$dest_path"
+    mru_touch "$dest_dir"
+    notify normal "Screenshot Saved" "$dest_path"
+}
+
+copy_to_clipboard() {
+    xclip -selection clipboard -t image/png < "$TEMP_FILE"
+    notify normal "Screenshot" "Copied to clipboard"
+}
+
+# --- Menu -------------------------------------------------------------------
+
 options=(
     "1. Select Area -> Clipboard"
     "2. Select Area -> File"
@@ -35,61 +147,37 @@ options=(
     "4. Current Window -> File"
     "5. Full Screen -> Clipboard"
     "6. Full Screen -> File"
-    "7. Full Screen (3s delay)"
+    "7. Full Screen (3s delay) -> File"
     "q. Cancel"
 )
 
-# Show centered dmenu
-choice=$(printf '%s\n' "${options[@]}" | dmenu -c -i -l 8 -p "Screenshot:")
-
-# Exit if nothing selected
+choice=$(printf '%s\n' "${options[@]}" | dmenu -c -i -l 8 -p "Screenshot:") || true
 [[ -n "$choice" ]] || exit 0
 
-# Generate filename
-filename="screenshot_$(date +%F_%T).png"
-filepath="$SCREENSHOT_DIR/$filename"
-
-# Copy to clipboard helper
-copy_to_clipboard() {
-    xclip -selection clipboard -t image/png < "$1"
-    notify normal "Screenshot" "Copied to clipboard"
-}
-
-# Handle selection
 case "$choice" in
     "1. Select Area -> Clipboard")
-        maim -s "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
-        rm -f "$TEMP_FILE"
+        maim -s "$TEMP_FILE" && copy_to_clipboard
         ;;
-
     "2. Select Area -> File")
-        maim -s "$filepath" && notify normal "Screenshot Saved" "$filename"
+        maim -s "$TEMP_FILE" && save_shot
         ;;
-
     "3. Current Window -> Clipboard")
-        maim -i "$(xdotool getactivewindow)" "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
-        rm -f "$TEMP_FILE"
+        maim -i "$(xdotool getactivewindow)" "$TEMP_FILE" && copy_to_clipboard
         ;;
-
     "4. Current Window -> File")
-        maim -i "$(xdotool getactivewindow)" "$filepath" && notify normal "Screenshot Saved" "$filename"
+        maim -i "$(xdotool getactivewindow)" "$TEMP_FILE" && save_shot
         ;;
-
     "5. Full Screen -> Clipboard")
-        maim "$TEMP_FILE" && copy_to_clipboard "$TEMP_FILE"
-        rm -f "$TEMP_FILE"
+        maim "$TEMP_FILE" && copy_to_clipboard
         ;;
-
     "6. Full Screen -> File")
-        maim "$filepath" && notify normal "Screenshot Saved" "$filename"
+        maim "$TEMP_FILE" && save_shot
         ;;
-
-    "7. Full Screen (3s delay)")
-        notify normal "Screenshot" "Taking screenshot in 3 seconds..."
+    "7. Full Screen (3s delay) -> File")
+        notify normal "Screenshot" "Capturing in 3 seconds..."
         sleep 3
-        maim "$filepath" && notify normal "Screenshot Saved" "$filename"
+        maim "$TEMP_FILE" && save_shot
         ;;
-
     "q. Cancel"|"")
         exit 0
         ;;

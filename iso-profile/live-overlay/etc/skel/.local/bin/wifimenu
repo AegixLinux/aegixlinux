@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Aegix WiFi Menu - X11 version
+# Quick WiFi connection management: nmcli + dmenu. Pick a network, get on it.
+# Prompts for a password only when the saved one is missing or fails.
+# Ported from the Wayland wifimenu-aegix; bound to Super+Shift+W in dwm.
+
+set -euo pipefail
+
+notify() {
+    local urgency="$1" title="$2" message="$3" timeout="${4:-2000}"
+    command -v notify-send >/dev/null 2>&1 && \
+        notify-send "$title" "$message" --urgency="$urgency" -t "$timeout" \
+            --app-name="wifimenu" --icon="network-wireless"
+}
+
+for cmd in nmcli dmenu; do
+    command -v "$cmd" >/dev/null 2>&1 || { notify critical "wifimenu" "$cmd not found" 5000; exit 1; }
+done
+
+menu()  { dmenu -c -i -l "${2:-15}" -p "$1"; }
+
+# First wifi-capable device (replaces the old hardcoded wlan0)
+wifi_dev="$(nmcli -t -f DEVICE,TYPE dev 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')"
+
+wifi_status=$(nmcli radio wifi)
+current_ssid=$(nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2- || true)
+
+options=()
+if [[ "$wifi_status" == "enabled" ]]; then
+    options+=("🔴  Turn WiFi Off")
+    if [[ -n "$current_ssid" ]]; then
+        options+=("✅  Connected: $current_ssid")
+        options+=("🔌  Disconnect")
+    fi
+else
+    options+=("🟢  Turn WiFi On")
+fi
+
+if [[ "$wifi_status" == "enabled" ]]; then
+    options+=("🔍  Scan for Networks")
+    options+=("──────────────────")
+
+    # SIGNAL:SSID:SECURITY, strongest first
+    networks=$(nmcli -t -f signal,ssid,security dev wifi list 2>/dev/null | \
+               grep -v '^--' | sort -rn -t: -k1 | head -20)
+
+    while IFS=: read -r signal ssid security; do
+        [[ -z "$ssid" ]] && continue
+
+        if   [[ "$signal" -ge 80 ]]; then strength="▂▄▆█"
+        elif [[ "$signal" -ge 60 ]]; then strength="▂▄▆_"
+        elif [[ "$signal" -ge 40 ]]; then strength="▂▄__"
+        else                              strength="▂___"
+        fi
+
+        if   [[ "$security" == *"WPA"* ]]; then lock="🔒"
+        elif [[ -n "$security" ]];         then lock="🔐"
+        else                                    lock="  "
+        fi
+
+        if [[ "$ssid" == "$current_ssid" ]]; then
+            options+=("$strength $lock $ssid ✓")
+        else
+            options+=("$strength $lock $ssid")
+        fi
+    done <<< "$networks"
+fi
+
+options+=("──────────────────")
+options+=("⚙️   Network Settings (nmtui)")
+options+=("❌  Cancel")
+
+choice=$(printf '%s\n' "${options[@]}" | menu "📶 WiFi:" 20) || true
+[[ -n "$choice" ]] || exit 0
+
+case "$choice" in
+    "🔴  Turn WiFi Off")
+        nmcli radio wifi off
+        notify normal "WiFi" "WiFi disabled" 1500
+        ;;
+
+    "🟢  Turn WiFi On")
+        nmcli radio wifi on
+        notify normal "WiFi" "WiFi enabled" 1500
+        sleep 2
+        nmcli dev wifi rescan 2>/dev/null || true
+        ;;
+
+    "🔌  Disconnect")
+        nmcli con down "$current_ssid" 2>/dev/null || \
+            { [[ -n "$wifi_dev" ]] && nmcli dev disconnect "$wifi_dev" 2>/dev/null; }
+        notify normal "WiFi" "Disconnected from $current_ssid" 2000
+        ;;
+
+    "🔍  Scan for Networks")
+        notify normal "WiFi" "Scanning for networks..." 1500
+        nmcli dev wifi rescan 2>/dev/null || true
+        sleep 2
+        exec "$0"
+        ;;
+
+    "⚙️   Network Settings (nmtui)")
+        exec "${TERMINAL:-st}" -e nmtui
+        ;;
+
+    "❌  Cancel"|"──────────────────"|"")
+        exit 0
+        ;;
+
+    *"Connected:"*)
+        notify normal "WiFi" "Already connected to this network" 2000
+        ;;
+
+    *)
+        # Strip signal bars, lock glyph, and the connected checkmark
+        ssid=$(printf '%s' "$choice" | sed 's/^[▂▄▆█_]* *[🔒🔐 ]* *//; s/ *✓$//')
+        [[ -n "$ssid" ]] || exit 0
+
+        notify normal "WiFi" "Connecting to $ssid..." 2000
+        if nmcli dev wifi connect "$ssid" 2>/dev/null; then
+            notify normal "Success" "Connected to $ssid" 3000
+        else
+            # Saved credentials missing or wrong: ask once via dmenu's
+            # password mode (-P, input hidden), same idiom as dmenupass.
+            password=$(dmenu -c -P -p "🔑 Password for $ssid:" <&- || true)
+            [[ -n "$password" ]] || exit 0
+            if nmcli dev wifi connect "$ssid" password "$password"; then
+                notify normal "Success" "Connected to $ssid" 3000
+            else
+                notify critical "Error" "Failed to connect to $ssid" 3000
+            fi
+        fi
+        ;;
+esac

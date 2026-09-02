@@ -12,4 +12,9 @@ xset s off
 xset -dpms
 xset s noblank
 
+# System tray (dwm has none) + Bluetooth applet. Both are optional: on a
+# system without them installed these lines are no-ops.
+command -v aegix-tray >/dev/null 2>&1 && aegix-tray &
+command -v blueman-applet >/dev/null 2>&1 && blueman-applet &
+
 ssh-agent dwm
