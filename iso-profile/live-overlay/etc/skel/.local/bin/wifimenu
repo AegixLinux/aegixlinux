@@ -2,7 +2,8 @@
 # Aegix WiFi Menu - X11 version
 # Quick WiFi connection management: nmcli + dmenu. Pick a network, get on it.
 # Prompts for a password only when the saved one is missing or fails.
-# Ported from the Wayland wifimenu-aegix; bound to Super+Shift+W in dwm.
+# Ported from the Wayland wifimenu-aegix; bound to Super+Shift+W in dwm and
+# reachable from the Mod+M master menu.
 
 set -euo pipefail
 
@@ -22,8 +23,14 @@ menu()  { dmenu -c -i -l "${2:-15}" -p "$1"; }
 # First wifi-capable device (replaces the old hardcoded wlan0)
 wifi_dev="$(nmcli -t -f DEVICE,TYPE dev 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')"
 
+# Active SSID, unescaped (nmcli -t escapes ':' in values as '\:')
+active_ssid() {
+    nmcli -t -f active,ssid dev wifi 2>/dev/null \
+        | grep '^yes' | head -1 | cut -d: -f2- | sed 's/\\:/:/g'
+}
+
 wifi_status=$(nmcli radio wifi)
-current_ssid=$(nmcli -t -f active,ssid dev wifi 2>/dev/null | grep '^yes' | cut -d: -f2- || true)
+current_ssid=$(active_ssid || true)
 
 options=()
 if [[ "$wifi_status" == "enabled" ]]; then
@@ -40,12 +47,20 @@ if [[ "$wifi_status" == "enabled" ]]; then
     options+=("🔍  Scan for Networks")
     options+=("──────────────────")
 
-    # SIGNAL:SSID:SECURITY, strongest first
-    networks=$(nmcli -t -f signal,ssid,security dev wifi list 2>/dev/null | \
-               grep -v '^--' | sort -rn -t: -k1 | head -20)
-
-    while IFS=: read -r signal ssid security; do
+    # SIGNAL:SECURITY:SSID (ssid last: it may itself contain colons),
+    # strongest first, one row per SSID (an AP broadcasting on 2.4 and
+    # 5GHz shows up once, with its best signal).
+    declare -A seen_ssid=()
+    shown=0
+    while IFS= read -r line; do
+        signal="${line%%:*}"; rest="${line#*:}"
+        security="${rest%%:*}"; ssid="${rest#*:}"
+        ssid="${ssid//\\:/:}"
         [[ -z "$ssid" ]] && continue
+        [[ -n "${seen_ssid[$ssid]:-}" ]] && continue
+        seen_ssid[$ssid]=1
+        [[ "$shown" -ge 20 ]] && break
+        shown=$((shown + 1))
 
         if   [[ "$signal" -ge 80 ]]; then strength="▂▄▆█"
         elif [[ "$signal" -ge 60 ]]; then strength="▂▄▆_"
@@ -63,7 +78,7 @@ if [[ "$wifi_status" == "enabled" ]]; then
         else
             options+=("$strength $lock $ssid")
         fi
-    done <<< "$networks"
+    done < <(nmcli -t -f signal,security,ssid dev wifi list 2>/dev/null | sort -rn -t: -k1)
 fi
 
 options+=("──────────────────")
@@ -72,6 +87,35 @@ options+=("❌  Cancel")
 
 choice=$(printf '%s\n' "${options[@]}" | menu "📶 WiFi:" 20) || true
 [[ -n "$choice" ]] || exit 0
+
+# try_connect <ssid> [password]: activate a connection and VERIFY the result.
+# Prefers `con up` on an existing saved profile: `dev wifi connect` on a
+# saved network silently creates a duplicate "SSID 1" profile and is the
+# main reason switching used to fail. Returns 0 only when the active SSID
+# afterwards is the one asked for.
+try_connect() {
+    local ssid="$1" password="${2:-}" err=""
+
+    if nmcli -t -f NAME con show 2>/dev/null | sed 's/\\:/:/g' | grep -Fxq "$ssid"; then
+        if [[ -n "$password" ]]; then
+            nmcli con modify "$ssid" wifi-sec.psk "$password" 2>/dev/null || true
+        fi
+        err=$(nmcli -w 20 con up "$ssid" 2>&1 >/dev/null) || true
+    else
+        if [[ -n "$password" ]]; then
+            err=$(nmcli -w 20 dev wifi connect "$ssid" password "$password" 2>&1 >/dev/null) || true
+        else
+            err=$(nmcli -w 20 dev wifi connect "$ssid" 2>&1 >/dev/null) || true
+        fi
+    fi
+
+    # Trust the state, not the exit code
+    if [[ "$(active_ssid)" == "$ssid" ]]; then
+        return 0
+    fi
+    [[ -n "$err" ]] && printf '%s\n' "$err" | head -1
+    return 1
+}
 
 case "$choice" in
     "🔴  Turn WiFi Off")
@@ -116,19 +160,26 @@ case "$choice" in
         ssid=$(printf '%s' "$choice" | sed 's/^[▂▄▆█_]* *[🔒🔐 ]* *//; s/ *✓$//')
         [[ -n "$ssid" ]] || exit 0
 
-        notify normal "WiFi" "Connecting to $ssid..." 2000
-        if nmcli dev wifi connect "$ssid" 2>/dev/null; then
-            notify normal "Success" "Connected to $ssid" 3000
+        notify normal "WiFi" "Connecting to $ssid..." 8000
+        if err=$(try_connect "$ssid"); then
+            notify normal "WiFi ✓" "Connected to $ssid" 4000
+            exit 0
+        fi
+
+        # Saved credentials missing or wrong: ask once via dmenu's
+        # password mode (-P, input hidden), same idiom as dmenupass.
+        password=$(dmenu -c -P -p "🔑 Password for $ssid:" <&- || true)
+        if [[ -z "$password" ]]; then
+            notify critical "WiFi ✗" "Not connected to $ssid${err:+ ($err)}" 4000
+            exit 0
+        fi
+
+        notify normal "WiFi" "Connecting to $ssid..." 8000
+        if err=$(try_connect "$ssid" "$password"); then
+            notify normal "WiFi ✓" "Connected to $ssid" 4000
         else
-            # Saved credentials missing or wrong: ask once via dmenu's
-            # password mode (-P, input hidden), same idiom as dmenupass.
-            password=$(dmenu -c -P -p "🔑 Password for $ssid:" <&- || true)
-            [[ -n "$password" ]] || exit 0
-            if nmcli dev wifi connect "$ssid" password "$password"; then
-                notify normal "Success" "Connected to $ssid" 3000
-            else
-                notify critical "Error" "Failed to connect to $ssid" 3000
-            fi
+            notify critical "WiFi ✗" "Failed to connect to $ssid${err:+ ($err)}" 5000
+            exec "$0"   # reopen so the user can retry without re-summoning
         fi
         ;;
 esac

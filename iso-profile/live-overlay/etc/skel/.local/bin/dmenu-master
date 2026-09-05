@@ -9,7 +9,7 @@ choice=$(printf "📺 Display
 🔤 Font Size
 📏 HiDPI Scaling
 ⏰ Timezone Switcher
-📶 Network
+📶 WiFi
 🔊 Audio
 ⚙️  System Info
 🔒 Lock Screen
@@ -29,8 +29,8 @@ case "$choice" in
         rofi-scaling ;;
     *"Timezone"*)
         dmenu-tz-switcher ;;
-    *"Network"*)
-        setsid -f st -e nmtui ;;
+    *"WiFi"*)
+        setsid -f wifimenu ;;
     *"Audio"*)
         setsid -f st -e pulsemixer ;;
     *"Display"*)
