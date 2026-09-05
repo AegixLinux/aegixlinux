@@ -213,7 +213,8 @@ never	openconnect-sso
 never	opera
 never	pacman-contrib
 never	pandoc-bin
-never	pass-otp
+barbs	pass	"is the standard unix password manager (provides passmenu, bound to a key)"
+barbs	pass-otp	"extends pass with TOTP one-time passwords (the otp script needs it)"
 never	perl-image-exiftool
 never	pgbouncer
 never	php-legacy
