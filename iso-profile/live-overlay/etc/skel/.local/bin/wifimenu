@@ -29,6 +29,22 @@ active_ssid() {
         | grep '^yes' | head -1 | cut -d: -f2- | sed 's/\\:/:/g'
 }
 
+# Band of the active association: 2.4G, 5G, or 6G (from the AP frequency)
+active_band() {
+    local freq
+    freq=$(nmcli -t -f active,freq dev wifi 2>/dev/null \
+        | grep '^yes' | head -1 | cut -d: -f2 | grep -oE '[0-9]+' || true)
+    [[ -n "$freq" ]] || return 0
+    freq_to_band "$freq"
+}
+
+freq_to_band() {
+    if   [[ "$1" -lt 3000 ]]; then echo "2.4G"
+    elif [[ "$1" -lt 5925 ]]; then echo "5G"
+    else                           echo "6G"
+    fi
+}
+
 wifi_status=$(nmcli radio wifi)
 current_ssid=$(active_ssid || true)
 
@@ -47,18 +63,22 @@ if [[ "$wifi_status" == "enabled" ]]; then
     options+=("🔍  Scan for Networks")
     options+=("──────────────────")
 
-    # SIGNAL:SECURITY:SSID (ssid last: it may itself contain colons),
-    # strongest first, one row per SSID (an AP broadcasting on 2.4 and
-    # 5GHz shows up once, with its best signal).
-    declare -A seen_ssid=()
+    # SIGNAL:SECURITY:FREQ:SSID (ssid last: it may itself contain colons),
+    # strongest first. An AP broadcasting one SSID on 2.4 and 5GHz shows
+    # one row per band, labeled, so the band is the user's choice; within
+    # a band, only the strongest AP is listed.
+    cur_band="$(active_band || true)"
+    declare -A seen_key=()
     shown=0
     while IFS= read -r line; do
         signal="${line%%:*}"; rest="${line#*:}"
-        security="${rest%%:*}"; ssid="${rest#*:}"
+        security="${rest%%:*}"; rest="${rest#*:}"
+        freq="${rest%%:*}"; ssid="${rest#*:}"
         ssid="${ssid//\\:/:}"
         [[ -z "$ssid" ]] && continue
-        [[ -n "${seen_ssid[$ssid]:-}" ]] && continue
-        seen_ssid[$ssid]=1
+        band="$(freq_to_band "${freq%% *}")"
+        [[ -n "${seen_key[$ssid|$band]:-}" ]] && continue
+        seen_key[$ssid|$band]=1
         [[ "$shown" -ge 20 ]] && break
         shown=$((shown + 1))
 
@@ -73,12 +93,12 @@ if [[ "$wifi_status" == "enabled" ]]; then
         else                                    lock="  "
         fi
 
-        if [[ "$ssid" == "$current_ssid" ]]; then
-            options+=("$strength $lock $ssid ✓")
+        if [[ "$ssid" == "$current_ssid" && "$band" == "$cur_band" ]]; then
+            options+=("$strength $lock $ssid [$band] ✓")
         else
-            options+=("$strength $lock $ssid")
+            options+=("$strength $lock $ssid [$band]")
         fi
-    done < <(nmcli -t -f signal,security,ssid dev wifi list 2>/dev/null | sort -rn -t: -k1)
+    done < <(nmcli -t -f signal,security,freq,ssid dev wifi list 2>/dev/null | sort -rn -t: -k1)
 fi
 
 options+=("──────────────────")
@@ -88,15 +108,23 @@ options+=("❌  Cancel")
 choice=$(printf '%s\n' "${options[@]}" | menu "📶 WiFi:" 20) || true
 [[ -n "$choice" ]] || exit 0
 
-# try_connect <ssid> [password]: activate a connection and VERIFY the result.
-# Prefers `con up` on an existing saved profile: `dev wifi connect` on a
-# saved network silently creates a duplicate "SSID 1" profile and is the
-# main reason switching used to fail. Returns 0 only when the active SSID
-# afterwards is the one asked for.
+# try_connect <ssid> <band> [password]: activate a connection and VERIFY the
+# result. Prefers `con up` on an existing saved profile: `dev wifi connect`
+# on a saved network silently creates a duplicate "SSID 1" profile and is
+# the main reason switching used to fail. The chosen band is steered via the
+# profile's 802-11-wireless.band property (bg = 2.4GHz, a = 5/6GHz), so the
+# choice sticks until the user picks the other band's row. Returns 0 only
+# when the active SSID afterwards is the one asked for.
 try_connect() {
-    local ssid="$1" password="${2:-}" err=""
+    local ssid="$1" band="${2:-}" password="${3:-}" err="" nm_band=""
+
+    case "$band" in
+        2.4G) nm_band="bg" ;;
+        5G|6G) nm_band="a" ;;
+    esac
 
     if nmcli -t -f NAME con show 2>/dev/null | sed 's/\\:/:/g' | grep -Fxq "$ssid"; then
+        [[ -n "$nm_band" ]] && nmcli con modify "$ssid" 802-11-wireless.band "$nm_band" 2>/dev/null || true
         if [[ -n "$password" ]]; then
             nmcli con modify "$ssid" wifi-sec.psk "$password" 2>/dev/null || true
         fi
@@ -106,6 +134,14 @@ try_connect() {
             err=$(nmcli -w 20 dev wifi connect "$ssid" password "$password" 2>&1 >/dev/null) || true
         else
             err=$(nmcli -w 20 dev wifi connect "$ssid" 2>&1 >/dev/null) || true
+        fi
+        # dev wifi connect just created the profile; record the band choice
+        # and re-activate on it if the association landed on the other band.
+        if [[ -n "$nm_band" && "$(active_ssid)" == "$ssid" ]]; then
+            nmcli con modify "$ssid" 802-11-wireless.band "$nm_band" 2>/dev/null || true
+            if [[ "$(active_band)" != "$band" ]]; then
+                err=$(nmcli -w 20 con up "$ssid" 2>&1 >/dev/null) || true
+            fi
         fi
     fi
 
@@ -156,13 +192,15 @@ case "$choice" in
         ;;
 
     *)
-        # Strip signal bars, lock glyph, and the connected checkmark
-        ssid=$(printf '%s' "$choice" | sed 's/^[▂▄▆█_]* *[🔒🔐 ]* *//; s/ *✓$//')
+        # Strip signal bars, lock glyph, the [band] tag, and the checkmark
+        line=$(printf '%s' "$choice" | sed 's/^[▂▄▆█_]* *[🔒🔐 ]* *//; s/ *✓$//')
+        band=$(printf '%s' "$line" | grep -oE '\[(2\.4|5|6)G\]$' | tr -d '[]' || true)
+        ssid=$(printf '%s' "$line" | sed -E 's/ *\[(2\.4|5|6)G\]$//')
         [[ -n "$ssid" ]] || exit 0
 
-        notify normal "WiFi" "Connecting to $ssid..." 8000
-        if err=$(try_connect "$ssid"); then
-            notify normal "WiFi ✓" "Connected to $ssid" 4000
+        notify normal "WiFi" "Connecting to $ssid${band:+ ($band)}..." 8000
+        if err=$(try_connect "$ssid" "$band"); then
+            notify normal "WiFi ✓" "Connected to $ssid${band:+ on $band}" 4000
             exit 0
         fi
 
@@ -174,9 +212,9 @@ case "$choice" in
             exit 0
         fi
 
-        notify normal "WiFi" "Connecting to $ssid..." 8000
-        if err=$(try_connect "$ssid" "$password"); then
-            notify normal "WiFi ✓" "Connected to $ssid" 4000
+        notify normal "WiFi" "Connecting to $ssid${band:+ ($band)}..." 8000
+        if err=$(try_connect "$ssid" "$band" "$password"); then
+            notify normal "WiFi ✓" "Connected to $ssid${band:+ on $band}" 4000
         else
             notify critical "WiFi ✗" "Failed to connect to $ssid${err:+ ($err)}" 5000
             exec "$0"   # reopen so the user can retry without re-summoning
