@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# Bluetooth status for the bar. Replaces the old floating stalonetray box.
+# 🔵❌: adapter powered off
+# 🔵: powered on, nothing connected
+# 🔵 Name: connected to a device (two or more shows a count instead)
+# Prints nothing when there is no adapter or bluetoothd is not running,
+# so machines without bluetooth get no dead module in the bar.
+
+case $BLOCK_BUTTON in
+	1) setsid -f blueman-manager >/dev/null 2>&1 ;;
+	2) if bluetoothctl show | grep -q "Powered: yes"; then
+		bluetoothctl power off >/dev/null 2>&1
+	else
+		bluetoothctl power on >/dev/null 2>&1
+	fi; pkill -RTMIN+5 dwmblocks ;;
+	3) notify-send "🔵 Bluetooth module" "\- Left click to open the bluetooth manager
+\- Middle click to toggle power
+🔵❌: powered off
+🔵: on, nothing connected
+🔵 <name>: connected" ;;
+	6) "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+pgrep -x bluetoothd >/dev/null || exit 0
+
+show="$(timeout 3 bluetoothctl show 2>/dev/null)" || exit 0
+echo "$show" | grep -q "Powered:" || exit 0
+
+if ! echo "$show" | grep -q "Powered: yes"; then
+	printf "🔵❌\n"
+	exit 0
+fi
+
+devices="$(timeout 3 bluetoothctl devices Connected 2>/dev/null | sed 's/^Device [^ ]* //')"
+count="$(printf "%s" "$devices" | grep -c .)"
+
+case $count in
+	0) printf "🔵\n" ;;
+	1) printf "🔵 %.14s\n" "$devices" ;;
+	*) printf "🔵 %s\n" "$count" ;;
+esac

@@ -34,5 +34,5 @@ case $BLOCK_BUTTON in
         6) "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# Display the date and time in 24-hour format
-date "+%Y-%m-%d %a %H:%M"
+# Display the hour icon plus the date and time in 24-hour format
+printf '%s %s\n' "$icon" "$(date '+%Y-%m-%d %a %H:%M')"
