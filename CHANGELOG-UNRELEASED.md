@@ -13,11 +13,3 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
-
-- The bar clock shows its hour-hand emoji again: the icon was computed but
-  never printed (thanks to the user report that caught it).
-- Bluetooth now lives in the top bar instead of a floating tray box: a 🔵
-  module shows power and connection state (device name when connected), left
-  click opens the bluetooth manager, middle click toggles power.
-- st: browser-style zoom keys: `Ctrl+Shift+plus` and `Ctrl+minus` change the
-  terminal font size, `Ctrl+0` resets it (the `Alt+Shift+K/J` binds remain).
