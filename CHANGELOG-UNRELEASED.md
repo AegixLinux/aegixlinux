@@ -14,6 +14,8 @@ The contract:
   story of the ISO.
 -->
 
+- The bar clock shows its hour-hand emoji again: the icon was computed but
+  never printed (thanks to the user report that caught it).
 - Bluetooth now lives in the top bar instead of a floating tray box: a 🔵
   module shows power and connection state (device name when connected), left
   click opens the bluetooth manager, middle click toggles power.
