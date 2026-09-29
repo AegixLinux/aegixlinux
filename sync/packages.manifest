@@ -134,8 +134,7 @@ never	bind
 barbs	bluez	""
 barbs	bluez-runit	""
 barbs	bluez-utils	""
-barbs	stalonetray	"provides the system tray dwm lacks, for applets like blueman"
-barbs	blueman	"is the graphical Bluetooth manager living in the tray"
+barbs	blueman	"is the graphical Bluetooth manager, opened from the bar's bluetooth module"
 never	brother-hl2240-cups-bin
 never	brother-hl2240-lpr-bin
 barbs	btop	""

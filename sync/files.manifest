@@ -59,6 +59,7 @@ ship	.local/bin/remaps
 ship	.local/bin/remove-snippet-dmenu
 ship	.local/bin/rotdir
 ship	.local/bin/sb-battery
+ship	.local/bin/sb-bluetooth
 ship	.local/bin/sb-clock
 ship	.local/bin/sb-cpu
 ship	.local/bin/sb-internet
@@ -69,7 +70,6 @@ ship	.local/bin/setbg
 ship	.local/bin/shortcuts
 ship	.local/bin/shotmenu
 ship	.local/bin/wifimenu
-ship	.local/bin/aegix-tray
 ship	.local/bin/snippets-menu
 ship	.local/bin/special-char-menu
 ship	.local/bin/sysact

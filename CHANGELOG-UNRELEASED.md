@@ -14,5 +14,8 @@ The contract:
   story of the ISO.
 -->
 
+- Bluetooth now lives in the top bar instead of a floating tray box: a 🔵
+  module shows power and connection state (device name when connected), left
+  click opens the bluetooth manager, middle click toggles power.
 - st: browser-style zoom keys: `Ctrl+Shift+plus` and `Ctrl+minus` change the
   terminal font size, `Ctrl+0` resets it (the `Alt+Shift+K/J` binds remain).
