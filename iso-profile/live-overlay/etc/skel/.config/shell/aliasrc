@@ -28,6 +28,7 @@ alias \
 	black="brightnessctl set 0%" \
 	update="sudo pacman -Syu --noconfirm && yay --noconfirm" \
 	view="sxiv" \
+	md="glow -p" \
 	help="groff -mom ~/.local/src/dwm/barbs.mom -Tpdf | zathura -" \
 	blowfish="hugo server --minify --theme blowfish" \
 	hss="hugo server --noHTTPCache" \
