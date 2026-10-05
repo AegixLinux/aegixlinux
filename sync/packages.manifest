@@ -59,6 +59,7 @@ barbs,rootfs	wget	"is a network downloader used by many scripts"
 barbs,rootfs	bc	"is a gnu calculator"
 barbs,rootfs	fzf	"is a fuzzy finder tool"
 barbs,rootfs	bat	"can highlight code output and display files"
+barbs,rootfs	glow	"renders markdown nicely in the terminal (md alias, lf previews)"
 barbs,rootfs	htop	"is an interactive process viewer"
 barbs,rootfs	man-db	"read manual pages"
 rootfs	man-pages
