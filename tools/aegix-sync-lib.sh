@@ -68,6 +68,9 @@ pm_load() {
     done
     if [[ ",$tags," == *,git,* ]]; then PM_URL["$name"]="$f3"; PM_DESC["$name"]="${f4//\"/}"
     else PM_DESC["$name"]="${f3//\"/}"; fi
+    if [[ -n "${PM_TAGS[$name]+x}" ]]; then
+      echo "packages.manifest: '$name' is listed more than once" >&2; return 1
+    fi
     PM_TAGS["$name"]="$tags"; PM_ORDER+=("$name")
   done < "$file"
 }

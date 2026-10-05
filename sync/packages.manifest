@@ -163,7 +163,6 @@ never	freebasic
 never	fuzzel
 never	git-filter-repo
 never	github-cli
-barbs	glow	""
 never	go
 never	google-chrome
 never	greetd

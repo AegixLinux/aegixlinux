@@ -117,6 +117,16 @@ test_pm_load_rejects_never_contradiction() {
   teardown
 }
 
+test_pm_load_rejects_duplicate() {
+  log "packages.manifest: a package may be listed only once"
+  setup_workspace
+  printf 'barbs,rootfs\tfoo\t"first"\nbarbs\tfoo\t""\n' > "$AEGIX_SYNC_DIR/packages.manifest"
+  local rc=0
+  ( source "$TOOLS_DIR/aegix-sync-lib.sh"; pm_load "$AEGIX_SYNC_DIR/packages.manifest" ) 2>/dev/null || rc=$?
+  assert_eq "1" "$rc" "duplicate package line rejected"
+  teardown
+}
+
 test_sanitize_tree() {
   log "sanitize: sub, strip-line, strip-block, glob scoping, placeholders"
   setup_workspace
@@ -1142,6 +1152,7 @@ main() {
   test_fm_load_rejects_contradiction
   test_pm_load_and_diff
   test_pm_load_rejects_never_contradiction
+  test_pm_load_rejects_duplicate
   test_sanitize_tree
   test_verify_gate_blocks_leak
   test_verify_gate_match_scoped_allow
