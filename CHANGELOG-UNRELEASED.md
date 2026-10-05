@@ -13,3 +13,7 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- Markdown is readable without leaving the terminal: `glow` ships by default,
+  `md file.md` renders a file in a pager, lf previews `.md` files rendered,
+  and neovim renders markdown in the buffer (`,M` toggles it, `,m` opens a
+  glow view in a split).
