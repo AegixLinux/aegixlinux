@@ -28,6 +28,7 @@ class H(BaseHTTPRequestHandler):
         elif p == "/redir": self._send(302, b"", [("Location", "http://portal.test/login?token=abc")])
         elif p == "/html": self._send(200, b"<html><head>\n<meta http-equiv=\"refresh\" content=\"0; url=http://portal.test/meta\">\n</head><body>hi</body></html>\n")
         elif p == "/js": self._send(200, b"<html><script>\nwindow.location.href = 'http://portal.test/js';\n</script></html>")
+        elif p == "/clt": self._send(200, b"<html>\n<head>\n<META HTTP-EQUIV=\"pragma\" CONTENT=\"no-cache\">\n<title>REDIR</title>\n</head>\n<body onLoad='redirTimer()'>Please wait...<SCRIPT LANGUAGE='JavaScript'>\nredirTime = '500';\nredirURL = 'http://198.18.2.1:80/reg.php?ah_goal=index.html&ah_login=true&url=E2B8F3578D88E9B6';\nfunction redirTimer() { \n       self.setTimeout('self.location.href = redirURL;',redirTime); \n}\n</script> \n<br>If you cannot see the login page, close and then reopen your browser and try again.</font></div></body></html>\n")
         elif p == "/blank": self._send(200, b"<html><body>Welcome to the lobby</body></html>")
         elif p == "/511": self._send(511, b"<html><body><a href=\"http://portal.test/511\">Log in</a></body></html>")
         elif p == "/hang": time.sleep(30); self._send(204)

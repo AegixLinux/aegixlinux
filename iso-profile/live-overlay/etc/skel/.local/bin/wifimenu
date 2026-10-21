@@ -61,7 +61,8 @@ portal_probe() {
         return 1
     done
     # NetworkManager runs its own probe; trust it if it already knows
-    if [[ "$(nmcli -g CONNECTIVITY general 2>/dev/null)" == "portal" ]]; then
+    # (only with the default endpoints: an override means "your verdict only")
+    if [[ -z "${WIFIMENU_PROBE_URLS:-}" && "$(nmcli -g CONNECTIVITY general 2>/dev/null)" == "portal" ]]; then
         echo "portal ${probe_urls%% *}"
         return 1
     fi
@@ -77,6 +78,9 @@ portal_url_in_page() {
     u=$(printf '%s' "$page" | grep -oiE "url=['\"]?https?://[^'\" >]+" | head -1 | sed -E "s/^url=['\"]?//i") || true
     [[ -z "$u" ]] && { u=$(printf '%s' "$page" | grep -oiE "location(\.href)?[[:space:]]*=[[:space:]]*['\"]https?://[^'\"]+" | head -1 | sed -E "s/^[^'\"]*['\"]//") || true; }
     [[ -z "$u" ]] && { u=$(printf '%s' "$page" | grep -oiE "href=['\"]https?://[^'\"]+" | head -1 | sed -E "s/^href=['\"]//i") || true; }
+    # Last resort: any quoted absolute URL. Aruba portals (CLT airport) park
+    # the login URL in a JS variable: redirURL = 'http://198.18.2.1/reg.php?...'
+    [[ -z "$u" ]] && { u=$(printf '%s' "$page" | grep -oE "['\"]https?://[^'\"[:space:]]+['\"]" | head -1 | sed -E "s/^['\"]//; s/['\"]$//") || true; }
     [[ -n "$u" ]] || return 1
     printf '%s\n' "$u"
 }
