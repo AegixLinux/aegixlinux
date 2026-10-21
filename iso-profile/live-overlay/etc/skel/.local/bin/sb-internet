@@ -4,8 +4,13 @@
 # Show 🌐 if connected to ethernet or ❎ if none.
 # Show 🔒 if a vpn connection is active
 
+# Show 🔐 while NetworkManager says a captive portal is in the way; a click
+# then opens the portal's login page (wifimenu portal) instead of nmtui.
+portal=""
+[ "$(nmcli -g CONNECTIVITY general 2>/dev/null)" = "portal" ] && portal="🔐 "
+
 case $BLOCK_BUTTON in
-	1) "$TERMINAL" -e nmtui; pkill -RTMIN+4 dwmblocks ;;
+	1) if [ -n "$portal" ]; then wifimenu portal; else "$TERMINAL" -e nmtui; fi; pkill -RTMIN+4 dwmblocks ;;
 	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
 📡: no wifi connection
@@ -13,6 +18,7 @@ case $BLOCK_BUTTON in
 ❎: no ethernet
 🌐: ethernet working
 🔒: vpn is active
+🔐: captive portal, click to open its login page
 " ;;
 	6) "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
@@ -23,4 +29,4 @@ elif grep -xq 'down' /sys/class/net/w*/operstate 2>/dev/null ; then
 	grep -xq '0x1003' /sys/class/net/w*/flags && wifiicon="📡 " || wifiicon="❌ "
 fi
 
-printf "%s%s%s\n" "$wifiicon" "$(sed "s/down//;s/up/🌐/" /sys/class/net/e*/operstate 2>/dev/null)" "$(sed "s/.*/🔒/" /sys/class/net/tun*/operstate 2>/dev/null)"
+printf "%s%s%s%s\n" "$portal" "$wifiicon" "$(sed "s/down//;s/up/🌐/" /sys/class/net/e*/operstate 2>/dev/null)" "$(sed "s/.*/🔒/" /sys/class/net/tun*/operstate 2>/dev/null)"

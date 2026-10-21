@@ -3,6 +3,7 @@
 Paths:
   /gen204      -> 204 (real internet)
   /success.txt -> 200 "success\n" (real internet, Mozilla style)
+  /nm-check.txt -> 200 "NetworkManager is online\n" (real internet, Arch style)
   /redir       -> 302 Location: http://portal.test/login?token=abc
   /html        -> 200 HTML with a meta refresh to http://portal.test/meta
   /js          -> 200 HTML with window.location = "http://portal.test/js"
@@ -25,6 +26,7 @@ class H(BaseHTTPRequestHandler):
         p = self.path
         if p == "/gen204": self._send(204)
         elif p == "/success.txt": self._send(200, b"success\n")
+        elif p == "/nm-check.txt": self._send(200, b"NetworkManager is online\n")
         elif p == "/redir": self._send(302, b"", [("Location", "http://portal.test/login?token=abc")])
         elif p == "/html": self._send(200, b"<html><head>\n<meta http-equiv=\"refresh\" content=\"0; url=http://portal.test/meta\">\n</head><body>hi</body></html>\n")
         elif p == "/js": self._send(200, b"<html><script>\nwindow.location.href = 'http://portal.test/js';\n</script></html>")

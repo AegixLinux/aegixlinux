@@ -16,9 +16,12 @@ The contract:
 - Airport and hotel WiFi no longer leaves you staring at a timed-out tab:
   wifimenu now probes for a captive portal after every connect, opens the
   login page in your browser and copies its URL to the clipboard. The menu
-  gains a "Captive portal check" entry for networks joined via nmtui or
-  auto-reconnect, and `wifimenu probe` reports online / portal / offline
-  for scripts.
+  gains a "Captive portal check" entry, a resident watcher started from
+  xprofile does the same for networks joined via nmtui or auto-reconnect,
+  the status bar shows 🔐 while a portal is in the way (click it to open
+  the login page), and you get a "you're online" notification once the
+  portal lets you through. `wifimenu probe` reports online / portal /
+  offline for scripts.
 - Markdown is readable without leaving the terminal: `glow` ships by default,
   `md file.md` renders a file in a pager, lf previews `.md` files rendered,
   and neovim renders markdown in the buffer (`,M` toggles it, `,m` opens a

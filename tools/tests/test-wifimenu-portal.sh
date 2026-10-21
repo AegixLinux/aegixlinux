@@ -22,6 +22,7 @@ check() {   # check <name> <expected-output> <expected-exit> <probe urls...>
 }
 check 204-is-online           "online" 0 "$base/gen204"
 check success-txt-is-online   "online" 0 "$base/success.txt"
+check nm-check-is-online         "online" 0 "$base/nm-check.txt"
 check 302-gives-location      "portal http://portal.test/login?token=abc" 1 "$base/redir"
 check meta-refresh-extracted  "portal http://portal.test/meta" 1 "$base/html"
 check js-location-extracted   "portal http://portal.test/js" 1 "$base/js"
@@ -32,5 +33,18 @@ check nothing-listening-is-offline "offline" 2 "http://127.0.0.1:1/x"
 check hang-is-offline         "offline" 2 "$base/hang"
 check first-url-hang-second-online "online" 0 "$base/hang $base/gen204"
 check first-url-dead-second-portal "portal http://portal.test/login?token=abc" 1 "http://127.0.0.1:1/x $base/redir"
+
+# `wifimenu portal` opens the login page once: a second sighting of the same
+# portal within 90s (connect path + watcher) must not open a second tab.
+tmp=$(mktemp -d); printf '#!/bin/sh\necho "$1" >> "%s/opened"\n' "$tmp" > "$tmp/browser"; chmod +x "$tmp/browser"
+XDG_RUNTIME_DIR="$tmp" BROWSER="$tmp/browser" WIFIMENU_PROBE_URLS="$base/redir" "$wifimenu" portal
+XDG_RUNTIME_DIR="$tmp" BROWSER="$tmp/browser" WIFIMENU_PROBE_URLS="$base/redir" "$wifimenu" portal
+sleep 0.3
+if [[ "$(cat "$tmp/opened" 2>/dev/null)" == "http://portal.test/login?token=abc" ]]; then
+    echo "PASS portal-opened-once"; pass=$((pass+1))
+else
+    echo "FAIL portal-opened-once: opened=[$(cat "$tmp/opened" 2>/dev/null)]"; fail=$((fail+1))
+fi
+pkill -f "$tmp" 2>/dev/null; rm -rf "$tmp"
 echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

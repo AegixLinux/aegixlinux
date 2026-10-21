@@ -35,5 +35,9 @@ done >/dev/null 2>&1
 # PipeWire PulseAudio layer (needs args, so launched separately)
 pidof -s pipewire-pulse || pipewire -c pipewire-pulse.conf &
 
+# Captive portal watcher: opens the login page when NetworkManager detects a
+# portal, however the network was joined (wifimenu, nmtui, auto-reconnect).
+command -v wifimenu >/dev/null && setsid -f wifimenu watch >/dev/null 2>&1
+
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
