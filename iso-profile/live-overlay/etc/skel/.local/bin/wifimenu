@@ -4,6 +4,19 @@
 # Prompts for a password only when the saved one is missing or fails.
 # Ported from the Wayland wifimenu-aegix; bound to Super+Shift+W in dwm and
 # reachable from the Mod+M master menu.
+#
+# Captive portals (airports, hotels): after every connect the script probes
+# for one and, if found, opens the login page in the browser and copies its
+# URL to the clipboard. The same check is in the menu ("Captive portal
+# check") for networks joined some other way (nmtui, auto-reconnect).
+#
+#   wifimenu            the dmenu menu
+#   wifimenu portal     run the captive-portal check now, no menu
+#   wifimenu probe      print the verdict only: online | portal <url> | offline
+#                       (exit 0 / 1 / 2); for scripts and the status bar
+#
+# WIFIMENU_PROBE_URLS overrides the plain-http probe endpoints (space-separated).
+# BROWSER overrides how the portal page is opened (default: xdg-open).
 
 set -euo pipefail
 
@@ -13,6 +26,88 @@ notify() {
         notify-send "$title" "$message" --urgency="$urgency" -t "$timeout" \
             --app-name="wifimenu" --icon="network-wireless"
 }
+
+# ---- captive portal detection -------------------------------------------
+# A portal lets you associate and hands you an IP, then hijacks every plain
+# HTTP request and answers with its own login page. Browsers never see it
+# when they go straight to HTTPS (the hijack cannot forge the certificate,
+# so the page just times out). So we ask, over plain HTTP, for a URL whose
+# honest answer is known: a 204, or a 200 whose body starts with "success".
+# Anything else that answers is the portal.
+probe_urls="${WIFIMENU_PROBE_URLS:-http://detectportal.firefox.com/success.txt http://connectivitycheck.gstatic.com/generate_204}"
+
+# portal_probe: prints `online`, `portal <url>` or `offline` (exit 0/1/2).
+# <url> is the portal's login page: its redirect target when it sends one,
+# a link dug out of the page when it does not, else the probe URL itself
+# (which, opened in a browser, the portal will hijack the same way).
+portal_probe() {
+    local url out meta body code redirect found
+    for url in $probe_urls; do
+        out=$(curl -sS -m 6 -o - -w '\n%{http_code} %{redirect_url}' "$url" 2>/dev/null) || continue
+        meta="${out##*$'\n'}"; body="${out%$'\n'*}"
+        code="${meta%% *}"; redirect="${meta#* }"
+        case "$code" in
+            204) echo online; return 0 ;;
+            200) [[ "$body" == success* ]] && { echo online; return 0; } ;;
+            000) continue ;;    # no HTTP answer at all
+        esac
+        if [[ -n "$redirect" ]]; then
+            echo "portal $redirect"
+        elif found=$(printf '%s' "$body" | portal_url_in_page); then
+            echo "portal $found"
+        else
+            echo "portal $url"
+        fi
+        return 1
+    done
+    # NetworkManager runs its own probe; trust it if it already knows
+    if [[ "$(nmcli -g CONNECTIVITY general 2>/dev/null)" == "portal" ]]; then
+        echo "portal ${probe_urls%% *}"
+        return 1
+    fi
+    echo offline
+    return 2
+}
+
+# portal_url_in_page: first http(s) URL from a meta refresh, a JS location
+# assignment, or an <a href>, in that order. Reads the page on stdin.
+portal_url_in_page() {
+    local page u
+    page=$(cat)
+    u=$(printf '%s' "$page" | grep -oiE "url=['\"]?https?://[^'\" >]+" | head -1 | sed -E "s/^url=['\"]?//i") || true
+    [[ -z "$u" ]] && { u=$(printf '%s' "$page" | grep -oiE "location(\.href)?[[:space:]]*=[[:space:]]*['\"]https?://[^'\"]+" | head -1 | sed -E "s/^[^'\"]*['\"]//") || true; }
+    [[ -z "$u" ]] && { u=$(printf '%s' "$page" | grep -oiE "href=['\"]https?://[^'\"]+" | head -1 | sed -E "s/^href=['\"]//i") || true; }
+    [[ -n "$u" ]] || return 1
+    printf '%s\n' "$u"
+}
+
+# portal_handle [quiet]: probe, and on a portal open the login page and copy
+# its URL. With "quiet", say nothing when the connection is simply fine
+# (used right after a connect, where "Connected" was already announced).
+portal_handle() {
+    local quiet="${1:-}" verdict url rc=0
+    verdict=$(portal_probe) || rc=$?
+    if [[ $rc -eq 2 && -n "$quiet" ]]; then   # fresh link: DNS may still be settling
+        sleep 2; rc=0; verdict=$(portal_probe) || rc=$?
+    fi
+    case "$rc" in
+        1)  url="${verdict#portal }"
+            command -v xclip >/dev/null 2>&1 && printf '%s' "$url" | xclip -selection clipboard
+            notify normal "WiFi 🔐" "Captive portal: opening $url (URL copied to clipboard)" 8000
+            setsid -f "${BROWSER:-xdg-open}" "$url" >/dev/null 2>&1 || true
+            ;;
+        2)  notify normal "WiFi" "No internet reachable yet (no captive portal seen either)" 4000 ;;
+        *)  [[ -z "$quiet" ]] && notify normal "WiFi ✓" "Internet reachable, no captive portal" 3000 ;;
+    esac
+    return 0
+}
+
+case "${1:-}" in
+    probe)  portal_probe || exit $?; exit 0 ;;
+    portal) portal_handle; exit 0 ;;
+    "")     ;;
+    *)      printf 'usage: wifimenu [probe|portal]\n' >&2; exit 2 ;;
+esac
 
 for cmd in nmcli dmenu; do
     command -v "$cmd" >/dev/null 2>&1 || { notify critical "wifimenu" "$cmd not found" 5000; exit 1; }
@@ -53,6 +148,7 @@ if [[ "$wifi_status" == "enabled" ]]; then
     options+=("🔴  Turn WiFi Off")
     if [[ -n "$current_ssid" ]]; then
         options+=("✅  Connected: $current_ssid")
+        options+=("🔐  Captive portal check")
         options+=("🔌  Disconnect")
     fi
 else
@@ -166,6 +262,11 @@ case "$choice" in
         nmcli dev wifi rescan 2>/dev/null || true
         ;;
 
+    "🔐  Captive portal check")
+        notify normal "WiFi" "Checking for a captive portal..." 3000
+        portal_handle
+        ;;
+
     "🔌  Disconnect")
         nmcli con down "$current_ssid" 2>/dev/null || \
             { [[ -n "$wifi_dev" ]] && nmcli dev disconnect "$wifi_dev" 2>/dev/null; }
@@ -201,6 +302,7 @@ case "$choice" in
         notify normal "WiFi" "Connecting to $ssid${band:+ ($band)}..." 8000
         if err=$(try_connect "$ssid" "$band"); then
             notify normal "WiFi ✓" "Connected to $ssid${band:+ on $band}" 4000
+            portal_handle quiet
             exit 0
         fi
 
@@ -215,6 +317,7 @@ case "$choice" in
         notify normal "WiFi" "Connecting to $ssid${band:+ ($band)}..." 8000
         if err=$(try_connect "$ssid" "$band" "$password"); then
             notify normal "WiFi ✓" "Connected to $ssid${band:+ on $band}" 4000
+            portal_handle quiet
         else
             notify critical "WiFi ✗" "Failed to connect to $ssid${err:+ ($err)}" 5000
             exec "$0"   # reopen so the user can retry without re-summoning
