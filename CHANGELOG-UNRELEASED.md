@@ -13,6 +13,12 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- Claude Desktop installs by default: BARBS pulls in
+  `claude-desktop-aegix-bin` (Anthropic's official Linux build, repackaged
+  for Aegix, also on the AUR). On the NVIDIA proprietary driver under X11
+  it applies the GPU flags that fix the blank/crashing GPU process
+  automatically; put your own flags in `~/.config/claude-desktop-flags.conf`
+  to override.
 - Airport and hotel WiFi no longer leaves you staring at a timed-out tab:
   wifimenu now probes for a captive portal after every connect, opens the
   login page in your browser and copies its URL to the clipboard. The menu
