@@ -13,3 +13,6 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- The `hostname` command exists on installed systems: the installer now
+  includes `inetutils` (`hostname` plus classic clients like `ftp` and
+  `telnet`), which Arch's base package no longer pulls in.
