@@ -36,10 +36,11 @@ if [[ -z "$namcap_output" ]]; then
   echo "  namcap: clean"
 else
   echo "$namcap_output"
-  # namcap errors are prefixed "E:", warnings are "W:". Block on E:, allow W:.
-  if echo "$namcap_output" | grep -q '^PKGBUILD E:'; then
+  # namcap lines look like "PKGBUILD (pkgname) E: ..." (the parenthesized
+  # name is real output, confirmed live). Block on E:, allow W:.
+  if echo "$namcap_output" | grep -qE '^PKGBUILD( \([^)]*\))? E:'; then
     echo
-    echo "  namcap reported ERRORS — fix PKGBUILD before publishing."
+    echo "  namcap reported ERRORS: fix PKGBUILD before publishing."
     exit 1
   fi
 fi
