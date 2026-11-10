@@ -13,29 +13,3 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
-- New tool: `ttt`, the terminal Time Timer. A visual countdown dial for
-  ADHD time blindness: 0 at the top, a red wedge that shrinks as time runs
-  out, like the physical dial timers. Type 1 to 60 to set it, and at zero
-  the whole screen flashes red and an alarm plays. Chunky pixel art in the
-  Aegix gruvbox colors; also on the AUR as `ttt-aegix-git`.
-- The main menu (Mod+m or the bar's menu button) now puts the three most used
-  entries on top: Display, WiFi, Emoji Picker.
-- Claude Desktop installs by default: BARBS pulls in
-  `claude-desktop-aegix-bin` (Anthropic's official Linux build, repackaged
-  for Aegix, also on the AUR). On the NVIDIA proprietary driver under X11
-  it applies the GPU flags that fix the blank/crashing GPU process
-  automatically; put your own flags in `~/.config/claude-desktop-flags.conf`
-  to override.
-- Airport and hotel WiFi no longer leaves you staring at a timed-out tab:
-  wifimenu now probes for a captive portal after every connect, opens the
-  login page in your browser and copies its URL to the clipboard. The menu
-  gains a "Captive portal check" entry, a resident watcher started from
-  xprofile does the same for networks joined via nmtui or auto-reconnect,
-  the status bar shows 🔐 while a portal is in the way (click it to open
-  the login page), and you get a "you're online" notification once the
-  portal lets you through. `wifimenu probe` reports online / portal /
-  offline for scripts.
-- Markdown is readable without leaving the terminal: `glow` installs by default (BARBS),
-  `md file.md` renders a file in a pager, lf previews `.md` files rendered,
-  and neovim renders markdown in the buffer (`,M` toggles it, `,m` opens a
-  glow view in a split).
