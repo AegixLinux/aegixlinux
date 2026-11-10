@@ -4,8 +4,13 @@
 #
 # dwmblocks config (interval 0 = signal-driven; signal 11 matches `futureme tick`):
 #   { "", "fm-status", 0, 11 },
-# Click action (if your dwmblocks fork supports buttons): open the TUI in a
-# centered floating st:  st -n futureme -e futureme tui
+# Left click opens the TUI in a floating st (dwm rule: instance "futureme",
+# see dwm-rule.snippet); the count refreshes when that window closes.
+# Needs a dwmblocks with clickable blocks ($BLOCK_BUTTON, statuscmd patch).
+
+case $BLOCK_BUTTON in
+	1) setsid -f sh -c 'st -n futureme -e futureme tui; pkill -RTMIN+11 dwmblocks' >/dev/null 2>&1 ;;
+esac
 
 n=$(futureme check --count 2>/dev/null) || exit 0
 case "$n" in
