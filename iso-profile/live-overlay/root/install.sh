@@ -78,27 +78,76 @@ read -rp "Type YES to confirm: " really
 ### -------------------------------
 ### basic questions
 ### -------------------------------
+### >>> prompt helpers (tested by tools/tests/test-install-prompts.sh)
+# Every answer is validated HERE, before the disk is touched. Bad answers used
+# to be accepted and only fail at the very end, inside the chroot (useradd,
+# chpasswd), after the disk had already been wiped.
+# Helpers prompt on stderr (like read -p) and abort cleanly on end of input.
+
+# Groups the new user joins; used by useradd in the chroot below.
+NEWUSER_GROUPS="wheel,audio,video,storage,lp,network"
+
+_prompt_eof() { printf '\nNo input, aborting.\n' >&2; exit 1; }
+
+# prompt_username VAR DEFAULT: a name useradd will accept and that does not
+# collide with root, a system account/group, or a group the user joins.
+prompt_username() {
+  local __var="$1" __default="$2" __name __g
+  while :; do
+    IFS= read -rp "Username to create [$__default]: " __name || _prompt_eof
+    __name=${__name:-$__default}
+    if [[ ! "$__name" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
+      echo "Use lowercase letters, digits, '_' or '-', starting with a letter or '_'." >&2
+      continue
+    fi
+    if (( ${#__name} > 32 )); then
+      echo "Usernames can be at most 32 characters." >&2
+      continue
+    fi
+    if [[ "$__name" == root || ",$NEWUSER_GROUPS," == *",$__name,"* ]] \
+       || { __g=$(getent passwd "$__name" | cut -d: -f3) && (( __g < 1000 )); } \
+       || { __g=$(getent group  "$__name" | cut -d: -f3) && (( __g < 1000 )); }; then
+      echo "'$__name' is already a system account or group, pick another." >&2
+      continue
+    fi
+    break
+  done
+  printf -v "$__var" '%s' "$__name"
+}
+
+# prompt_hostname VAR DEFAULT: a single RFC 1123 label (letters, digits,
+# hyphens; 1 to 63 chars; no leading or trailing hyphen).
+prompt_hostname() {
+  local __var="$1" __default="$2" __host
+  while :; do
+    IFS= read -rp "Hostname [$__default]: " __host || _prompt_eof
+    __host=${__host:-$__default}
+    [[ "$__host" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$ ]] && break
+    echo "Use letters, digits and '-' (1 to 63 chars, not starting or ending with '-')." >&2
+  done
+  printf -v "$__var" '%s' "$__host"
+}
+
 # prompt_password VAR "Label": ask until the answer is non-empty and typed the
-# same twice, then store it in VAR. An empty password used to be accepted here
-# and only failed at the very end, inside the chroot, after the disk was wiped.
+# same twice (a mistyped, unconfirmed password locks you out just as badly).
 prompt_password() {
   local __var="$1" __label="$2" __pw __pw2
-  # read -p prompts on stderr; keep all of this helper's chatter there too.
   while :; do
-    IFS= read -rsp "$__label: " __pw || { printf '\nNo input, aborting.\n' >&2; exit 1; }; echo >&2
+    IFS= read -rsp "$__label: " __pw || _prompt_eof; echo >&2
     if [[ -z "$__pw" ]]; then
       echo "Password cannot be empty, try again." >&2
       continue
     fi
-    IFS= read -rsp "Confirm $__label: " __pw2 || { printf '\nNo input, aborting.\n' >&2; exit 1; }; echo >&2
+    IFS= read -rsp "Confirm $__label: " __pw2 || _prompt_eof; echo >&2
     [[ "$__pw" == "$__pw2" ]] && break
     echo "Passwords do not match, try again." >&2
   done
   printf -v "$__var" '%s' "$__pw"
 }
+### <<< prompt helpers
 
-read -rp "Hostname [aegix]: " HOSTNAME; HOSTNAME=${HOSTNAME:-aegix}
-read -rp "Username to create [aegix]: " NEWUSER; NEWUSER=${NEWUSER:-aegix}
+prompt_hostname HOSTNAME aegix
+prompt_username NEWUSER aegix
 prompt_password USERPASS "Password for $NEWUSER"
 prompt_password ROOTPASS "Password for root"
 read -rp "Timezone [$HOST_TZ_DEFAULT]: " HOST_TZ; HOST_TZ=${HOST_TZ:-$HOST_TZ_DEFAULT}
@@ -307,7 +356,7 @@ mkinitcpio -P
 
 log "Users and passwords..."
 echo "root:\${ROOTPASS}" | chpasswd
-useradd -m -G wheel,audio,video,storage,lp,network -s /bin/zsh "\${NEWUSER}"
+useradd -m -G "${NEWUSER_GROUPS}" -s /bin/zsh "\${NEWUSER}"
 echo "\${NEWUSER}:\${USERPASS}" | chpasswd
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
