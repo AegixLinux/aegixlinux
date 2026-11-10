@@ -22,6 +22,19 @@ PROFILE_DEST="${ISO_PROFILE_DEST:-/usr/share/artools/iso-profiles/aegix}"
 commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 dirty="clean"; git -C "$REPO_ROOT" diff --quiet -- iso-profile sync || dirty="dirty"
 stamp="$(date +%Y%m%d)"
+
+# Security gate: refuse to build an ISO that would ship a known High/Critical
+# vulnerability whose fix exists upstream but has not reached the repos yet.
+# The report lands next to the ISO for the release notes.
+# Override (rare, deliberate): AEGIX_SKIP_SECURITY=1 tools/build-aegix-iso.sh
+mkdir -p "$ISO_DIR"
+sec_report="$ISO_DIR/aegix-$stamp-security.txt"
+if [ "${AEGIX_SKIP_SECURITY:-0}" = 1 ]; then
+    echo "WARNING: security preflight skipped (AEGIX_SKIP_SECURITY=1)" | tee "$sec_report"
+elif ! "$REPO_ROOT/tools/security-preflight.sh" --report "$sec_report"; then
+    echo "build-aegix-iso: security preflight FAILED, not building. See $sec_report" >&2
+    exit 1
+fi
 sudo tee "$PROFILE_DEST/live-overlay/etc/aegix-release" >/dev/null <<STAMP
 AEGIX_ISO_VERSION=$stamp
 AEGIX_ISO_BUILD_DATE=$(date -Is)
