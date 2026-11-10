@@ -82,37 +82,22 @@ switch_timezone() {
 
     # Switch timezone (requires root)
     if sudo ln -sf "$tz_path" /etc/localtime; then
-        # Also update Waybar configs to use new timezone
-        update_waybar_timezone "$new_tz"
-
-        # Restart Waybar to apply changes
-        killall waybar 2>/dev/null || true
-        sleep 0.5
-        waybar &
+        # Restart dwmblocks so the status bar clock reflects the new timezone
+        if pgrep -x dwmblocks >/dev/null 2>&1; then
+            pkill -x dwmblocks
+            setsid dwmblocks >/dev/null 2>&1 &
+        fi
 
         # Success notification
         local friendly=$(get_friendly_name "$new_tz")
         notify-send -u normal "⏰ Timezone Changed" "Now using: $friendly"
         echo -e "${GREEN}✓ Timezone changed to: $new_tz${NC}"
-        echo -e "${BLUE}  Waybar restarted to reflect changes${NC}"
+        echo -e "${BLUE}  dwmblocks restarted to reflect changes${NC}"
     else
         notify-send -u critical "⏰ Timezone Error" "Failed to change timezone (check sudo permissions)"
         echo -e "${RED}Error: Failed to change timezone${NC}" >&2
         exit 1
     fi
-}
-
-# Function to update Waybar configs with new timezone
-update_waybar_timezone() {
-    local new_tz="$1"
-
-    # Update both docked and undocked configs
-    for config in "$HOME/.config/waybar/config.hyprland.docked" "$HOME/.config/waybar/config.hyprland.undocked"; do
-        if [ -f "$config" ]; then
-            # Use sed to replace timezone in clock module
-            sed -i "s|\"timezone\": \".*\"|\"timezone\": \"$new_tz\"|g" "$config"
-        fi
-    done
 }
 
 # Main menu function

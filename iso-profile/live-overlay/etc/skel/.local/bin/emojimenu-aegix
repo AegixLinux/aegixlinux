@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Aegix Emoji Picker - Fuzzel-based emoji selector
+# Aegix Emoji Picker - dmenu-based emoji selector
 # Invoked with Super+` (grave accent)
 #
 # Features:
@@ -7,7 +7,7 @@
 # - Type emoji directly into focused window (default)
 # - Copy to clipboard (with Shift modifier)
 # - Custom emoji support
-# - Fast fuzzy search
+# - Fast fuzzy search (dmenu -i)
 
 set -euo pipefail
 
@@ -21,10 +21,10 @@ readonly FREQUENTLY_USED="$EMOJI_DIR/frequently-used.txt"
 ACTION="${1:-type}"
 
 # Check dependencies
-for cmd in fuzzel wtype wl-copy; do
+for cmd in dmenu xdotool xclip; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         notify-send "Emoji Picker Error" \
-            "$cmd not found. Install: sudo pacman -S ${cmd/fuzzel/fuzzel} ${cmd/wtype/wtype} ${cmd/wl-copy/wl-clipboard}" \
+            "$cmd not found. Install: sudo pacman -S $cmd" \
             --urgency=critical \
             -t 5000
         exit 1
@@ -63,13 +63,7 @@ build_emoji_list() {
 }
 
 # Show emoji picker
-selected=$(build_emoji_list | fuzzel --dmenu \
-    --prompt='😀 Emoji: ' \
-    --lines=15 \
-    --width=50 \
-    --line-height=25 \
-    --font='monospace:size=12' \
-    --no-exit-on-keyboard-focus-loss)
+selected=$(build_emoji_list | dmenu -i -l 15 -p '😀 Emoji:' || true)
 
 # Exit if nothing selected
 [[ -n "$selected" ]] || exit 0
@@ -92,20 +86,16 @@ case "$ACTION" in
     type)
         # Track usage
         track_usage
-        # Give time for fuzzel to close and focus to return
+        # Give time for dmenu to close and focus to return
         sleep 0.2
         # Type the emoji into the focused window
-        wtype -s 0 "$emoji"
+        xdotool type --delay 0 -- "$emoji"
         ;;
     copy)
         # Track usage
         track_usage
-        # Copy to clipboard
-        # Use setsid to detach wl-copy from parent script
-        # This ensures wl-copy survives after script exits (Wayland requirement)
-        setsid sh -c "printf '%s' \"$emoji\" | wl-copy" >/dev/null 2>&1 &
-        # Give wl-copy time to start
-        sleep 0.2
+        # Copy to clipboard (xclip forks and owns the selection)
+        printf '%s' "$emoji" | xclip -selection clipboard
         # Show notification
         notify-send "📋 Emoji Copied" \
             "$emoji copied to clipboard (Ctrl+V to paste)" \

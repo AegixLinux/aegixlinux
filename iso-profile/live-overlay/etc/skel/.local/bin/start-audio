@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start audio stack for Wayland/Hyprland
+# Restart the pipewire audio stack
 # Part of Aegix distro
 
 # Kill any existing instances

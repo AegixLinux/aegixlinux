@@ -1,0 +1,150 @@
+#!/bin/sh
+# aegix-dpi - X11 DPI autodetection and scaling for Aegix Linux
+#
+# Computes the primary display's true DPI from the physical size it
+# reports, snaps it to a sane bucket (96, 120, 144, 192), and applies
+# it via "xrandr --dpi" and "Xft.dpi" (xrdb -merge). Runs from xprofile
+# at every X login, so a fresh install scales correctly on HiDPI panels.
+#
+# Scaling on Aegix is done via Xft.dpi only. Do not combine it with
+# GDK_SCALE=2: GTK multiplies both and you get 4x scaling.
+#
+# Suckless caveat: dwm and dmenu fonts use "size=", which follows
+# Xft.dpi automatically. st uses "pixelsize=", which does NOT: for a
+# HiDPI machine, bump pixelsize in st's config.h and rebuild.
+#
+# A manual override (aegix-dpi --set N) is stored in
+# ~/.config/aegix/dpi and wins over autodetection on later logins.
+
+CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/aegix"
+OVERRIDE_FILE="$CONF_DIR/dpi"
+
+usage() {
+	cat <<'EOF'
+aegix-dpi - X11 DPI autodetection and scaling for Aegix Linux
+
+Usage:
+  aegix-dpi            autodetect and apply (a saved override wins)
+  aegix-dpi --info     show detected and applied values, change nothing
+  aegix-dpi --set N    apply DPI N now and save it as the override
+  aegix-dpi --clear    remove the override and reapply autodetection
+  aegix-dpi --help     show this help
+
+How it works:
+  Reads the primary output's resolution and physical size from xrandr,
+  computes true DPI, and snaps it to 96, 120, 144, or 192. Displays
+  that report no physical size (common in VMs) fall back to 96.
+  Applies via "xrandr --dpi N" and "Xft.dpi: N" (xrdb -merge).
+
+Notes:
+  Aegix scales via Xft.dpi only; do not also set GDK_SCALE.
+  dwm/dmenu fonts ("size=") follow Xft.dpi; st ("pixelsize=") does
+  not, so bump st's config.h and rebuild on HiDPI machines.
+EOF
+}
+
+# Print the xrandr line of the primary (or first) connected output.
+primary_line() {
+	out=$(xrandr --query 2>/dev/null | grep ' connected primary ' | head -n 1)
+	[ -n "$out" ] || out=$(xrandr --query 2>/dev/null | grep ' connected ' | head -n 1)
+	printf '%s\n' "$out"
+}
+
+# Compute the true DPI of the primary output; 0 if it cannot be known.
+detect_dpi() {
+	line=$(primary_line)
+	[ -n "$line" ] || { echo 0; return; }
+	res_w=$(printf '%s\n' "$line" | grep -oE '[0-9]+x[0-9]+\+[0-9]+\+[0-9]+' | head -n 1 | cut -d x -f 1)
+	mm_w=$(printf '%s\n' "$line" | grep -oE '[0-9]+mm x [0-9]+mm' | head -n 1 | cut -d m -f 1)
+	case "$res_w$mm_w" in *[!0-9]*|'') echo 0; return ;; esac
+	[ "$mm_w" -gt 0 ] 2>/dev/null || { echo 0; return; }
+	echo $(( res_w * 254 / (mm_w * 10) ))
+}
+
+# Snap a raw DPI to a bucket dwm/st/dmenu render well at.
+snap_dpi() {
+	raw=$1
+	if [ "$raw" -le 0 ]; then
+		echo 96		# unknown physical size (VM, bogus EDID): no scaling
+	elif [ "$raw" -lt 108 ]; then
+		echo 96
+	elif [ "$raw" -lt 132 ]; then
+		echo 120
+	elif [ "$raw" -lt 168 ]; then
+		echo 144
+	else
+		echo 192
+	fi
+}
+
+read_override() {
+	[ -f "$OVERRIDE_FILE" ] || return 1
+	o=$(cat "$OVERRIDE_FILE" 2>/dev/null | tr -cd '0-9')
+	[ -n "$o" ] && [ "$o" -ge 72 ] && [ "$o" -le 384 ] || return 1
+	echo "$o"
+}
+
+apply_dpi() {
+	xrandr --dpi "$1" 2>/dev/null
+	printf 'Xft.dpi: %s\n' "$1" | xrdb -merge 2>/dev/null
+}
+
+require_display() {
+	if [ -z "$DISPLAY" ]; then
+		echo "aegix-dpi: no DISPLAY; run inside an X session" >&2
+		exit 1
+	fi
+}
+
+case "${1:-}" in
+-h|--help)
+	usage
+	;;
+-i|--info)
+	require_display
+	raw=$(detect_dpi)
+	snapped=$(snap_dpi "$raw")
+	echo "Detected DPI:  $raw (raw)"
+	echo "Snapped DPI:   $snapped"
+	if o=$(read_override); then
+		echo "Override:      $o ($OVERRIDE_FILE)"
+	else
+		echo "Override:      none"
+	fi
+	applied=$(xrdb -query 2>/dev/null | awk -F':\t' '$1 == "Xft.dpi" { print $2 }')
+	echo "Applied Xft.dpi: ${applied:-not set}"
+	;;
+-s|--set)
+	require_display
+	n=$(printf '%s' "${2:-}" | tr -cd '0-9')
+	if [ -z "$n" ] || [ "$n" -lt 72 ] || [ "$n" -gt 384 ]; then
+		echo "aegix-dpi: --set needs a DPI between 72 and 384" >&2
+		exit 1
+	fi
+	mkdir -p "$CONF_DIR"
+	printf '%s\n' "$n" > "$OVERRIDE_FILE"
+	apply_dpi "$n"
+	echo "DPI set to $n (saved to $OVERRIDE_FILE)"
+	;;
+-c|--clear)
+	require_display
+	rm -f "$OVERRIDE_FILE"
+	dpi=$(snap_dpi "$(detect_dpi)")
+	apply_dpi "$dpi"
+	echo "Override cleared; autodetected DPI $dpi applied"
+	;;
+'')
+	require_display
+	if dpi=$(read_override); then
+		:
+	else
+		dpi=$(snap_dpi "$(detect_dpi)")
+	fi
+	apply_dpi "$dpi"
+	;;
+*)
+	echo "aegix-dpi: unknown option: $1" >&2
+	usage >&2
+	exit 1
+	;;
+esac

@@ -15,7 +15,7 @@ command -v xdg-user-dirs-update >/dev/null 2>&1 && xdg-user-dirs-update
 # Auto-detect and apply monitor configuration (like kanshi for Wayland)
 autorandr --change --force
 
-xrandr --dpi 96		# Set DPI (96 = standard, no scaling)
+aegix-dpi		# Auto-detect panel DPI, set xrandr --dpi + Xft.dpi (override: aegix-dpi --set N)
 setbg &			# set the background with the `setbg` script
 xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources	# Load Xresources settings
 xrdb -merge ~/.cache/wal/colors.Xresources 2>/dev/null & xrdbpid=$!	# Merge pywal colors

@@ -148,6 +148,14 @@ git push origin master
 ```
 Runs the full verify pipeline (srcinfo regen, namcap, clean-sandbox makepkg). No push, no install.
 
+## HiDPI scaling (X11)
+
+Xft.dpi is the single scaling knob on Aegix. Never set GDK_SCALE alongside it: GTK multiplies both and you get 4x scaling.
+
+- `aegix-dpi` runs from xprofile at every X login. It reads the primary panel's physical size from xrandr, snaps the true DPI to 96/120/144/192, and applies it via `xrandr --dpi` and `xrdb -merge`. Displays that report no physical size (VMs, QEMU) fall back to 96.
+- Manual override: `aegix-dpi --set N` (persisted to `~/.config/aegix/dpi`), `aegix-dpi --clear` returns to auto, `aegix-dpi --info` inspects without changing anything.
+- dwm and dmenu fonts use `size=`, which follows Xft.dpi automatically. st uses `pixelsize=`, which does not: on a HiDPI machine bump pixelsize in st's config.h (18 to 36 for 2x) and rebuild.
+
 ## References
 
 - **Spec:** `docs/superpowers/specs/2026-04-21-aegix-src-sync-design.md` (original sync design)

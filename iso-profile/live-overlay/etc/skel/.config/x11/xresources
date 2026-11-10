@@ -8,8 +8,7 @@ Xcursor.size: 20
 !! Set a default font and font size as below:
 *.font: monospace:size=10
 
-!! DPI setting for mixed displays (120 = 1.25x scaling, 96 = no scaling)
-Xft.dpi: 96
+!! Xft.dpi is set dynamically at login by aegix-dpi (xprofile); override with: aegix-dpi --set N
 
 /* name		dark	light */
 /* black	0	8 */
