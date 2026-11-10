@@ -4,12 +4,12 @@
 ROFI_OPTS="-dmenu -i -theme-str 'window {width: 300px; location: center;}' -theme-str 'listview {lines: 8;}'"
 
 choice=$(printf "📺 Display
-🚀 Applications
+📶 WiFi
 😀 Emoji Picker
+🚀 Applications
 🔤 Font Size
 📏 HiDPI Scaling
 ⏰ Timezone Switcher
-📶 WiFi
 🔊 Audio
 ⚙️  System Info
 🔒 Lock Screen

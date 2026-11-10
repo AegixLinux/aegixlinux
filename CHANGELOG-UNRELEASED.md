@@ -13,6 +13,8 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- The main menu (Mod+m or the bar's menu button) now puts the three most used
+  entries on top: Display, WiFi, Emoji Picker.
 - Claude Desktop installs by default: BARBS pulls in
   `claude-desktop-aegix-bin` (Anthropic's official Linux build, repackaged
   for Aegix, also on the AUR). On the NVIDIA proprietary driver under X11
