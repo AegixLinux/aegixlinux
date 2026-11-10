@@ -13,6 +13,11 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- New tool: `ttt`, the terminal Time Timer. A visual countdown dial for
+  ADHD time blindness: 0 at the top, a red wedge that shrinks as time runs
+  out, like the physical dial timers. Type 1 to 60 to set it, and at zero
+  the whole screen flashes red and an alarm plays. Chunky pixel art in the
+  Aegix gruvbox colors; also on the AUR as `ttt-aegix-git`.
 - The main menu (Mod+m or the bar's menu button) now puts the three most used
   entries on top: Display, WiFi, Emoji Picker.
 - Claude Desktop installs by default: BARBS pulls in

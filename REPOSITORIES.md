@@ -32,12 +32,13 @@ Inside it:
 | `st` | `github.com/aegixlinux/st` | Terminal. |
 | `dmenu` | `github.com/aegixlinux/dmenu` | Launcher. Aegix patch: centered prompt. |
 | `dwmblocks` | `github.com/aegixlinux/dwmblocks` | Status bar. Aegix patches: `;;` centre delimiter, async-signal-safe handlers (a real deadlock fix, see `tests/signal-deadlock-test.sh`). |
+| `ttt` | `github.com/aegixlinux/ttt` | Terminal Time Timer: visual countdown dial for ADHD time blindness. Chunky pixel-art wedge, screen flash and alarm at zero. |
 | `tabbed` | `github.com/AegixLinux/tabbed` | Tabbing container. |
 | `nsxiv` | *(not yet published)* | Image viewer fork: key-handler absolute paths, Aegix defaults in `config.def.h`. Local at `~/code/PROJECTS/nsxiv-aegix`. Blocked on the `aegixlinux` GitHub token. |
 | `barbs` | submodule of the monorepo | Beach Automation Routine for Building Systems: the post-install program installer. |
 | `gohan` | submodule of the monorepo | Dotfiles. **Now a published mirror, not an install source** — since 2026-08-04 the installer seeds `/etc/skel` from the ISO instead. |
 
-The four suckless repos are also checked out at `~/.local/src/<name>` on the
+The five synced repos (dwm, st, dmenu, dwmblocks, ttt) are also checked out at `~/.local/src/<name>` on the
 build machine, where they are edited directly. A post-commit hook
 (`tools/src-sync-*`) advances the monorepo submodule pointers automatically.
 
@@ -60,6 +61,7 @@ Aegix forks above and follow remote `HEAD`.
 | `dmenu-aegix-git` | `aegixlinux/dmenu` |
 | `dwmblocks-aegix-git` | `aegixlinux/dwmblocks` |
 | `st-tabbed-aegix-git` | `AegixLinux/tabbed` |
+| `ttt-aegix-git` | `aegixlinux/ttt` |
 | `nsxiv-aegix-git` | pending the `aegixlinux/nsxiv` publish |
 
 Workflow: `tools/aur-publish.sh <pkg>` verifies locally (regenerates

@@ -25,6 +25,7 @@ ship	.local/src/dwm/
 ship	.local/src/st/
 ship	.local/src/dmenu/
 ship	.local/src/dwmblocks/
+ship	.local/src/ttt/
 never	.config/shell/shortcutrc
 never	.config/shell/zshnameddirrc
 never	.config/lf/shortcutrc

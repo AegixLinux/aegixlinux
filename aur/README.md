@@ -7,6 +7,7 @@ published on the AUR:
 - `st-aegix-git` — https://aur.archlinux.org/packages/st-aegix-git
 - `dmenu-aegix-git` — https://aur.archlinux.org/packages/dmenu-aegix-git
 - `dwmblocks-aegix-git` — https://aur.archlinux.org/packages/dwmblocks-aegix-git
+- `ttt-aegix-git` — https://aur.archlinux.org/packages/ttt-aegix-git
 
 AUR account: **timothason** (dedicated SSH key at `~/.ssh/id_ed25519_aur`,
 routed to `aur.archlinux.org` via `~/.ssh/config`). Commits are GPG-signed

@@ -16,3 +16,6 @@
 [submodule "dmenu"]
 	path = dmenu
 	url = git@github.com:aegixlinux/dmenu.git
+[submodule "ttt"]
+	path = ttt
+	url = git@github.com:aegixlinux/ttt.git

@@ -108,6 +108,7 @@ git	dwmblocks	https://github.com/aegixlinux/dwmblocks.git	"serves as the modular
 git	dmenu	https://github.com/aegixlinux/dmenu.git	"runs commands and provides a UI for selection"
 git	st	https://github.com/aegixlinux/st.git	"is a custom aegixlinux build of suckless's terminal emulator"
 git	dwm	https://github.com/aegixlinux/dwm.git	"is the window manager"
+git	ttt	https://github.com/aegixlinux/ttt.git	"is the terminal Time Timer, a visual countdown dial for ADHD time blindness"
 aur	mutt-wizard-git	"is a light-weight terminal-based email system"
 aur	python-pywal16	"matches background image colors to system colors"
 barbs	networkmanager	"provides network connectivity management"
@@ -252,6 +253,7 @@ never	seatd
 never	shellcheck
 never	signal-desktop
 never	smartmontools
+barbs	sound-theme-freedesktop	"provides the alarm sound ttt plays at zero"
 never	speedtest-cli
 never	spotify
 never	sshping
