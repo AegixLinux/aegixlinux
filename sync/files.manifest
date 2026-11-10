@@ -302,7 +302,7 @@ never	.config/waybar/
 never	.config/dwl-startup.sh
 never	.config/hypr/
 never	.config/wallust/
-never	.config/xdg-desktop-portal/
+ship	.config/xdg-desktop-portal/
 never	.config/wireplumber/
 never	.config/mako/
 never	.config/nwg-displays/

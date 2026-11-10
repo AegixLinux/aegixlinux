@@ -6,6 +6,12 @@
 # Source shell profile for environment variables (TERMINAL, EDITOR, etc.)
 [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile" ] && . "${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile"
 
+# Give the D-Bus session bus this X session's display. The bus is started at
+# login (before X), so services it launches on demand, like the file chooser
+# portal (xdg-desktop-portal-gtk), would otherwise have no DISPLAY and fail.
+[ -n "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-update-activation-environment >/dev/null 2>&1 &&
+	dbus-update-activation-environment DISPLAY XAUTHORITY
+
 # Create the XDG user directories declared in ~/.config/user-dirs.dirs
 # (Downloads, Documents, ...). Idempotent; entries mapped to $HOME itself
 # create nothing. Tools like xdg-open, lf, and the download watcher rely

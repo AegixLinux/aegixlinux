@@ -13,6 +13,11 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- File open and save dialogs work in apps that use desktop portals (Claude
+  Desktop, Electron and Chromium apps): Aegix now ships a portal config for
+  dwm and hands the X display to the session bus at login.
+- Opening a terminal or starting an app no longer starts an extra D-Bus
+  session daemon each time. Login shells inside your session reuse its bus.
 - The `hostname` command exists on installed systems: the installer now
   includes `inetutils` (`hostname` plus classic clients like `ftp` and
   `telnet`), which Arch's base package no longer pulls in.

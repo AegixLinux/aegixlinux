@@ -465,7 +465,18 @@ disable_terminal_beep() {
 configure_dbus() {
     mkdir -p /var/lib/dbus/
     dbus-uuidgen > /var/lib/dbus/machine-id
-    echo "export \$(dbus-launch)" > /etc/profile.d/dbus.sh
+    # Guarded so login shells inside a running session reuse its bus
+    # instead of each starting (and leaking) a new dbus-daemon.
+    cat > /etc/profile.d/dbus.sh <<'DBUSEOF'
+# Start a D-Bus session bus for this login, unless one is already set.
+# Login shells opened inside a desktop session (terminals, apps resolving
+# their environment) inherit the session's bus; starting another one for
+# each of them leaks a dbus-daemon per shell. A value of "disabled:" means
+# the caller turned the bus off on purpose, so it is left alone too.
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch >/dev/null 2>&1; then
+	export $(dbus-launch)
+fi
+DBUSEOF
 }
 
 # Setup sudo configuration
