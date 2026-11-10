@@ -35,7 +35,7 @@ The contract:
   the login page), and you get a "you're online" notification once the
   portal lets you through. `wifimenu probe` reports online / portal /
   offline for scripts.
-- Markdown is readable without leaving the terminal: `glow` ships by default,
+- Markdown is readable without leaving the terminal: `glow` installs by default (BARBS),
   `md file.md` renders a file in a pager, lf previews `.md` files rendered,
   and neovim renders markdown in the buffer (`,M` toggles it, `,m` opens a
   glow view in a split).
