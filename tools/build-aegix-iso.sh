@@ -54,4 +54,10 @@ raw=$(ls -t "$ISO_DIR"/artix-aegix-runit-*.iso 2>/dev/null | head -1)
 final="$ISO_DIR/aegix-$(basename "$raw" | sed 's/^artix-aegix-runit-//')"
 mv "$raw" "$final"
 echo "ISO ready: $final"
+
+# Record exactly what shipped, for tools/security-weekly.sh.
+pkglist="${final%-x86_64.iso}-packages.txt"
+"$REPO_ROOT/tools/iso-package-set.sh" "$final" > "$pkglist" \
+    && echo "package list: $pkglist ($(wc -l < "$pkglist") packages)" \
+    || echo "WARNING: could not write $pkglist (security-weekly will check an older ISO)" >&2
 echo "Next: tools/qemu-test-aegix.sh (interactive) or tools/qemu-headless-validate.sh start"

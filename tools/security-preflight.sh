@@ -21,7 +21,10 @@
 #   HOST  the build machine itself is behind its repos or running an older
 #         kernel than installed. Does not affect the ISO content.
 #
-# Usage: tools/security-preflight.sh [--report FILE]
+# Usage: tools/security-preflight.sh [--report FILE] [--check-set FILE]
+#   --check-set FILE  skip resolving; check an existing "name version" list
+#                     instead (e.g. aegix-<date>-packages.txt of a RELEASED
+#                     ISO, from tools/iso-package-set.sh). BREAK does not apply.
 # Exit:  0 clean or warnings only, 1 at least one BREAK or FAIL, 2 tool error.
 set -euo pipefail
 
@@ -31,8 +34,16 @@ INITSYS=runit
 ARCH="$(uname -m)"
 STABILITY="${STABILITY:-stable}"
 TRACKER_URL="https://security.archlinux.org/all.json"
-REPORT=""
-[ "${1:-}" = "--report" ] && REPORT="${2:?--report needs a file}"
+REPORT="" CHECK_SET=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --report)    REPORT="${2:?--report needs a file}"; shift ;;
+        --check-set) CHECK_SET="${2:?--check-set needs a file}"; shift ;;
+        *) echo "usage: security-preflight.sh [--report FILE] [--check-set FILE]" >&2; exit 2 ;;
+    esac
+    shift
+done
+[ -z "$CHECK_SET" ] || [ -r "$CHECK_SET" ] || { echo "cannot read $CHECK_SET" >&2; exit 2; }
 
 for c in pacman fakeroot vercmp curl python3 yq; do
     command -v "$c" >/dev/null || { echo "missing required command: $c" >&2; exit 2; }
@@ -60,12 +71,18 @@ sync_db() {  # sync_db <dbpath> [pacman args...]
     fakeroot -- pacman -Sy --disable-sandbox --dbpath "$db" --logfile /dev/null "$@" \
         >/dev/null 2>"$TMP/sync.err" || { cat "$TMP/sync.err" >&2; exit 2; }
 }
-sync_db "$TMP/isodb" --config "$PAC_CONF"   # what buildiso installs from
+[ -n "$CHECK_SET" ] || sync_db "$TMP/isodb" --config "$PAC_CONF"   # what buildiso installs from
 sync_db "$TMP/hostsync"                     # host's own repos, for HOST drift
 
 echo "==> Fetching security tracker"
 curl -fsSL --retry 3 "$TRACKER_URL" -o "$TMP/tracker.json" || { echo "tracker download failed" >&2; exit 2; }
 
+: > "$TMP/iso-set"; : > "$TMP/missing"
+if [ -n "$CHECK_SET" ]; then
+    echo "==> Checking saved package set: $CHECK_SET"
+    grep -E '^[^ ]+ [^ ]+$' "$CHECK_SET" | sort -u > "$TMP/iso-set"
+    export PREFLIGHT_LABEL="saved set $(basename "$CHECK_SET")"
+else
 echo "==> Loading package lists with artools ($pac_conf, $INITSYS)"
 for stage in rootfs livefs bootfs; do
     DATADIR="$DATADIR" WORKSPACE_DIR="$TMP/ws" INITSYS="$INITSYS" STAGE="$stage" bash -c '
@@ -80,7 +97,6 @@ for stage in rootfs livefs bootfs; do
 done
 
 echo "==> Resolving the ISO package set"
-: > "$TMP/iso-set"; : > "$TMP/missing"
 for stage in rootfs livefs bootfs; do
     targets=$(cat "$TMP/list-$stage")
     [ -n "$targets" ] || continue
@@ -99,6 +115,7 @@ for stage in rootfs livefs bootfs; do
     done
 done
 sort -u -o "$TMP/iso-set" "$TMP/iso-set"
+fi
 
 # Host drift: the real local db against the host's own fresh sync dbs.
 ln -s /var/lib/pacman/local "$TMP/hostdb/local"
@@ -109,7 +126,7 @@ installed_kernel="$(pacman -Q linux 2>/dev/null | awk '{print $2}' | sed 's/\.ar
 
 python3 -I - "$TMP/tracker.json" "$TMP/iso-set" "$TMP/host-behind" "$TMP/missing" \
     "$running" "$installed_kernel" "${REPORT:-/dev/null}" <<'PY'
-import json, subprocess, sys
+import json, os, subprocess, sys
 tracker, iso_set, host_behind, missing, running, inst_kernel, report = sys.argv[1:]
 
 iso = dict(line.split() for line in open(iso_set) if line.strip())
@@ -137,7 +154,7 @@ host = [l.strip() for l in open(host_behind) if l.strip()]
 miss = [l.strip() for l in open(missing) if l.strip()]
 out = []
 p = out.append
-p(f"ISO package set: {len(iso)} packages (buildiso repos, fresh dbs)")
+p(f"ISO package set: {len(iso)} packages ({os.environ.get('PREFLIGHT_LABEL', 'buildiso repos, fresh dbs')})")
 p(f"\nBREAK (not in buildiso's repos, build would fail in make_rootfs): {len(miss)}")
 for m in miss:
     p(f"  {m}")
