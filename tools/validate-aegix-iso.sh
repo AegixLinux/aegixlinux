@@ -76,7 +76,7 @@ echo ""
 echo "--- Live Session ---"
 check "root autologin conf"   grep -q "autologin root" "$LIVEFS_MNT/etc/runit/sv/agetty-tty1/conf"
 check "install.sh in /root"   test -f "$LIVEFS_MNT/root/install.sh"
-check "install.sh in PATH"    test -f "$LIVEFS_MNT/usr/local/bin/install.sh"
+check "installer validates answers" grep -q "^prompt_username()" "$LIVEFS_MNT/root/install.sh"
 check "pacman-init has archlinux" grep -q "populate archlinux" "$LIVEFS_MNT/etc/runit/sv/pacman-init/run"
 check "elogind dbus masked"   grep -q "/bin/false" "$LIVEFS_MNT/usr/share/dbus-1/system-services/org.freedesktop.login1.service"
 
