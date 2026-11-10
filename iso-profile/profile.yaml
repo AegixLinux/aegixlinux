@@ -69,7 +69,6 @@ rootfs:
     - bc
     - fzf
     - bat
-    - glow
     - htop
     - man-db
     - man-pages
