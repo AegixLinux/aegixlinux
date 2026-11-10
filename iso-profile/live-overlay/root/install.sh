@@ -78,10 +78,29 @@ read -rp "Type YES to confirm: " really
 ### -------------------------------
 ### basic questions
 ### -------------------------------
+# prompt_password VAR "Label": ask until the answer is non-empty and typed the
+# same twice, then store it in VAR. An empty password used to be accepted here
+# and only failed at the very end, inside the chroot, after the disk was wiped.
+prompt_password() {
+  local __var="$1" __label="$2" __pw __pw2
+  # read -p prompts on stderr; keep all of this helper's chatter there too.
+  while :; do
+    IFS= read -rsp "$__label: " __pw || { printf '\nNo input, aborting.\n' >&2; exit 1; }; echo >&2
+    if [[ -z "$__pw" ]]; then
+      echo "Password cannot be empty, try again." >&2
+      continue
+    fi
+    IFS= read -rsp "Confirm $__label: " __pw2 || { printf '\nNo input, aborting.\n' >&2; exit 1; }; echo >&2
+    [[ "$__pw" == "$__pw2" ]] && break
+    echo "Passwords do not match, try again." >&2
+  done
+  printf -v "$__var" '%s' "$__pw"
+}
+
 read -rp "Hostname [aegix]: " HOSTNAME; HOSTNAME=${HOSTNAME:-aegix}
 read -rp "Username to create [aegix]: " NEWUSER; NEWUSER=${NEWUSER:-aegix}
-read -rsp "Password for $NEWUSER: " USERPASS; echo
-read -rsp "Password for root: " ROOTPASS; echo
+prompt_password USERPASS "Password for $NEWUSER"
+prompt_password ROOTPASS "Password for root"
 read -rp "Timezone [$HOST_TZ_DEFAULT]: " HOST_TZ; HOST_TZ=${HOST_TZ:-$HOST_TZ_DEFAULT}
 read -rp "Locale to enable [$LOCALE_DEFAULT]: " LOCALE; LOCALE=${LOCALE:-$LOCALE_DEFAULT}
 read -rp "Keymap [$KEYMAP_DEFAULT]: " KEYMAP; KEYMAP=${KEYMAP:-$KEYMAP_DEFAULT}

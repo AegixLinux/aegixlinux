@@ -13,3 +13,7 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- The installer no longer lets you skip the user or root password: it asks
+  again until you enter one, and has you type each twice. Before, an empty
+  password was accepted and the install failed at the very end, after the
+  disk had already been wiped.
