@@ -13,9 +13,3 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
-- The installer checks every answer before it touches the disk: user and
-  root passwords can no longer be left empty and must be typed twice, the
-  username must be a valid lowercase Linux name that is not already a system
-  account or group (so `Timothy` or `video` get a friendly retry), and the
-  hostname must be a valid single hostname. Before, these were accepted and
-  the install failed at the very end, after the disk had already been wiped.
