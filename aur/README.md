@@ -34,7 +34,7 @@ aur/
 ```
 
 Each package's `.git` is held outside its work tree so the parent
-AEGIX_AGENTIC repo can track the PKGBUILDs as regular files. Git commands
+AEGIX monorepo can track the PKGBUILDs as regular files. Git commands
 against the AUR-side state go through the `aur-git` wrapper.
 
 ## Day-to-day: nothing
@@ -50,46 +50,46 @@ PKGBUILDs when config.h changes.
 
 ```bash
 # 1. Edit the PKGBUILD
-vim ~/AEGIX_AGENTIC/aur/<pkgname>/PKGBUILD
+vim ~/code/PROJECTS/AEGIX/aur/<pkgname>/PKGBUILD
 
 # 2. Verify locally (regenerate .SRCINFO, namcap, clean-sandbox build)
-~/AEGIX_AGENTIC/tools/aur-publish.sh <pkgname>
+~/code/PROJECTS/AEGIX/tools/aur-publish.sh <pkgname>
 
 # 3. Commit + push to AUR (via the aur-git wrapper)
-~/AEGIX_AGENTIC/tools/aur-git <pkgname> add PKGBUILD .SRCINFO
-~/AEGIX_AGENTIC/tools/aur-git <pkgname> commit -m 'Bump deps'
-~/AEGIX_AGENTIC/tools/aur-git <pkgname> push
+~/code/PROJECTS/AEGIX/tools/aur-git <pkgname> add PKGBUILD .SRCINFO
+~/code/PROJECTS/AEGIX/tools/aur-git <pkgname> commit -m 'Bump deps'
+~/code/PROJECTS/AEGIX/tools/aur-git <pkgname> push
 
-# 4. Commit to the parent AEGIX_AGENTIC repo too (for the local audit trail)
-cd ~/AEGIX_AGENTIC
+# 4. Commit to the parent AEGIX monorepo too (for the local audit trail)
+cd ~/code/PROJECTS/AEGIX
 git add aur/<pkgname>/PKGBUILD aur/<pkgname>/.SRCINFO
 git commit -m 'chore(aur): bump <pkgname> PKGBUILD'
 ```
 
 ## Adding a 5th package later
 
-1. Create the work tree: `mkdir -p ~/AEGIX_AGENTIC/aur/<newpkg>`
+1. Create the work tree: `mkdir -p ~/code/PROJECTS/AEGIX/aur/<newpkg>`
 2. Write `PKGBUILD` + a `.gitignore` that excludes the source clone dir
    (typically `/<_pkgname>/` where `_pkgname` matches the source var)
-3. Verify: `~/AEGIX_AGENTIC/tools/aur-publish.sh <newpkg>`
+3. Verify: `~/code/PROJECTS/AEGIX/tools/aur-publish.sh <newpkg>`
 4. Init the AUR-side git state:
 
    ```bash
-   mkdir -p ~/AEGIX_AGENTIC/aur/.aur-git/<newpkg>
-   git --git-dir=~/AEGIX_AGENTIC/aur/.aur-git/<newpkg> \
-       --work-tree=~/AEGIX_AGENTIC/aur/<newpkg> \
+   mkdir -p ~/code/PROJECTS/AEGIX/aur/.aur-git/<newpkg>
+   git --git-dir=~/code/PROJECTS/AEGIX/aur/.aur-git/<newpkg> \
+       --work-tree=~/code/PROJECTS/AEGIX/aur/<newpkg> \
        init -q -b master
-   git --git-dir=~/AEGIX_AGENTIC/aur/.aur-git/<newpkg> \
-       config core.worktree "$HOME/AEGIX_AGENTIC/aur/<newpkg>"
-   git --git-dir=~/AEGIX_AGENTIC/aur/.aur-git/<newpkg> \
+   git --git-dir=~/code/PROJECTS/AEGIX/aur/.aur-git/<newpkg> \
+       config core.worktree "$HOME/code/PROJECTS/AEGIX/aur/<newpkg>"
+   git --git-dir=~/code/PROJECTS/AEGIX/aur/.aur-git/<newpkg> \
        remote add origin ssh://aur@aur.archlinux.org/<newpkg>.git
    ```
 5. Push initial import:
 
    ```bash
-   ~/AEGIX_AGENTIC/tools/aur-git <newpkg> add PKGBUILD .SRCINFO
-   ~/AEGIX_AGENTIC/tools/aur-git <newpkg> commit -m "Initial import of <newpkg>"
-   ~/AEGIX_AGENTIC/tools/aur-git <newpkg> push -u origin master
+   ~/code/PROJECTS/AEGIX/tools/aur-git <newpkg> add PKGBUILD .SRCINFO
+   ~/code/PROJECTS/AEGIX/tools/aur-git <newpkg> commit -m "Initial import of <newpkg>"
+   ~/code/PROJECTS/AEGIX/tools/aur-git <newpkg> push -u origin master
    ```
 
 ## References

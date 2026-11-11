@@ -13,6 +13,13 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- HiDPI displays are detected automatically at login: the new `aegix-dpi`
+  tool reads the panel's true DPI, snaps to a sane step (96/120/144/192) and
+  applies it as the one scaling knob. `aegix-dpi --info` shows the detection,
+  `--set N` pins a value. Leftover Wayland-era scripts are gone from the
+  default setup.
+- st: zoom in with plain `Ctrl+=` (no shift needed), alongside `Ctrl+-` and
+  `Ctrl+0`.
 - File open and save dialogs work in apps that use desktop portals (Claude
   Desktop, Electron and Chromium apps): Aegix now ships a portal config for
   dwm and hands the X display to the session bus at login.
