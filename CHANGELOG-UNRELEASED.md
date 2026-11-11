@@ -13,3 +13,6 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- The `stopwatch` count-up timer is back (it fell out of 20261111) and now
+  ships properly: built from source alongside `ttt`, with pause (`p`) and
+  splits (Enter). AUR users of `ttt-aegix-git` get it on their next update.
