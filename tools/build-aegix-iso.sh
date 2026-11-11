@@ -53,8 +53,10 @@ sudo bash -c 'rm -f /var/lib/artools/buildiso/aegix/aegix/*.lock 2>/dev/null
 raw=$(ls -t "$ISO_DIR"/artix-aegix-runit-*.iso 2>/dev/null | head -1)
 [ -n "$raw" ] || { echo "build-aegix-iso: no artix-aegix-runit-*.iso found in $ISO_DIR" >&2; exit 1; }
 
-# artix-aegix-runit-<version>-<arch>.iso -> aegix-<version>-<arch>.iso
-final="$ISO_DIR/aegix-$(basename "$raw" | sed 's/^artix-aegix-runit-//')"
+# Rename to aegix-<stamp>-x86_64.iso. Use OUR stamp, not the date embedded
+# in buildiso's name: buildiso stamps the LOCAL date, ours is UTC, and an
+# evening build crosses the line between them.
+final="$ISO_DIR/aegix-$stamp-x86_64.iso"
 mv "$raw" "$final"
 echo "ISO ready: $final"
 
