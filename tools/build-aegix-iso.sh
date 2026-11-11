@@ -21,7 +21,10 @@ PROFILE_DEST="${ISO_PROFILE_DEST:-/usr/share/artools/iso-profiles/aegix}"
 # tracked one) so builds never dirty git or trip the deploy cleanliness gate.
 commit="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
 dirty="clean"; git -C "$REPO_ROOT" diff --quiet -- iso-profile sync || dirty="dirty"
-stamp="$(date +%Y%m%d)"
+# UTC, matching GitHub's release timestamps: an evening build in EST is
+# already the next UTC day, and local-date stamps collided with a release
+# cut that same morning (two different 20261110 ISOs, 2026-11-10).
+stamp="$(date -u +%Y%m%d)"
 
 # Security gate: refuse to build an ISO that would ship a known High/Critical
 # vulnerability whose fix exists upstream but has not reached the repos yet.
