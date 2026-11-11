@@ -193,7 +193,7 @@ ship	.local/bin/aegix-display-autodetect
 never	.local/bin/.archived_2026-02-22_Sun/
 never	.local/bin/chills
 never	.local/bin/stopwatch.c
-never	.local/bin/vpn
+ship	.local/bin/vpn
 never	.local/bin/obsidian
 never	.local/bin/cursor-agent
 never	.local/bin/l2m
