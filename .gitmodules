@@ -19,3 +19,6 @@
 [submodule "ttt"]
 	path = ttt
 	url = git@github.com:aegixlinux/ttt.git
+[submodule "tdu"]
+	path = tdu
+	url = git@github.com:aegixlinux/tdu.git
