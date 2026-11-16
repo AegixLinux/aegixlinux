@@ -5,6 +5,7 @@ ROFI_OPTS="-dmenu -i -theme-str 'window {width: 300px; location: center;}' -them
 
 choice=$(printf "📺 Display
 📶 WiFi
+💾 Disk Usage
 😀 Emoji Picker
 🚀 Applications
 🔤 Font Size
@@ -15,7 +16,7 @@ choice=$(printf "📺 Display
 🔒 Lock Screen
 ⏻  Power Menu" | rofi -dmenu -i -p "≡ Menu" \
     -theme-str 'window {width: 280px; location: center; border: 2px; border-color: #444;}' \
-    -theme-str 'listview {lines: 11; scrollbar: false;}' \
+    -theme-str 'listview {lines: 12; scrollbar: false;}' \
     -theme-str 'element {padding: 8px;}')
 
 case "$choice" in
@@ -31,6 +32,8 @@ case "$choice" in
         dmenu-tz-switcher ;;
     *"WiFi"*)
         setsid -f wifimenu ;;
+    *"Disk Usage"*)
+        setsid -f st -e tdu ;;
     *"Audio"*)
         setsid -f st -e pulsemixer ;;
     *"Display"*)

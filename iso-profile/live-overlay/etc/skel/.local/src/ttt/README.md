@@ -38,9 +38,16 @@ In dwm, bind a key to spawn it in a small floating st window:
 with a dwm rule for the `ttt` class set to floating. The dial
 inherits st's transparency.
 
+## stopwatch
+
+The repo also builds `stopwatch`, the count-up companion to ttt's
+countdown: elapsed time with milliseconds, `p` pauses and resumes,
+Enter records a split on its own line, Ctrl-C stops. Pure POSIX,
+no X11 needed.
+
 ## Build
 
-    make            build ttt and ttt-flash
+    make            build ttt, ttt-flash and stopwatch
     make test       run the unit tests
     sudo make clean install
 
