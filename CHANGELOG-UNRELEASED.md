@@ -13,6 +13,11 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- New tool: `tdu`, terminal disk usage. One row per attached device with a
+  colored fill bar, press a row's key to drill into what is eating the
+  space, `r` rescans, `q` backs out. No dependencies, instant overview.
+  Also in the main menu (`Mod+m`) as Disk Usage, right under WiFi. On the
+  AUR as `tdu-aegix-git`.
 - The `stopwatch` count-up timer is back (it fell out of 20261111) and now
   ships properly: built from source alongside `ttt`, with pause (`p`) and
   splits (Enter). AUR users of `ttt-aegix-git` get it on their next update.
