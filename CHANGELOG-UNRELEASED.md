@@ -13,3 +13,10 @@ The contract:
   entry. Site-only changes do not get an entry either: this file is the
   story of the ISO.
 -->
+- Existing installs, upgrade note: if X dies instantly after pulling the
+  current dotfiles onto a pre-2026-era install, your old
+  `~/.config/shell/profile` is the cause: its PATH line uses zsh-only
+  syntax, and the new xprofile sources that file from plain sh. Replace it
+  with the current one from gohan (it is a stock file; yours almost
+  certainly has no local edits). Found on a real upgrade; fresh installs
+  are unaffected.
